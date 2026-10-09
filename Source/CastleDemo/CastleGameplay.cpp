@@ -1,6 +1,7 @@
 #include "CastleDemo.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -87,6 +88,7 @@ void ACastlePlayer::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
     Input->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
     Input->BindAction(TEXT("Restart"), IE_Pressed, this, &ACastlePlayer::Restart);
+    Input->BindAction(TEXT("RestartSame"), IE_Pressed, this, &ACastlePlayer::RestartSame);
     Input->BindAction(TEXT("Help"), IE_Pressed, this, &ACastlePlayer::Help);
     Input->BindAction(TEXT("Pause"), IE_Pressed, this, &ACastlePlayer::Pause).bExecuteWhenPaused = true;
 }
@@ -208,6 +210,7 @@ void ACastlePlayer::ResetRun()
     bDead = bReloading = bFiring = false; NextShot = 0; LastDamage = -100;
 }
 void ACastlePlayer::Restart() { if (auto* D = Director()) if (bDead || D->bWon) D->NewRun(); }
+void ACastlePlayer::RestartSame() { if (auto* D = Director()) if (bDead || D->bWon) D->RetrySameSeed(); }
 void ACastlePlayer::Pause()
 {
     auto* PC = Cast<APlayerController>(GetController());
@@ -258,6 +261,7 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
     case ECastleInteract::BossEnter: return TEXT("E  Enter boss arena (no return until victory)");
     case ECastleInteract::NextFloor: return Director && Director->Floor == 3 ? TEXT("E  Claim victory") : TEXT("E  Ascend to the next floor");
     case ECastleInteract::Weapon: return TEXT("E  Acquire reinforced carbine: +10 damage, +4 magazine");
+    case ECastleInteract::Rest: return TEXT("E  Rest once: health, shield and reserve ammo");
     default: return TEXT("E  Collect ammo and coins");
     }
 }
@@ -284,7 +288,7 @@ void ACastleInteractable::Use(ACastlePlayer* P)
     case ECastleInteract::CaveReturn: Director->LeaveCave(P); break;
     case ECastleInteract::BossEnter: Director->EnterBoss(P); break;
     case ECastleInteract::NextFloor:
-        if (!Director->bBossDefeated) return;
+        if (Director->Floor != 1 && !Director->bBossDefeated) return;
         if (Director->Floor == 3) { Director->bWon = true; P->Tell(TEXT("CASTLE CLEARED | Press ENTER for a new seed.")); }
         else Director->RequestFloor(Director->Floor + 1);
         break;
@@ -292,8 +296,36 @@ void ACastleInteractable::Use(ACastlePlayer* P)
     case ECastleInteract::Weapon:
         ++P->WeaponLevel; P->BulletDamage+=10; P->MagazineSize+=4; P->Ammo=P->MagazineSize;
         P->Tell(TEXT("WEAPON ACQUIRED: reinforced carbine | +10 damage, +4 magazine")); bUsed=true; break;
+    case ECastleInteract::Rest:
+        P->Health=FMath::Min(P->MaxHealth,P->Health+35);
+        P->Shield=FMath::Min(P->MaxShield,P->Shield+30);
+        P->Reserve+=48;
+        P->Tell(TEXT("RESTED: +35 health, +30 shield, +48 reserve ammo")); bUsed=true; break;
     }
     if (bUsed) { Mesh->SetVisibility(false); Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); Label->SetVisibility(false); }
+}
+
+ACastleTrap::ACastleTrap()
+{
+    Trigger=CreateDefaultSubobject<UBoxComponent>(TEXT("DamageZone"));
+    SetRootComponent(Trigger);
+    Trigger->SetBoxExtent(FVector(70,500,130));
+    Trigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    Trigger->SetCollisionResponseToAllChannels(ECR_Ignore);
+    Trigger->SetCollisionResponseToChannel(ECC_Pawn,ECR_Overlap);
+    Trigger->SetGenerateOverlapEvents(true);
+    Trigger->SetCanEverAffectNavigation(false);
+}
+
+void ACastleTrap::NotifyActorBeginOverlap(AActor* OtherActor)
+{
+    Super::NotifyActorBeginOverlap(OtherActor);
+    auto* Player=Cast<ACastlePlayer>(OtherActor);
+    if (!Player || bTriggered) return;
+    bTriggered=true;
+    Player->TakeDamage(15,FDamageEvent(),nullptr,this);
+    Player->Tell(TEXT("TRAP TRIGGERED: 15 damage"));
+    Trigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 ACastleAIController::ACastleAIController() { bWantsPlayerState = false; }

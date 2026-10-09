@@ -5,6 +5,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "AIController.h"
 #include "PCGSettings.h"
 #include "Commandlets/Commandlet.h"
@@ -17,11 +18,15 @@ class UPCGComponent;
 class UMaterialInterface;
 class UTextRenderComponent;
 class ACastleDirector;
+class UCastleStartMenu;
+class UEditableTextBox;
+class UButton;
+class UTextBlock;
 
 UENUM(BlueprintType)
-enum class ECastleRoom : uint8 { Entrance, Shop, Combat, Chest, Event, Cave };
+enum class ECastleRoom : uint8 { Entrance, Shop, Combat, Chest, Event, Cave, Rest, Elite, Trap, Exit };
 UENUM(BlueprintType)
-enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon };
+enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest };
 
 USTRUCT(BlueprintType, meta=(ScriptName="CastleRoomData"))
 struct FCastleRoom
@@ -30,6 +35,10 @@ struct FCastleRoom
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) FVector Center = FVector::ZeroVector;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) ECastleRoom Type = ECastleRoom::Entrance;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Doors = 0;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 RouteOrder = -1;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bActive = true;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bRevealed = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bVisited = false;
 };
 
 UCLASS()
@@ -88,6 +97,7 @@ private:
     void Reload();
     void Interact();
     void Restart();
+    void RestartSame();
     void Pause();
     void Help();
 };
@@ -129,6 +139,7 @@ public:
     virtual float TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*) override;
     void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBoss = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bElite = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float Health = 75;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float MaxHealth = 75;
     UPROPERTY() TObjectPtr<ACastleDirector> Director;
@@ -142,6 +153,17 @@ private:
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
     bool bCharging = false;
     void ShootAt(ACastlePlayer* Player, int32 Count);
+};
+
+UCLASS()
+class CASTLEDEMO_API ACastleTrap : public AActor
+{
+    GENERATED_BODY()
+public:
+    ACastleTrap();
+    UPROPERTY(VisibleAnywhere) TObjectPtr<class UBoxComponent> Trigger;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bTriggered = false;
+    virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
 };
 
 UCLASS()
@@ -164,7 +186,7 @@ class CASTLEDEMO_API UCastleLayoutSettings : public UPCGSettings
 public:
 #if WITH_EDITOR
     virtual FName GetDefaultNodeName() const override { return TEXT("CastleLayout"); }
-    virtual FText GetDefaultNodeTitle() const override { return FText::FromString(TEXT("Castle | Connected rooms, arena & cave")); }
+    virtual FText GetDefaultNodeTitle() const override { return FText::FromString(TEXT("Castle | Floor route and rooms")); }
     virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spawner; }
 #endif
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="8")) int32 ExtraConnections = 2;
@@ -187,6 +209,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation") int32 RunSeed = 0;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Floor = 1;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FCastleRoom> Rooms;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> FirstFloorRoute;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 GridWidth = 3;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 CurrentRoomIndex = 0;
+    UPROPERTY() TObjectPtr<UCastleStartMenu> StartMenu;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBossDefeated = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bWon = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bReady = false;
@@ -201,7 +227,10 @@ public:
     FString Region = TEXT("EXPLORATION");
     void GenerateLayout(const UCastleLayoutSettings* Settings);
     void RequestFloor(int32 InFloor);
+    void StartRun(int32 Seed);
     void NewRun();
+    void RetrySameSeed();
+    void RevealRoom(int32 RoomIndex);
     void EnterBoss(ACastlePlayer* Player);
     void EnterCave(ACastlePlayer* Player, const FVector& From);
     void LeaveCave(ACastlePlayer* Player);
@@ -217,6 +246,7 @@ private:
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
     ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss);
+    ACastleTrap* AddTrap(FVector Pos);
     float PendingFloorAt = 0;
     int32 PendingFloor = 0;
     void TickSmokeTest();
@@ -230,6 +260,28 @@ private:
     int32 SmokeMovementStep = 0;
     float SmokeMovementAt = 0;
     FVector SmokeMovementStart;
+    bool bMenuSmokeStarted = false;
+    bool bSmokeRetried = false;
+    float MenuCaptureAt = 0;
+    bool bMenuCaptureRequested = false;
+};
+
+UCLASS()
+class CASTLEDEMO_API UCastleStartMenu : public UUserWidget
+{
+    GENERATED_BODY()
+public:
+    UPROPERTY() TObjectPtr<ACastleDirector> Director;
+    UPROPERTY() TObjectPtr<UEditableTextBox> SeedInput;
+    UPROPERTY() TObjectPtr<UButton> StartButton;
+    UPROPERTY() TObjectPtr<UButton> RandomButton;
+    UPROPERTY() TObjectPtr<UTextBlock> Message;
+    virtual void NativeOnInitialized() override;
+    virtual void NativeConstruct() override;
+    static bool ParseSeed(const FString& Text, int32& OutSeed);
+private:
+    UFUNCTION() void ChooseRandom();
+    UFUNCTION() void StartGame();
 };
 
 UCLASS()

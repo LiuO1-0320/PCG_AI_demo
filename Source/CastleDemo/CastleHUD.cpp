@@ -40,32 +40,38 @@ void ACastleHUD::DrawHUD()
     Text(FString::Printf(TEXT("GOLD  %d     R: reload"),P->Coins),W-291,H-48,Gold);
     if(P->bReloading)Bar(W-291,H-26,245,4,1.25f-(P->ReloadEnd-Now),1.25f,Gold);
 
-    // Compact live map. Room labels: S shop, F fight, C chest, E event, V vault.
-    const float MX=W-218,MY=28,Step=55,Tile=39;
-    DrawRect(FLinearColor(.018f,.025f,.04f,.88f),MX-12,MY-8,210,221);
+    // Use the same grid and connections as the generated rooms.
+    const float MX=W-218,MY=28,Step=D->GridWidth==4?43:55,Tile=D->GridWidth==4?31:39;
+    const float LegendOffset=28+(D->GridWidth-1)*Step+Tile+12;
+    DrawRect(FLinearColor(.018f,.025f,.04f,.88f),MX-12,MY-8,210,LegendOffset+44);
     Text(TEXT("FLOOR MAP"),MX,MY,Gold);
-    const TCHAR* Initials[]={TEXT("IN"),TEXT("S"),TEXT("F"),TEXT("C"),TEXT("E"),TEXT("V")};
+    const TCHAR* Initials[]={TEXT("IN"),TEXT("S"),TEXT("F"),TEXT("C"),TEXT("E"),TEXT("V"),TEXT("R"),TEXT("EL"),TEXT("T"),TEXT("OUT")};
     for(int32 I=0;I<D->Rooms.Num();++I)
     {
-        const auto& R=D->Rooms[I]; float X=MX+(I%3)*Step,Y=MY+28+(2-I/3)*Step;
+        const auto& R=D->Rooms[I]; if(!R.bActive)continue;
+        float X=MX+(I%D->GridWidth)*Step,Y=MY+28+(D->GridWidth-1-I/D->GridWidth)*Step;
         if(R.Doors&1)DrawRect(Muted,X+Tile,Y+Tile*.45f,Step-Tile,4);
         if(R.Doors&2)DrawRect(Muted,X+Tile*.45f,Y-(Step-Tile),4,Step-Tile);
-        const FLinearColor Color=R.Type==ECastleRoom::Combat?FLinearColor(.45f,.18f,.18f):R.Type==ECastleRoom::Shop?FLinearColor(.1f,.36f,.34f):FLinearColor(.18f,.23f,.3f);
-        DrawRect(Color,X,Y,Tile,Tile); Text(Initials[static_cast<int32>(R.Type)],X+12,Y+10,White,.9f);
+        const FLinearColor Color=D->Floor==1 && !R.bRevealed?FLinearColor(.08f,.11f,.16f)
+            :R.Type==ECastleRoom::Combat?FLinearColor(.45f,.18f,.18f)
+            :R.Type==ECastleRoom::Shop?FLinearColor(.1f,.36f,.34f):FLinearColor(.18f,.23f,.3f);
+        DrawRect(Color,X,Y,Tile,Tile);
+        if(R.bVisited)DrawRect(Teal,X+Tile-4,Y,4,Tile);
+        Text(D->Floor==1 && !R.bRevealed?TEXT("?"):Initials[static_cast<int32>(R.Type)],X+(D->GridWidth==4?5:12),Y+8,White,D->GridWidth==4?.72f:.9f);
     }
     if(D->Region==TEXT("EXPLORATION"))
     {
         const FVector Pos=P->GetActorLocation();
-        const float X=MX+Tile*.5f+Pos.X/2400*Step,Y=MY+28+Tile*.5f+(2-Pos.Y/2400)*Step;
+        const float X=MX+Tile*.5f+Pos.X/2400*Step,Y=MY+28+Tile*.5f+(D->GridWidth-1-Pos.Y/2400)*Step;
         DrawRect(Teal,X-3,Y-3,6,6);
         for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==ECastleInteract::BossEnter)
         {
-            const auto L=It->GetActorLocation(); Text(TEXT("B"),MX+Tile*.5f+L.X/2400*Step,MY+28+Tile*.5f+(2-L.Y/2400)*Step,Gold);
+            const auto L=It->GetActorLocation(); Text(TEXT("B"),MX+Tile*.5f+L.X/2400*Step,MY+28+Tile*.5f+(D->GridWidth-1-L.Y/2400)*Step,Gold);
         }
     }
-    Text(TEXT("S shop / F foes / C chest"),MX,MY+184,Muted,.72f);
-    Text(TEXT("E altar / V vault / B boss"),MX,MY+198,Muted,.72f);
-    Text(D->bBossDefeated?TEXT("Objective: use the ASCEND portal"):D->Region==TEXT("BOSS ARENA")?TEXT("Objective: defeat the guardian"):TEXT("Objective: gather relics, find B gate"),26,116,White);
+    Text(TEXT("S shop / F foes / C chest"),MX,MY+LegendOffset,Muted,.72f);
+    Text(D->Floor==1?TEXT("? unknown / R rest / EL elite / T trap"):TEXT("E altar / V vault / B boss"),MX,MY+LegendOffset+14,Muted,.72f);
+    Text(D->Floor==1?TEXT("Objective: explore rooms; the exit is to the northeast"):D->bBossDefeated?TEXT("Objective: use the ASCEND portal"):D->Region==TEXT("BOSS ARENA")?TEXT("Objective: defeat the guardian"):TEXT("Objective: gather relics, find B gate"),26,116,White);
 
     if(IsValid(D->Boss) && D->Boss->bActive)
     {
@@ -103,7 +109,7 @@ void ACastleHUD::DrawHUD()
         Text(TEXT("ENTER THE CASTLE"),X+24,Y+17,Gold,1.5f);
         Text(TEXT("Explore connected rooms. Chests grant gold, ammo and relics."),X+24,Y+53,White);
         Text(TEXT("Spend gold at S rooms. E altars trade health for attributes."),X+24,Y+78,White);
-        Text(TEXT("V portals lead to optional vaults. B gates lead to the boss."),X+24,Y+103,White);
+        Text(D->Floor==1?TEXT("R rests once. OUT leads to floor 2. EL / T guard side loot."):TEXT("V portals lead to vaults. B gates lead to the boss."),X+24,Y+103,White);
         Text(TEXT("Shield recharges after 5 seconds without damage."),X+24,Y+128,Teal);
         Text(TEXT("Clear all 3 floors to win. Fire or press F1 to close."),X+24,Y+155,Gold);
     }
@@ -113,7 +119,7 @@ void ACastleHUD::DrawHUD()
         DrawRect(FLinearColor(.005f,.01f,.02f,.78f),0,0,W,H);
         const FString Title=P->bDead?TEXT("YOU FELL"):D->bWon?TEXT("THE CITADEL IS YOURS"):Paused?TEXT("PAUSED"):TEXT("GENERATING CASTLE...");
         Text(Title,W*.5f-200,H*.5f-45,D->bWon?Gold:White,2.2f);
-        Text(P->bDead||D->bWon?TEXT("ENTER: new run with a new seed"):Paused?TEXT("ESC: resume"):TEXT("PCG is building connected rooms, cover and the vault."),W*.5f-195,H*.5f+5,Teal,1.1f);
+        Text(P->bDead||D->bWon?TEXT("ENTER: random run   |   K: same seed"):Paused?TEXT("ESC: resume"):D->Floor==1?TEXT("PCG is building the first-floor node map."):TEXT("PCG is building connected rooms, cover and the vault."),W*.5f-195,H*.5f+5,Teal,1.1f);
     }
     Canvas->Canvas->PopTransform();
 }

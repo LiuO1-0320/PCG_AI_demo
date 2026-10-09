@@ -52,32 +52,102 @@ void ACastleDirector::TickSmokeTest()
         UE_LOG(LogTemp,Display,TEXT("CASTLE_KEYBOARD_OK Key=%s Distance=%.1f"),*Keys[SmokeMovementStep].ToString(),FVector::DotProduct(Delta,Directions[SmokeMovementStep]));
         ++SmokeMovementStep; SmokeMovementAt=0; return;
     }
-    if(Rooms.Num()!=9 || !IsValid(Boss)) {Fail(TEXT("Generated room count or boss missing"));return;}
-    int32 TypeCount[6]={0}; TSet<int32> Seen{0}; TArray<int32> Q{0};
+    if(Rooms.Num()!=(Floor==1?16:9) || (Floor!=1 && !IsValid(Boss)) || (Floor==1 && IsValid(Boss))) {Fail(TEXT("Generated room count or boss state"));return;}
+    int32 TypeCount[10]={0},ActiveCount=0; TSet<int32> Seen{0}; TArray<int32> Q{0};
+    for(const auto& Room:Rooms)if(Room.bActive)++ActiveCount;
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     for(int32 Head=0;Head<Q.Num();++Head)
     {
         int32 I=Q[Head];
         for(int32 S=0;S<4;++S)if(Rooms[I].Doors&(1<<S))
         {
-            int32 X=I%3+DX[S],Y=I/3+DY[S],N=Y*3+X;
-            if(X<0 || X>=3 || Y<0 || Y>=3 || !(Rooms[N].Doors&(1<<((S+2)%4)))) {Fail(TEXT("Invalid or asymmetric corridor"));return;}
+            int32 X=I%GridWidth+DX[S],Y=I/GridWidth+DY[S],N=Y*GridWidth+X;
+            if(X<0 || X>=GridWidth || Y<0 || Y>=GridWidth || !Rooms[N].bActive || !(Rooms[N].Doors&(1<<((S+2)%4)))) {Fail(TEXT("Invalid or asymmetric corridor"));return;}
             if(!Seen.Contains(N)) {Seen.Add(N);Q.Add(N);}
         }
     }
-    if(Seen.Num()!=9) {Fail(TEXT("Unreachable exploration room"));return;}
+    if(Seen.Num()!=ActiveCount) {Fail(TEXT("Unreachable exploration room"));return;}
     for(const auto& Room:Rooms)
     {
+        if(!Room.bActive)continue;
         ++TypeCount[static_cast<int32>(Room.Type)];
         auto* Path=UNavigationSystemV1::FindPathToLocationSynchronously(this,FVector(-400,0,100),Room.Center+FVector(0,0,100));
         if(!Path || !Path->IsValid() || Path->IsPartial())
         {
             for(const auto& Bounds:Nav->GetNavigationBounds()) UE_LOG(LogTemp,Error,TEXT("NavBounds %s"),*Bounds.AreaBox.ToString());
             UE_LOG(LogTemp,Error,TEXT("Failed nav room %s PathValid=%d Partial=%d"),*Room.Center.ToString(),Path?Path->IsValid():0,Path?Path->IsPartial():0);
+            for(int32 I=0;I<Rooms.Num();++I)
+            {
+                FNavLocation Projected;
+                const bool bProjected=Nav->ProjectPointToNavigation(Rooms[I].Center+FVector(0,0,100),Projected,FVector(300,300,400));
+                auto* FromStart=UNavigationSystemV1::FindPathToLocationSynchronously(this,FVector(-400,0,100),Rooms[I].Center+FVector(0,0,100));
+                UE_LOG(LogTemp,Error,TEXT("RoomNav %d Center=%s Doors=%d Projected=%d NavPoint=%s Path=%d Partial=%d"),I,*Rooms[I].Center.ToString(),Rooms[I].Doors,bProjected,*Projected.Location.ToString(),FromStart&&FromStart->IsValid(),FromStart&&FromStart->IsPartial());
+            }
             Fail(TEXT("Navigation does not reach every room"));return;
         }
     }
-    if(TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]!=3 || TypeCount[3]!=2 || TypeCount[4]!=1 || TypeCount[5]!=1) {Fail(TEXT("Missing guaranteed room functions"));return;}
+    if(Floor==1)
+    {
+        if(ActiveCount<10 || ActiveCount>12 || TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]<4 || TypeCount[3]!=1 || TypeCount[5]!=0 || TypeCount[6]!=1 || TypeCount[9]!=1 || TypeCount[4]+TypeCount[7]+TypeCount[8]<1 || TypeCount[4]+TypeCount[7]+TypeCount[8]>2 || TypeCount[7]>1)
+        {Fail(TEXT("First-floor room quota"));return;}
+        static const ECastleRoom Expected[7]={ECastleRoom::Entrance,ECastleRoom::Combat,ECastleRoom::Combat,ECastleRoom::Shop,ECastleRoom::Combat,ECastleRoom::Rest,ECastleRoom::Exit};
+        if(FirstFloorRoute.Num()!=7) {Fail(TEXT("First-floor main route length"));return;}
+        int32 EdgeCount=0;
+        for(const auto& Room:Rooms) for(int32 S=0;S<4;++S) if(Room.Doors&(1<<S)) ++EdgeCount;
+        if(EdgeCount<ActiveCount*2) {Fail(TEXT("First-floor map has no alternate route"));return;}
+        for(int32 Order=0;Order<7;++Order)
+        {
+            const int32 Index=FirstFloorRoute[Order];
+            if(Index<0 || Index>=16 || Rooms[Index].Type!=Expected[Order] || Rooms[Index].RouteOrder!=Order)
+            {Fail(TEXT("First-floor main route order"));return;}
+            if(Order>0)
+            {
+                const int32 Before=FirstFloorRoute[Order-1];
+                bool bAdjacent=false;
+                for(int32 Side=0;Side<4;++Side)if(Rooms[Before].Doors&(1<<Side))
+                {
+                    const int32 X=Before%4+DX[Side],Y=Before/4+DY[Side];
+                    if(Y*4+X==Index)bAdjacent=true;
+                }
+                if(!bAdjacent){Fail(TEXT("First-floor route not physically adjacent"));return;}
+            }
+        }
+        bool bAlternate=false;
+        for(int32 Edge=1;Edge<7;++Edge)
+        {
+            const int32 A=FirstFloorRoute[Edge-1],B=FirstFloorRoute[Edge];
+            TSet<int32> Reach{0};TArray<int32> Pending{0};
+            for(int32 Head=0;Head<Pending.Num();++Head)
+            {
+                const int32 I=Pending[Head];
+                for(int32 Side=0;Side<4;++Side)if(Rooms[I].Doors&(1<<Side))
+                {
+                    const int32 X=I%4+DX[Side],Y=I/4+DY[Side],N=Y*4+X;
+                    if((I==A && N==B)||(I==B && N==A)||Reach.Contains(N))continue;
+                    Reach.Add(N);Pending.Add(N);
+                }
+            }
+            if(Reach.Contains(15)){bAlternate=true;break;}
+        }
+        if(!bAlternate){Fail(TEXT("No alternate entrance-to-exit route"));return;}
+        if(!Rooms[0].bVisited || !Rooms[0].bRevealed){Fail(TEXT("Entrance fog state"));return;}
+        for(int32 I=1;I<16;++I)if(Rooms[I].bActive)
+        {
+            bool bExpected=false;
+            for(int32 Side=0;Side<4;++Side)if(Rooms[0].Doors&(1<<Side))
+            {
+                const int32 X=DX[Side],Y=DY[Side];if(X>=0 && X<4 && Y>=0 && Y<4 && Y*4+X==I)bExpected=true;
+            }
+            if(Rooms[I].bRevealed!=bExpected || Rooms[I].bVisited){Fail(TEXT("Initial fog reveals distant node"));return;}
+        }
+        int32 Parsed=0;
+        if(!UCastleStartMenu::ParseSeed(TEXT("2147483647"),Parsed) || Parsed!=MAX_int32 || UCastleStartMenu::ParseSeed(TEXT("0"),Parsed) || UCastleStartMenu::ParseSeed(TEXT("12x"),Parsed))
+        {Fail(TEXT("Menu seed validation"));return;}
+        RevealRoom(FirstFloorRoute[1]);
+        if(!Rooms[FirstFloorRoute[1]].bVisited || !Rooms[FirstFloorRoute[2]].bRevealed){Fail(TEXT("Adjacent room reveal"));return;}
+    }
+    else if(TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]!=3 || TypeCount[3]!=2 || TypeCount[4]!=1 || TypeCount[5]!=1)
+    {Fail(TEXT("Missing guaranteed room functions"));return;}
     auto FindItem=[&](ECastleInteract Kind)
     {
         for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==Kind && !It->bUsed)return *It;
@@ -98,13 +168,39 @@ void ACastleDirector::TickSmokeTest()
         P->Coins=30; Shop->Use(P); if(P->WeaponLevel!=2 || P->Coins!=0 || P->BulletDamage!=30) {Fail(TEXT("Weapon upgrade transaction"));return;}
         auto* Chest=FindItem(ECastleInteract::Chest); Chest->Use(P); int32 Relics=P->Relics,Coins=P->Coins;
         Chest->Use(P); if(P->Relics!=Relics || P->Coins!=Coins) {Fail(TEXT("Chest reward can be duplicated"));return;}
-        auto* Event=FindItem(ECastleInteract::Event); P->Health=15; Event->Use(P);
-        if(Event->bUsed) {Fail(TEXT("Altar allowed lethal health cost"));return;}
-        P->Health=P->MaxHealth; Event->Use(P); if(!Event->bUsed || P->Relics!=Relics+1){Fail(TEXT("Altar reward"));return;}
-        auto* Cave=FindItem(ECastleInteract::CaveEnter); Cave->Use(P);
-        if(Region!=TEXT("TREASURE CAVE") || FVector::Dist2D(P->GetActorLocation(),CaveCenter)>1800) {Fail(TEXT("Cave teleport"));return;}
-        FindItem(ECastleInteract::CaveReturn)->Use(P);
-        if(Region!=TEXT("EXPLORATION") || FVector::Dist2D(P->GetActorLocation(),Cave->GetActorLocation())>400) {Fail(TEXT("Cave return"));return;}
+        auto* Rest=FindItem(ECastleInteract::Rest); if(!Rest){Fail(TEXT("Rest room missing"));return;}
+        P->Health=50; P->Shield=10; P->Reserve=0; Rest->Use(P);
+        if(!Rest->bUsed || P->Health!=85 || P->Shield!=40 || P->Reserve!=48){Fail(TEXT("Rest room recovery"));return;}
+        Rest->Use(P); if(P->Health!=85 || P->Reserve!=48){Fail(TEXT("Rest room repeat reward"));return;}
+        if(auto* Event=FindItem(ECastleInteract::Event))
+        {
+            P->Health=15; Event->Use(P);
+            if(Event->bUsed) {Fail(TEXT("Altar allowed lethal health cost"));return;}
+            P->Health=P->MaxHealth; Event->Use(P); if(!Event->bUsed || P->Relics!=Relics+1){Fail(TEXT("Altar reward"));return;}
+        }
+        if(TypeCount[7])
+        {
+            ACastleEnemy* Elite=nullptr;
+            for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It) if(It->bElite) Elite=*It;
+            if(!Elite || Elite->bBoss || Elite->MaxHealth<130){Fail(TEXT("Elite room enemy"));return;}
+            const int32 Before=P->Coins;
+            int32 ChestsBefore=0;
+            for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::Chest) ++ChestsBefore;
+            Elite->bActive=true;
+            Elite->TakeDamage(99999,FDamageEvent(),P->GetController(),P);
+            int32 ChestsAfter=0;
+            for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::Chest) ++ChestsAfter;
+            if(P->Coins!=Before+30 || ChestsAfter!=ChestsBefore+1){Fail(TEXT("Elite reward"));return;}
+        }
+        if(TypeCount[8])
+        {
+            ACastleTrap* Trap=nullptr;
+            for(TActorIterator<ACastleTrap> It(GetWorld());It;++It) {Trap=*It;break;}
+            if(!Trap || !FindItem(ECastleInteract::Chest)){Fail(TEXT("Trap room content"));return;}
+            P->Shield=0; P->Health=100; Trap->NotifyActorBeginOverlap(P);
+            if(!Trap->bTriggered || P->Health!=85){Fail(TEXT("Trap damage"));return;}
+            Trap->NotifyActorBeginOverlap(P); if(P->Health!=85){Fail(TEXT("Trap repeat damage"));return;}
+        }
         // Exercise the actual camera trace / ammunition / damage path, not only ApplyDamage.
         auto* Target=AddEnemy(FVector(200,0,100),false); Target->bActive=true;
         Travel(P,FVector(-400,0,100));
@@ -127,6 +223,15 @@ void ACastleDirector::TickSmokeTest()
         P->ResetRun(); P->GrantRelic(0); SmokeDamageBeforeTravel=P->BulletDamage;
     }
     else if(P->BulletDamage!=SmokeDamageBeforeTravel) {Fail(TEXT("Attributes not preserved across floors"));return;}
+    if(Floor==1)
+    {
+        if(FindItem(ECastleInteract::BossEnter) || FindItem(ECastleInteract::CaveEnter)) {Fail(TEXT("Boss or cave appeared on first floor"));return;}
+        auto* Exit=FindItem(ECastleInteract::NextFloor); if(!Exit){Fail(TEXT("First-floor exit missing"));return;}
+        SmokeFloor=Floor; SmokeWaitStart=0;
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_FIRST_FLOOR_OK Seed=%d ConnectedRooms=%d Route=7 Navigation=OK"),RunSeed,ActiveCount);
+        Exit->Use(P); if(PendingFloor!=2){Fail(TEXT("First-floor exit did not request floor two"));return;}
+        return;
+    }
     auto* Gate=FindItem(ECastleInteract::BossEnter); if(!Gate){Fail(TEXT("Boss gate missing"));return;}
     Gate->Use(P); if(!Boss->bActive || Region!=TEXT("BOSS ARENA")){Fail(TEXT("Boss activation"));return;}
     // Verify the boss has a navigation path around randomized cover.
@@ -141,6 +246,15 @@ void ACastleDirector::TickSmokeTest()
     if(Floor==3)
     {
         if(!bWon){Fail(TEXT("Three floor victory"));return;}
+        if(FParse::Param(FCommandLine::Get(),TEXT("CastleRetrySmokeTest")) && !bSmokeRetried)
+        {
+            const int32 Before=RunSeed;
+            RetrySameSeed();
+            if(RunSeed!=Before || PendingFloor!=1){Fail(TEXT("Same-seed retry"));return;}
+            SmokeFloor=0;SmokeWaitStart=0;SmokeMovementStep=0;SmokeMovementAt=0;bSmokeRetried=true;
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_RETRY_SMOKE_OK Seed=%d"),RunSeed);
+            return;
+        }
         UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_OK: PCG, topology, navigation, AI possession, shooting, shield, shop, relics, cave, reload, death and three-floor victory verified."));
         FPlatformMisc::RequestExitWithStatus(false,0);
     }
@@ -171,6 +285,8 @@ void ACastleDirector::TickCapture()
     }
     else if(CaptureStage==1)
     {
+        // The first floor has no cave or boss; capture those in the second floor.
+        if(Floor==1){RequestFloor(2);NextCaptureAt=Now+3;return;}
         EnterCave(P,Rooms[0].Center); Name=TEXT("TreasureCave");
     }
     else if(CaptureStage==2)
