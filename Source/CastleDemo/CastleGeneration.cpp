@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleLanguage.h"
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGElement.h"
@@ -9,6 +10,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/TextBlock.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/PointLightComponent.h"
@@ -25,7 +28,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Misc/Paths.h"
 
-void CastleGenerateFirstFloorNodes(int32 RunSeed,TArray<FCastleRoom>& Rooms,TArray<int32>& Route);
+void CastleGenerateFloorNodes(int32 RunSeed,int32 Floor,TArray<FCastleRoom>& Rooms,TArray<int32>& Route);
 
 static int32 CastleStreamSeed(int32 RunSeed, int32 Floor, uint32 Purpose)
 {
@@ -45,7 +48,11 @@ protected:
         auto* Component = Cast<UPCGComponent>(Context->ExecutionSource.Get());
         auto* D = Component ? Cast<ACastleDirector>(Component->GetOwner()) : nullptr;
         if (!D) return true;
-        D->GenerateLayout(Context->GetInputSettings<UCastleLayoutSettings>());
+        const auto* Settings=Context->GetInputSettings<UCastleLayoutSettings>();
+        const ECastlePCGRegion Area=Settings->GeneratorRegion;
+        if(Area==ECastlePCGRegion::Exploration) D->GenerateLayout(Settings);
+        else if(Area==ECastlePCGRegion::TreasureCave) D->GenerateCave(Settings);
+        else D->GenerateBossArena(Settings);
         auto* Points = NewObject<UPCGPointData>();
         auto* RoomType = Points->Metadata->CreateAttribute<int32>(TEXT("RoomType"), 0, false, false);
         auto* Region = Points->Metadata->CreateAttribute<int32>(TEXT("Region"), 0, false, false);
@@ -60,14 +67,24 @@ protected:
             Points->GetMutablePoints().Add(P);
         };
         int32 ActiveRooms=0;
-        for (const auto& R : D->Rooms) if(R.bActive) {AddPoint(R.Center, static_cast<int32>(R.Type), 0, R.Doors, R.RouteOrder);++ActiveRooms;}
-        if (D->Floor != 1)
+        if(Area==ECastlePCGRegion::Exploration || Area==ECastlePCGRegion::TreasureCave)
         {
-            AddPoint(D->BossCenter, -1, 1, 0, -1); AddPoint(D->CaveCenter, -1, 2, 0, -1);
+            const auto& Nodes=Area==ECastlePCGRegion::Exploration?D->Rooms:D->CaveRooms;
+            for(const auto& R:Nodes) if(R.bActive)
+            {
+                AddPoint(R.Center,static_cast<int32>(R.Type),int32(Area),R.Doors,R.RouteOrder); ++ActiveRooms;
+            }
         }
-        FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
-        Output.Pin = TEXT("Out"); Output.Data = Points; Output.Tags.Add(TEXT("CastleLayout"));
-        UE_LOG(LogTemp, Display, TEXT("CASTLE_PCG_READY Floor=%d Seed=%d Rooms=%d"), D->Floor, D->RunSeed, ActiveRooms);
+        else
+        {
+            AddPoint(D->BossCenter,-1,int32(Area),0,-1); ++ActiveRooms;
+            for(const FVector& Pos:D->BossPlatforms) AddPoint(Pos,-2,int32(Area),0,-1);
+            for(const FVector& Pos:D->BossCoverPoints) AddPoint(Pos,-3,int32(Area),0,-1);
+        }
+        FPCGTaggedData& Output=Context->OutputData.TaggedData.Emplace_GetRef();
+        Output.Pin=TEXT("Out"); Output.Data=Points;
+        Output.Tags.Add(Area==ECastlePCGRegion::Exploration?TEXT("CastleExploration"):Area==ECastlePCGRegion::TreasureCave?TEXT("CastleTreasureCave"):TEXT("CastleBossArena"));
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_PCG_REGION_READY Region=%d Floor=%d Seed=%d Rooms=%d Points=%d"),int32(Area),D->Floor,D->RunSeed,ActiveRooms,Points->GetPoints().Num());
         return true;
     }
 };
@@ -76,11 +93,12 @@ TArray<FPCGPinProperties> UCastleLayoutSettings::InputPinProperties() const { re
 TArray<FPCGPinProperties> UCastleLayoutSettings::OutputPinProperties() const { return { FPCGPinProperties(TEXT("Out"), EPCGDataType::Point) }; }
 FPCGElementPtr UCastleLayoutSettings::CreateElement() const { return MakeShared<FCastleLayoutElement>(); }
 
-UPCGGraph* ACastleDirector::MakeGraph(UObject* Outer)
+UPCGGraph* ACastleDirector::MakeGraph(UObject* Outer, ECastlePCGRegion GeneratorRegion)
 {
     auto* Graph = NewObject<UPCGGraph>(Outer);
     UCastleLayoutSettings* Settings = nullptr;
     auto* Node = Graph->AddNodeOfType(Settings);
+    Settings->GeneratorRegion=GeneratorRegion;
     Graph->AddEdge(Node, TEXT("Out"), Graph->GetOutputNode(), TEXT("Out"));
     return Graph;
 }
@@ -94,14 +112,32 @@ ACastleDirector::ACastleDirector()
     PCG = CreateDefaultSubobject<UPCGComponent>(TEXT("PCG_Castle"));
     PCG->bActivated = true;
     PCG->GenerationTrigger = EPCGComponentGenerationTrigger::GenerateOnDemand;
+    CavePCG=CreateDefaultSubobject<UPCGComponent>(TEXT("PCG_TreasureCave"));
+    BossPCG=CreateDefaultSubobject<UPCGComponent>(TEXT("PCG_BossArena"));
+    for(auto* Component:{CavePCG.Get(),BossPCG.Get()})
+    {
+        Component->bActivated=true;
+        Component->GenerationTrigger=EPCGComponentGenerationTrigger::GenerateOnDemand;
+    }
 }
 
 void ACastleDirector::BeginPlay()
 {
     Super::BeginPlay();
     bReady=false;
-    auto* Graph = LoadObject<UPCGGraph>(nullptr, TEXT("/Game/Demo/PCG_Castle.PCG_Castle"));
-    PCG->SetGraph(Graph ? Graph : MakeGraph(this));
+    FString LanguageArg;
+    if(FParse::Value(FCommandLine::Get(),TEXT("CastleLanguage="),LanguageArg))
+    {
+        if(LanguageArg==TEXT("zh")) CastleSetChinese(true,false);
+        else if(LanguageArg==TEXT("en")) CastleSetChinese(false,false);
+    }
+    const TCHAR* GraphPaths[]={TEXT("/Game/Demo/PCG_Exploration.PCG_Exploration"),TEXT("/Game/Demo/PCG_BossArena.PCG_BossArena"),TEXT("/Game/Demo/PCG_TreasureCave.PCG_TreasureCave")};
+    UPCGComponent* Components[]={PCG,BossPCG,CavePCG};
+    for(int32 I=0;I<3;++I)
+    {
+        auto* Graph=LoadObject<UPCGGraph>(nullptr,GraphPaths[I]);
+        Components[I]->SetGraph(Graph?Graph:MakeGraph(this,static_cast<ECastlePCGRegion>(I)));
+    }
     FString SeedArg; int32 ParsedSeed=0;
     if(FParse::Value(FCommandLine::Get(),TEXT("CastleSeed="),SeedArg) && UCastleStartMenu::ParseSeed(SeedArg,ParsedSeed))
         StartRun(ParsedSeed);
@@ -134,6 +170,15 @@ void ACastleDirector::Tick(float Dt)
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("CastleMenuSmokeTest")) && !bMenuSmokeStarted && IsValid(StartMenu) && IsValid(StartMenu->StartButton))
     {
+        const bool OriginalLanguage=CastleIsChinese();
+        StartMenu->LanguageButton->OnClicked.Broadcast();
+        const auto* StartCaption=Cast<UTextBlock>(StartMenu->StartButton->GetChildAt(0));
+        bool SavedLanguage=OriginalLanguage;
+        GConfig->GetBool(TEXT("CastleDemo.Language"),TEXT("Chinese"),SavedLanguage,GGameUserSettingsIni);
+        if(CastleIsChinese()==OriginalLanguage || SavedLanguage!=CastleIsChinese() || !StartCaption || StartCaption->GetText().ToString()!=CastleText(TEXT("START GAME")))
+        {UE_LOG(LogTemp,Error,TEXT("CASTLE_LANGUAGE_SMOKE_FAILED Menu switch or persistence"));FPlatformMisc::RequestExitWithStatus(true,1);return;}
+        StartMenu->LanguageButton->OnClicked.Broadcast();
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_LANGUAGE_MENU_OK: bilingual menu toggle and saved preference"));
         StartMenu->RandomButton->OnClicked.Broadcast();
         int32 RandomSeed=0;
         if(!UCastleStartMenu::ParseSeed(StartMenu->SeedInput->GetText().ToString(),RandomSeed))
@@ -150,10 +195,25 @@ void ACastleDirector::Tick(float Dt)
     if (PendingFloor && GetWorld()->GetTimeSeconds() >= PendingFloorAt)
     {
         Floor = PendingFloor; PendingFloor = 0; bReady = false;
-        PCG->Seed = int32(uint32(RunSeed) + uint32(Floor)*1009u);
+        ClearGenerated();
+        bBossDefeated=bWon=false; Kills=0; Region=TEXT("EXPLORATION");
+        bExplorationGenerated=bCaveGenerated=bBossGenerated=false;
+        bCaveRequested=bBossRequested=false;
+        PCG->Seed=CastleStreamSeed(RunSeed,Floor,0x43a2f17bu);
         PCG->Generate(true);
     }
-    if(bReady && Floor==1 && Region==TEXT("EXPLORATION"))
+    if(!bReady && bExplorationGenerated && Floor>1)
+    {
+        if(!bCaveRequested)
+        {
+            bCaveRequested=true; CavePCG->Seed=CastleStreamSeed(RunSeed,Floor,0xcabed123u); CavePCG->Generate(true);
+        }
+        else if(bCaveGenerated && !bBossRequested)
+        {
+            bBossRequested=true; BossPCG->Seed=CastleStreamSeed(RunSeed,Floor,0xb055a12fu); BossPCG->Generate(true);
+        }
+    }
+    if(bReady && Region==TEXT("EXPLORATION"))
     {
         if(auto* P=UGameplayStatics::GetPlayerPawn(this,0))
         {
@@ -181,7 +241,7 @@ void ACastleDirector::RequestFloor(int32 InFloor)
         P->GetCharacterMovement()->StopMovementImmediately();
         P->GetCharacterMovement()->DisableMovement();
         P->SetActorEnableCollision(false);
-        P->Tell(FString::Printf(TEXT("Generating floor %d..."), InFloor));
+        P->Tell((CastleIsChinese()?FString::Printf(TEXT("正在生成第 %d 层……"), InFloor):FString::Printf(TEXT("Generating floor %d..."), InFloor)));
     }
 }
 
@@ -196,13 +256,14 @@ void ACastleDirector::ClearGenerated()
     }
     GeneratedActors.Empty();
     for (UInstancedStaticMeshComponent* Component : Geometry) if (Component) Component->DestroyComponent();
-    Geometry.Empty(); Rooms.Empty(); FirstFloorRoute.Empty(); Boss = nullptr;
+    Geometry.Empty(); Rooms.Empty(); FirstFloorRoute.Empty(); CaveRooms.Empty(); CaveRoute.Empty();
+    BossPlatforms.Empty(); BossCoverPoints.Empty(); Boss=nullptr;
 }
 
-void ACastleDirector::AddBox(FVector Pos, FVector Size, int32 Material, bool Collision)
+void ACastleDirector::AddBox(FVector Pos, FVector Size, int32 Material, bool Collision, FRotator Rotation)
 {
     // Separate visual-only objects from navigation/collision geometry.
-    const int32 Slot = Material + (Collision ? 0 : 9);
+    const int32 Slot = int32(GeneratingRegion)*18 + Material + (Collision ? 0 : 9);
     while (Geometry.Num() <= Slot) Geometry.Add(nullptr);
     if (!Geometry[Slot])
     {
@@ -213,7 +274,7 @@ void ACastleDirector::AddBox(FVector Pos, FVector Size, int32 Material, bool Col
         ISM->SetCollisionProfileName(Collision ? TEXT("BlockAll") : TEXT("NoCollision"));
         ISM->SetCanEverAffectNavigation(Collision); ISM->RegisterComponent(); Geometry[Slot] = ISM;
     }
-    Geometry[Slot]->AddInstance(FTransform(FQuat::Identity, Pos, Size / 100), true);
+    Geometry[Slot]->AddInstance(FTransform(Rotation, Pos, Size / 100), true);
 }
 
 void ACastleDirector::BuildRoom(FVector C, float Half, int32 Doors, int32 Material)
@@ -259,7 +320,7 @@ void ACastleDirector::AddSign(FVector Pos, const FString& Value, FColor Color)
     Sign->GetTextRender()->SetText(FText::FromString(Value));
     Sign->GetTextRender()->SetHorizontalAlignment(EHTA_Center);
     Sign->GetTextRender()->SetWorldSize(36); Sign->GetTextRender()->SetTextRenderColor(Color);
-    Sign->GetTextRender()->SetCollisionEnabled(ECollisionEnabled::NoCollision); GeneratedActors.Add(Sign);
+    Sign->GetTextRender()->SetCollisionEnabled(ECollisionEnabled::NoCollision); TrackGenerated(Sign);
 }
 
 void ACastleDirector::AddLight(FVector Pos, FLinearColor Color)
@@ -268,21 +329,21 @@ void ACastleDirector::AddLight(FVector Pos, FLinearColor Color)
     Light->SetMobility(EComponentMobility::Movable);
     auto* Component = Light->PointLightComponent.Get();
     Component->SetIntensity(9000); Component->SetAttenuationRadius(1900); Component->SetLightColor(Color); Component->SetCastShadows(false);
-    GeneratedActors.Add(Light);
+    TrackGenerated(Light);
 }
 
 ACastleInteractable* ACastleDirector::AddInteract(FVector Pos, ECastleInteract Kind, const FString& Title, int32 Reward)
 {
     FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     auto* Item = GetWorld()->SpawnActor<ACastleInteractable>(Pos, FRotator::ZeroRotator, P);
-    Item->Configure(Kind, Title, this, Reward); GeneratedActors.Add(Item); return Item;
+    Item->Configure(Kind, Title, this, Reward); TrackGenerated(Item); return Item;
 }
 
 ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss)
 {
     FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     auto* Enemy = GetWorld()->SpawnActor<ACastleEnemy>(Pos, FRotator::ZeroRotator, P);
-    Enemy->Configure(IsBoss, Floor, this); GeneratedActors.Add(Enemy); return Enemy;
+    Enemy->Configure(IsBoss, Floor, this); TrackGenerated(Enemy); return Enemy;
 }
 
 void ACastleDirector::StartRun(int32 Seed)
@@ -314,59 +375,33 @@ ACastleTrap* ACastleDirector::AddTrap(FVector Pos)
 {
     FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     auto* Trap = GetWorld()->SpawnActor<ACastleTrap>(Pos, FRotator::ZeroRotator, Params);
-    GeneratedActors.Add(Trap);
+    TrackGenerated(Trap);
     return Trap;
 }
 
 void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
 {
-    ClearGenerated(); bBossDefeated = bWon = false; Kills = 0; Region = TEXT("EXPLORATION");
-    if (Materials.IsEmpty())
-    {
-        for (const TCHAR* Name : {TEXT("M_Floor"),TEXT("M_Trim"),TEXT("M_Stone"),TEXT("M_Gold"),TEXT("M_Teal"),TEXT("M_Purple"),TEXT("M_Cave"),TEXT("M_Portal"),TEXT("M_Metal")})
-            Materials.Add(LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Demo/Materials/%s.%s"),Name,Name)));
-    }
-    FRandomStream R(Floor==1 ? CastleStreamSeed(RunSeed,Floor,0x43a2f17bu) : int32(uint32(RunSeed)+uint32(Floor)*1009u));
-    GridWidth=Floor==1?4:3;
+    ClearGeneratedRegion(ECastlePCGRegion::Exploration);
+    Rooms.Empty(); FirstFloorRoute.Empty();
+    GeneratingRegion=ECastlePCGRegion::Exploration;
+    InitializeMaterials();
+    FRandomStream R(CastleStreamSeed(RunSeed,Floor,0x43a2f17bu));
+    GridWidth=4;
     Rooms.SetNum(GridWidth*GridWidth);
     for (int32 I=0;I<Rooms.Num();++I)
     {
         Rooms[I].Center=FVector((I%GridWidth)*2400,(I/GridWidth)*2400,0);
-        Rooms[I].bActive=Floor!=1;
+        Rooms[I].bActive=false;
         Rooms[I].bRevealed=Rooms[I].bVisited=false;
     }
-    const int32 DX[] = {1,0,-1,0}, DY[] = {0,1,0,-1};
-    auto Neighbor = [&](int32 I, int32 Side)
-    {
-        const int32 X = I%GridWidth+DX[Side], Y = I/GridWidth+DY[Side];
-        return X>=0 && X<GridWidth && Y>=0 && Y<GridWidth ? Y*GridWidth+X : -1;
-    };
-    auto Connect = [&](int32 A, int32 Side, int32 B) { Rooms[A].Doors |= 1<<Side; Rooms[B].Doors |= 1<<((Side+2)%4); };
-    if (Floor == 1)
-    {
-        CastleGenerateFirstFloorNodes(RunSeed,Rooms,FirstFloorRoute);
-        RevealRoom(0);
-    }
-    else
-    {
-        // Keep the existing exploration layout for later floors while floor one is developed.
-        TArray<int32> Stack{0}; TSet<int32> Visited{0};
-        while (!Stack.IsEmpty())
+    CastleGenerateFloorNodes(RunSeed,Floor,Rooms,FirstFloorRoute);
+    RevealRoom(0);
+    if(Floor>1)
+        for(const auto& Room:Rooms) if(Room.bActive && Room.Type==ECastleRoom::Chest)
         {
-            const int32 Current = Stack.Last(); TArray<int32> Options;
-            for (int32 S=0; S<4; ++S) { int32 N=Neighbor(Current,S); if(N>=0 && !Visited.Contains(N)) Options.Add(S); }
-            if (Options.IsEmpty()) { Stack.Pop(); continue; }
-            const int32 S = Options[R.RandRange(0,Options.Num()-1)], N = Neighbor(Current,S);
-            Connect(Current,S,N); Visited.Add(N); Stack.Add(N);
+            AddInteract(Room.Center+FVector(-520,-450,135),ECastleInteract::CaveEnter,TEXT("TREASURE CAVE"));
+            break;
         }
-        TArray<FIntPoint> Missing;
-        for (int32 I=0; I<9; ++I) for(int32 S=0;S<2;++S) if(Neighbor(I,S)>=0 && !(Rooms[I].Doors&(1<<S))) Missing.Add(FIntPoint(I,S));
-        const int32 Extra = Settings ? Settings->ExtraConnections : 2;
-        for(int32 I=0; I<Extra && !Missing.IsEmpty(); ++I) { int32 Pick=R.RandRange(0,Missing.Num()-1); auto E=Missing[Pick]; Connect(E.X,E.Y,Neighbor(E.X,E.Y)); Missing.RemoveAt(Pick); }
-        TArray<ECastleRoom> Types{ECastleRoom::Shop, ECastleRoom::Combat, ECastleRoom::Combat, ECastleRoom::Combat, ECastleRoom::Chest, ECastleRoom::Chest, ECastleRoom::Event, ECastleRoom::Cave};
-        for(int32 I=Types.Num()-1;I>0;--I) Types.Swap(I,R.RandRange(0,I));
-        for(int32 I=1;I<9;++I) Rooms[I].Type=Types[I-1];
-    }
     const TCHAR* Names[] = { TEXT("ENTRANCE"),TEXT("ARMORY / SHOP"),TEXT("SENTINEL HALL"),TEXT("RELIQUARY"),TEXT("OFFERING ALTAR"),TEXT("TREASURE PORTAL"),TEXT("REST ROOM"),TEXT("ELITE GUARD"),TEXT("TRAP ROOM"),TEXT("FLOOR EXIT") };
     for (int32 I=0; I<Rooms.Num(); ++I)
     {
@@ -413,7 +448,7 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
             const FVector AwayFromDoor = (Room.Doors & 1) ? FVector(-520,0,0)
                 : (Room.Doors & 2) ? FVector(0,-520,0)
                 : (Room.Doors & 4) ? FVector(520,0,0) : FVector(0,520,0);
-            AddInteract(C+AwayFromDoor+FVector(0,0,135),ECastleInteract::NextFloor,TEXT("ASCEND TO FLOOR 2"));
+            AddInteract(C+AwayFromDoor+FVector(0,0,135),Floor==1?ECastleInteract::NextFloor:ECastleInteract::BossEnter,Floor==1?TEXT("ASCEND TO FLOOR 2"):TEXT("BOSS GATE"));
             break;
         }
         }
@@ -425,40 +460,6 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
             for(int32 Sign : {-1,1}) AddBox(Mid+(S==0?FVector(0,Sign*280,240):FVector(Sign*280,0,240)),S==0?FVector(700,65,480):FVector(65,700,480),2);
             AddBox(Mid+FVector(0,0,2),S==0?FVector(600,26,3):FVector(26,600,3),4,false);
         }
-    }
-    if (Floor != 1)
-    {
-        // Existing later-floor boss and cave flow stays separate from the first-floor route.
-        int32 Dist[9]; for(int32& V:Dist)V=-1; Dist[0]=0; TArray<int32> Queue{0}; int32 Farthest=0;
-        for(int32 Head=0;Head<Queue.Num();++Head) for(int32 S=0;S<4;++S) if(Rooms[Queue[Head]].Doors&(1<<S))
-        { int32 N=Neighbor(Queue[Head],S); if(N>=0 && Dist[N]<0) { Dist[N]=Dist[Queue[Head]]+1; Queue.Add(N); if(Dist[N]>Dist[Farthest])Farthest=N; } }
-        AddInteract(Rooms[Farthest].Center+FVector(-450,-450,135),ECastleInteract::BossEnter,TEXT("BOSS GATE"));
-
-        BuildRoom(BossCenter,R.FRandRange(2000,2300),0,2);
-        AddSign(BossCenter+FVector(1950,0,380),BossName(),FColor(220,170,255));
-        const int32 CoverCount = Settings ? Settings->ArenaCoverCount : 10;
-        for(int32 I=0;I<CoverCount;++I)
-        {
-            const float Angle=2*PI*I/FMath::Max(1,CoverCount)+R.FRandRange(-.1f,.1f);
-            const float Radius=R.FRandRange(850,1450);
-            const FVector Pos=BossCenter+FVector(FMath::Cos(Angle)*Radius,FMath::Sin(Angle)*Radius,110);
-            AddBox(Pos,FVector(R.FRandRange(130,240),R.FRandRange(200,330),220),8);
-            AddBox(Pos+FVector(0,0,115),FVector(180,260,10),5,false);
-        }
-        Boss = AddEnemy(BossCenter+FVector(400,0,180),true);
-        AddInteract(BossCenter+FVector(-1500,300,45),ECastleInteract::Ammo,TEXT("ARENA SUPPLIES"));
-
-        BuildRoom(CaveCenter,R.FRandRange(1600,1900),0,6);
-        AddLight(CaveCenter+FVector(0,0,400),FLinearColor(.25f,.5f,1));
-        AddSign(CaveCenter+FVector(1600,0,350),TEXT("THE SUNKEN VAULT"),FColor(120,210,255));
-        for(int32 I=0;I<12;++I)
-        {
-            const float Angle=2*PI*I/12, Radius=R.FRandRange(1050,1400);
-            AddBox(CaveCenter+FVector(FMath::Cos(Angle)*Radius,FMath::Sin(Angle)*Radius,160),FVector(R.FRandRange(150,270),R.FRandRange(140,250),R.FRandRange(280,520)),6);
-        }
-        for(int32 I=0;I<3;++I) AddInteract(CaveCenter+FVector(100+I*300+R.FRandRange(-60,60),(I-1)*350+R.FRandRange(-70,70),45),ECastleInteract::Chest,TEXT("VAULT RELIC"),R.RandRange(0,2));
-        for(int32 I=0;I<2+Floor;++I) AddEnemy(CaveCenter+FVector(R.FRandRange(450,800),R.FRandRange(-800,800),100),false);
-        AddInteract(CaveCenter+FVector(-1150,-400,135),ECastleInteract::CaveReturn,TEXT("RETURN PORTAL"));
     }
     if(Floor==1)
     {
@@ -472,13 +473,28 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         }
         UE_LOG(LogTemp,Display,TEXT("CASTLE_FIRST_FLOOR_CONTENT Hash=%u"),ContentHash);
     }
+    bExplorationGenerated=true;
+    if(Floor==1 && !bReady) CompleteFloorGeneration();
+}
+
+void ACastleDirector::InitializeMaterials()
+{
+    if (Materials.IsEmpty())
+    {
+        for (const TCHAR* Name : {TEXT("M_Floor"),TEXT("M_Trim"),TEXT("M_Stone"),TEXT("M_Gold"),TEXT("M_Teal"),TEXT("M_Purple"),TEXT("M_Cave"),TEXT("M_Portal"),TEXT("M_Metal")})
+            Materials.Add(LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Demo/Materials/%s.%s"),Name,Name)));
+    }
+}
+
+void ACastleDirector::CompleteFloorGeneration()
+{
     bReady=true;
     if(auto* P=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0)))
     {
         P->SetActorEnableCollision(true); Travel(P,FVector(-400,0,110));
         P->Shield=P->MaxShield; P->Health=FMath::Min(P->MaxHealth,P->Health+35); P->Reserve+=48;
         P->Tell(Floor==1 ? TEXT("Floor 1 | Fight, explore side rooms, then find the ASCEND portal.")
-                         : FString::Printf(TEXT("Floor %d | Explore rooms, collect relics, then find the BOSS GATE."),Floor));
+                         : (CastleIsChinese()?FString::Printf(TEXT("第 %d 层 | 探索房间、收集藏品，然后寻找首领入口。"),Floor):FString::Printf(TEXT("Floor %d | Explore rooms, collect relics, then find the BOSS GATE."),Floor)));
     }
     if(auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld())) Nav->Build();
 }
@@ -498,14 +514,18 @@ void ACastleDirector::Travel(ACastlePlayer* P,FVector Pos,float Yaw)
 }
 void ACastleDirector::EnterBoss(ACastlePlayer* P)
 {
-    if(!Boss || bBossDefeated) return;
+    if(!bReady || !Boss || bBossDefeated) return;
     Region=TEXT("BOSS ARENA"); Travel(P,BossCenter+FVector(-1700,0,110)); Boss->bActive=true;
     P->Tell(TEXT("Boss arena sealed. Dodge bolts, use cover, leave red telegraphs."));
 }
 void ACastleDirector::EnterCave(ACastlePlayer* P,const FVector& From)
 {
+    if(!bReady || CaveRoute.Num()!=4) return;
     ReturnLocation=From+FVector(-240,0,0); ReturnLocation.Z=110;
-    Region=TEXT("TREASURE CAVE"); Travel(P,CaveCenter+FVector(-1000,0,110)); P->Tell(TEXT("Optional vault: rare relics guarded by sentinels. Return through the blue portal."));
+    Region=TEXT("TREASURE CAVE");
+    const float EntryYaw=(CaveRooms[CaveRoute[1]].Center-CaveEntrance).Rotation().Yaw;
+    Travel(P,CaveEntrance+FVector(0,0,110),EntryYaw);
+    P->Tell(TEXT("Vault: collect relics along the four-room path, then leave through the exit portal."));
 }
 void ACastleDirector::LeaveCave(ACastlePlayer* P) { Region=TEXT("EXPLORATION"); Travel(P,ReturnLocation,180); }
 void ACastleDirector::EnemyKilled(ACastleEnemy* E)

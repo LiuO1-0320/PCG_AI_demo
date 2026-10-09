@@ -1,17 +1,17 @@
 #include "CastleDemo.h"
 
-static int32 NodeStreamSeed(int32 RunSeed, uint32 Purpose)
+static int32 NodeStreamSeed(int32 RunSeed, int32 Floor, uint32 Purpose)
 {
-    uint32 X=uint32(RunSeed) ^ (uint32(1)*0x9e3779b9u) ^ Purpose;
+    uint32 X=uint32(RunSeed) ^ (uint32(Floor)*0x9e3779b9u) ^ Purpose;
     X^=X>>16; X*=0x7feb352du; X^=X>>15; X*=0x846ca68bu; X^=X>>16;
     return int32(X);
 }
 
-void CastleGenerateFirstFloorNodes(int32 RunSeed,TArray<FCastleRoom>& Rooms,TArray<int32>& Route)
+void CastleGenerateFloorNodes(int32 RunSeed,int32 Floor,TArray<FCastleRoom>& Rooms,TArray<int32>& Route)
 {
     check(Rooms.Num()==16);
-    FRandomStream LayoutR(NodeStreamSeed(RunSeed,0x70a91d23u));
-    FRandomStream TypeR(NodeStreamSeed(RunSeed,0xb01d47a1u));
+    FRandomStream LayoutR(NodeStreamSeed(RunSeed,Floor,0x70a91d23u));
+    FRandomStream TypeR(NodeStreamSeed(RunSeed,Floor,0xb01d47a1u));
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     auto Neighbor=[&](int32 I,int32 Side)
     {
@@ -124,5 +124,5 @@ void CastleGenerateFirstFloorNodes(int32 RunSeed,TArray<FCastleRoom>& Rooms,TArr
         Hash=(Hash^uint32(Room.Doors+16*int32(Room.Type)))*16777619u;
         for(int32 Side=0;Side<4;++Side)if(Room.Doors&(1<<Side))++Links;
     }
-    UE_LOG(LogTemp,Display,TEXT("CASTLE_FIRST_FLOOR_ROUTE Nodes=%d Links=%d Exit=15 Hash=%u"),ActiveCount,Links/2,Hash);
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_FLOOR_ROUTE Floor=%d Nodes=%d Links=%d Exit=15 Hash=%u"),Floor,ActiveCount,Links/2,Hash);
 }

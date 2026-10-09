@@ -14,6 +14,9 @@
 #include "Components/InputComponent.h"
 #include "InputKeyEventArgs.h"
 #include "HAL/PlatformTime.h"
+#include "PCGComponent.h"
+#include "PCGGraph.h"
+#include "PCGNode.h"
 
 void ACastleDirector::TickSmokeTest()
 {
@@ -52,7 +55,7 @@ void ACastleDirector::TickSmokeTest()
         UE_LOG(LogTemp,Display,TEXT("CASTLE_KEYBOARD_OK Key=%s Distance=%.1f"),*Keys[SmokeMovementStep].ToString(),FVector::DotProduct(Delta,Directions[SmokeMovementStep]));
         ++SmokeMovementStep; SmokeMovementAt=0; return;
     }
-    if(Rooms.Num()!=(Floor==1?16:9) || (Floor!=1 && !IsValid(Boss)) || (Floor==1 && IsValid(Boss))) {Fail(TEXT("Generated room count or boss state"));return;}
+    if(Rooms.Num()!=16 || (Floor!=1 && !IsValid(Boss)) || (Floor==1 && IsValid(Boss))) {Fail(TEXT("Generated room count or boss state"));return;}
     int32 TypeCount[10]={0},ActiveCount=0; TSet<int32> Seen{0}; TArray<int32> Q{0};
     for(const auto& Room:Rooms)if(Room.bActive)++ActiveCount;
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
@@ -86,7 +89,6 @@ void ACastleDirector::TickSmokeTest()
             Fail(TEXT("Navigation does not reach every room"));return;
         }
     }
-    if(Floor==1)
     {
         if(ActiveCount<10 || ActiveCount>12 || TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]<4 || TypeCount[3]!=1 || TypeCount[5]!=0 || TypeCount[6]!=1 || TypeCount[9]!=1 || TypeCount[4]+TypeCount[7]+TypeCount[8]<1 || TypeCount[4]+TypeCount[7]+TypeCount[8]>2 || TypeCount[7]>1)
         {Fail(TEXT("First-floor room quota"));return;}
@@ -146,8 +148,6 @@ void ACastleDirector::TickSmokeTest()
         RevealRoom(FirstFloorRoute[1]);
         if(!Rooms[FirstFloorRoute[1]].bVisited || !Rooms[FirstFloorRoute[2]].bRevealed){Fail(TEXT("Adjacent room reveal"));return;}
     }
-    else if(TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]!=3 || TypeCount[3]!=2 || TypeCount[4]!=1 || TypeCount[5]!=1)
-    {Fail(TEXT("Missing guaranteed room functions"));return;}
     auto FindItem=[&](ECastleInteract Kind)
     {
         for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==Kind && !It->bUsed)return *It;
@@ -232,6 +232,68 @@ void ACastleDirector::TickSmokeTest()
         Exit->Use(P); if(PendingFloor!=2){Fail(TEXT("First-floor exit did not request floor two"));return;}
         return;
     }
+    UPCGComponent* RegionComponents[]={PCG,BossPCG,CavePCG};
+    if(PCG->GetGraph()==BossPCG->GetGraph() || PCG->GetGraph()==CavePCG->GetGraph() || BossPCG->GetGraph()==CavePCG->GetGraph()) {Fail(TEXT("Region graphs are not independent"));return;}
+    for(int32 Area=0;Area<3;++Area)
+    {
+        bool Found=false;
+        for(auto* Node:RegionComponents[Area]->GetGraph()->GetNodes()) if(auto* Settings=Cast<UCastleLayoutSettings>(Node->GetSettings()))
+            Found=Settings->GeneratorRegion==static_cast<ECastlePCGRegion>(Area);
+        if(!Found){Fail(TEXT("Wrong region generator in PCG graph"));return;}
+    }
+    if(CaveRooms.Num()!=6 || CaveRoute.Num()!=4 || BossPlatforms.Num()<2 || BossPlatforms.Num()>4 || BossCoverPoints.Num()<4) {Fail(TEXT("Cave grid or arena features missing"));return;}
+    TSet<int32> CaveSeen;
+    int32 CaveActive=0,CaveLinks=0;
+    for(const auto& Room:CaveRooms) if(Room.bActive) {++CaveActive;for(int32 Side=0;Side<4;++Side)if(Room.Doors&(1<<Side))++CaveLinks;}
+    if(CaveActive!=4 || CaveLinks!=6){Fail(TEXT("Vault must be a four-room path"));return;}
+    for(int32 Order=0;Order<4;++Order)
+    {
+        const int32 I=CaveRoute[Order];
+        if(I<0 || I>=6 || CaveSeen.Contains(I) || !CaveRooms[I].bActive || CaveRooms[I].RouteOrder!=Order){Fail(TEXT("Vault route repeats a tile"));return;}
+        CaveSeen.Add(I);
+        int32 Degree=0;
+        for(int32 Side=0;Side<4;++Side)if(CaveRooms[I].Doors&(1<<Side))
+        {
+            ++Degree; const int32 X=I%2+DX[Side],Y=I/2+DY[Side],N=Y*2+X;
+            if(X<0 || X>=2 || Y<0 || Y>=3 || !CaveRooms[N].bActive || !(CaveRooms[N].Doors&(1<<((Side+2)%4)))){Fail(TEXT("Invalid cave corridor"));return;}
+        }
+        if(Degree!=((Order==0 || Order==3)?1:2)){Fail(TEXT("Vault has a dead-end reward branch"));return;}
+        if(Order==0)
+        {
+            FNavLocation Entry;
+            if(!Nav->ProjectPointToNavigation(CaveEntrance+FVector(0,0,100),Entry,FVector(200,200,300))) {Fail(TEXT("Vault entrance is outside navigation"));return;}
+            continue;
+        }
+        auto* CavePath=UNavigationSystemV1::FindPathToLocationSynchronously(this,CaveEntrance+FVector(0,0,100),CaveRooms[I].Center+FVector(0,0,100));
+        if(!CavePath || !CavePath->IsValid() || CavePath->IsPartial())
+        {
+            FNavLocation A,B;
+            const bool PA=Nav->ProjectPointToNavigation(CaveEntrance+FVector(0,0,100),A,FVector(200,200,300));
+            const bool PB=Nav->ProjectPointToNavigation(CaveRooms[I].Center+FVector(0,0,100),B,FVector(200,200,300));
+            UE_LOG(LogTemp,Error,TEXT("CaveNav Room=%d Entry=%s Target=%s Project=%d/%d Points=%s/%s Valid=%d Partial=%d"),I,*CaveEntrance.ToString(),*CaveRooms[I].Center.ToString(),PA,PB,*A.Location.ToString(),*B.Location.ToString(),CavePath?CavePath->IsValid():0,CavePath?CavePath->IsPartial():0);
+            for(const auto& Bounds:Nav->GetNavigationBounds())UE_LOG(LogTemp,Error,TEXT("CaveNavBounds %s"),*Bounds.AreaBox.ToString());
+            Fail(TEXT("Vault route is not navigable"));return;
+        }
+    }
+    for(const auto& Top:BossPlatforms)
+    {
+        auto* RaisedPath=UNavigationSystemV1::FindPathToLocationSynchronously(this,BossCenter+FVector(-1700,0,100),Top+FVector(0,0,100));
+        if(!RaisedPath || !RaisedPath->IsValid() || RaisedPath->IsPartial() || RaisedPath->PathPoints.Last().Z<Top.Z-40){Fail(TEXT("Arena raised platform cannot be reached by ramp"));return;}
+    }
+    auto* Cave=FindItem(ECastleInteract::CaveEnter); if(!Cave){Fail(TEXT("Later-floor cave portal missing"));return;}
+    const FVector BeforeCave=Cave->GetActorLocation();
+    Cave->Use(P); if(Region!=TEXT("TREASURE CAVE")){Fail(TEXT("Cave entry"));return;}
+    if(FVector::Dist2D(P->GetActorLocation(),CaveEntrance)>100){Fail(TEXT("Cave portal missed the entrance"));return;}
+    auto* Return=FindItem(ECastleInteract::CaveReturn); if(!Return){Fail(TEXT("Cave return missing"));return;}
+    if(CaveEntrance==CaveExit || FVector::Dist2D(Return->GetActorLocation(),CaveExit)>700){Fail(TEXT("Cave exit is not in the final room"));return;}
+    Travel(P,CaveExit+FVector(0,0,110));
+    Return->Use(P); if(Region!=TEXT("EXPLORATION") || FVector::Dist2D(P->GetActorLocation(),BeforeCave)>300){Fail(TEXT("Cave return"));return;}
+    if(FindItem(ECastleInteract::NextFloor)){Fail(TEXT("Later-floor exit unlocked before boss"));return;}
+    auto* ExistingBoss=Boss.Get();
+    for(auto* Node:PCG->GetGraph()->GetNodes()) if(auto* Settings=Cast<UCastleLayoutSettings>(Node->GetSettings())) GenerateLayout(Settings);
+    if(Boss!=ExistingBoss || !IsValid(Return) || CaveRoute.Num()!=4 || !bReady){Fail(TEXT("Exploration regeneration modified another region"));return;}
+    for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)It->bActive=false;
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_REGIONS_OK Floor=%d Graphs=3 Cave=2x3/4Rooms/3Links RaisedPlatforms=%d Navigation=OK"),Floor,BossPlatforms.Num());
     auto* Gate=FindItem(ECastleInteract::BossEnter); if(!Gate){Fail(TEXT("Boss gate missing"));return;}
     Gate->Use(P); if(!Boss->bActive || Region!=TEXT("BOSS ARENA")){Fail(TEXT("Boss activation"));return;}
     // Verify the boss has a navigation path around randomized cover.
@@ -241,7 +303,7 @@ void ACastleDirector::TickSmokeTest()
     if(!bBossDefeated || IsValid(Boss)){Fail(TEXT("Boss victory state"));return;}
     auto* Exit=FindItem(ECastleInteract::NextFloor); if(!Exit){Fail(TEXT("Boss did not unlock exit"));return;}
     SmokeFloor=Floor; SmokeWaitStart=0;
-    UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_FLOOR_OK Floor=%d Seed=%d ConnectedRooms=9 Navigation=OK"),Floor,RunSeed);
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_FLOOR_OK Floor=%d Seed=%d ConnectedRooms=%d Navigation=OK"),Floor,RunSeed,ActiveCount);
     Exit->Use(P);
     if(Floor==3)
     {
@@ -291,7 +353,10 @@ void ACastleDirector::TickCapture()
     }
     else if(CaptureStage==2)
     {
-        EnterBoss(P); Travel(P,BossCenter+FVector(-1750,-1500,110),35); Name=TEXT("BossArena");
+        EnterBoss(P);
+        const FVector Viewpoint=BossPlatforms.IsEmpty()?BossCenter+FVector(-1900,-300,0):BossPlatforms[0];
+        Travel(P,Viewpoint+FVector(0,0,110),(BossCenter-Viewpoint).Rotation().Yaw);
+        Name=TEXT("BossArena");
     }
     else if(CaptureStage==3)
     {

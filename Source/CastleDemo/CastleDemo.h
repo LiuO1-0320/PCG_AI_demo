@@ -27,6 +27,8 @@ UENUM(BlueprintType)
 enum class ECastleRoom : uint8 { Entrance, Shop, Combat, Chest, Event, Cave, Rest, Elite, Trap, Exit };
 UENUM(BlueprintType)
 enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest };
+UENUM(BlueprintType)
+enum class ECastlePCGRegion : uint8 { Exploration, BossArena, TreasureCave };
 
 USTRUCT(BlueprintType, meta=(ScriptName="CastleRoomData"))
 struct FCastleRoom
@@ -100,6 +102,7 @@ private:
     void RestartSame();
     void Pause();
     void Help();
+    void ToggleLanguage();
 };
 
 UCLASS()
@@ -186,9 +189,10 @@ class CASTLEDEMO_API UCastleLayoutSettings : public UPCGSettings
 public:
 #if WITH_EDITOR
     virtual FName GetDefaultNodeName() const override { return TEXT("CastleLayout"); }
-    virtual FText GetDefaultNodeTitle() const override { return FText::FromString(TEXT("Castle | Floor route and rooms")); }
+    virtual FText GetDefaultNodeTitle() const override { return FText::FromString(GeneratorRegion==ECastlePCGRegion::Exploration?TEXT("Castle | Exploration rooms"):GeneratorRegion==ECastlePCGRegion::TreasureCave?TEXT("Castle | Four-room vault"):TEXT("Castle | Multilevel boss arena")); }
     virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spawner; }
 #endif
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle") ECastlePCGRegion GeneratorRegion = ECastlePCGRegion::Exploration;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="8")) int32 ExtraConnections = 2;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="30")) int32 ArenaCoverCount = 10;
 protected:
@@ -206,11 +210,19 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> PCG;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> CavePCG;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> BossPCG;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation") int32 RunSeed = 0;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Floor = 1;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FCastleRoom> Rooms;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> FirstFloorRoute;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 GridWidth = 3;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FCastleRoom> CaveRooms;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> CaveRoute;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FVector> BossPlatforms;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FVector> BossCoverPoints;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) FVector CaveEntrance;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) FVector CaveExit;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 GridWidth = 4;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 CurrentRoomIndex = 0;
     UPROPERTY() TObjectPtr<UCastleStartMenu> StartMenu;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBossDefeated = false;
@@ -220,12 +232,14 @@ public:
     UPROPERTY() TArray<TObjectPtr<AActor>> GeneratedActors;
     UPROPERTY() TArray<TObjectPtr<UInstancedStaticMeshComponent>> Geometry;
     UPROPERTY() TArray<TObjectPtr<UMaterialInterface>> Materials;
-    FVector BossCenter = FVector(9600, 2400, 0);
-    FVector CaveCenter = FVector(0, 12000, 0);
+    FVector BossCenter = FVector(11200, 3600, 0);
+    FVector CaveCenter = FVector(0, 10000, 0);
     FVector ReturnLocation;
     int32 Kills = 0;
     FString Region = TEXT("EXPLORATION");
     void GenerateLayout(const UCastleLayoutSettings* Settings);
+    void GenerateCave(const UCastleLayoutSettings* Settings);
+    void GenerateBossArena(const UCastleLayoutSettings* Settings);
     void RequestFloor(int32 InFloor);
     void StartRun(int32 Seed);
     void NewRun();
@@ -236,12 +250,19 @@ public:
     void LeaveCave(ACastlePlayer* Player);
     void EnemyKilled(ACastleEnemy* Enemy);
     void Travel(ACastlePlayer* Player, FVector Destination, float Yaw = 0);
-    static class UPCGGraph* MakeGraph(UObject* Outer);
+    static class UPCGGraph* MakeGraph(UObject* Outer, ECastlePCGRegion GeneratorRegion = ECastlePCGRegion::Exploration);
     FString BossName() const;
     ACastleInteractable* AddInteract(FVector Pos, ECastleInteract Kind, const FString& Title, int32 Reward = 0);
 private:
     void ClearGenerated();
-    void AddBox(FVector Pos, FVector Size, int32 Material, bool Collision = true);
+    void ClearGeneratedRegion(ECastlePCGRegion InRegion);
+    void CompleteFloorGeneration();
+    void InitializeMaterials();
+    void TrackGenerated(AActor* Actor);
+    ECastlePCGRegion GeneratingRegion = ECastlePCGRegion::Exploration;
+    bool bExplorationGenerated = false, bCaveGenerated = false, bBossGenerated = false;
+    bool bCaveRequested = false, bBossRequested = false;
+    void AddBox(FVector Pos, FVector Size, int32 Material, bool Collision = true, FRotator Rotation = FRotator::ZeroRotator);
     void BuildRoom(FVector Center, float HalfSize, int32 Doors, int32 Material);
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
@@ -276,12 +297,18 @@ public:
     UPROPERTY() TObjectPtr<UButton> StartButton;
     UPROPERTY() TObjectPtr<UButton> RandomButton;
     UPROPERTY() TObjectPtr<UTextBlock> Message;
+    UPROPERTY() TObjectPtr<UButton> LanguageButton;
+    UPROPERTY() TArray<TObjectPtr<UTextBlock>> MenuLabels;
+    TArray<FString> MenuLabelSources;
+    FString MessageSource;
+    void RefreshLanguage();
     virtual void NativeOnInitialized() override;
     virtual void NativeConstruct() override;
     static bool ParseSeed(const FString& Text, int32& OutSeed);
 private:
     UFUNCTION() void ChooseRandom();
     UFUNCTION() void StartGame();
+    UFUNCTION() void ToggleLanguage();
 };
 
 UCLASS()
@@ -291,6 +318,7 @@ class CASTLEDEMO_API ACastleHUD : public AHUD
 public:
     virtual void DrawHUD() override;
 private:
+    UPROPERTY() TObjectPtr<class UFont> LanguageFont;
     void Text(const FString& Value, float X, float Y, FLinearColor Color, float Scale = 1);
     void Bar(float X, float Y, float W, float H, float Value, float Max, FLinearColor Color);
 };

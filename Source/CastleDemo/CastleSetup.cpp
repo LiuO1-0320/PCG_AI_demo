@@ -23,6 +23,7 @@
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "UObject/SavePackage.h"
 #include "Misc/PackageName.h"
+#include "Misc/Parse.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PCGGraph.h"
 #include "PCGComponent.h"
@@ -43,6 +44,26 @@ int32 UCastleSetupCommandlet::Main(const FString& Params)
         FSavePackageArgs Args; Args.TopLevelFlags=RF_Public|RF_Standalone;
         return UPackage::SavePackage(Package,Asset,*File,Args);
     };
+    UPCGGraph* RegionGraphs[3]={};
+    const TCHAR* GraphNames[]={TEXT("PCG_Exploration"),TEXT("PCG_BossArena"),TEXT("PCG_TreasureCave")};
+    for(int32 I=0;I<3;++I)
+    {
+        const FString Path=FString(TEXT("/Game/Demo/"))+GraphNames[I];
+        auto* Graph=LoadObject<UPCGGraph>(nullptr,*(Path+TEXT(".")+GraphNames[I]));
+        if(!Graph)
+        {
+            Graph=ACastleDirector::MakeGraph(CreatePackage(*Path),static_cast<ECastlePCGRegion>(I));
+            Graph->Rename(GraphNames[I]); Graph->SetFlags(RF_Public|RF_Standalone);
+            FAssetRegistryModule::AssetCreated(Graph);
+        }
+        if(!SaveAsset(Graph))return 2;
+        RegionGraphs[I]=Graph;
+    }
+    if(FParse::Param(*Params,TEXT("GraphsOnly")))
+    {
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_REGION_GRAPHS_OK: exploration, cave and boss PCG assets saved; existing map/materials preserved."));
+        return 0;
+    }
     struct FPalette { const TCHAR* Name; FLinearColor Color; float Emission; };
     const FPalette Palette[]={
         {TEXT("M_Floor"),FLinearColor(.085f,.11f,.14f),.08f},
@@ -78,13 +99,7 @@ int32 UCastleSetupCommandlet::Main(const FString& Params)
         Mat->PostEditChange(); FAssetRegistryModule::AssetCreated(Mat);
         if(!SaveAsset(Mat)) return 1;
     }
-    auto* Graph=LoadObject<UPCGGraph>(nullptr,TEXT("/Game/Demo/PCG_Castle.PCG_Castle"));
-    if(!Graph)
-    {
-        Graph=ACastleDirector::MakeGraph(CreatePackage(TEXT("/Game/Demo/PCG_Castle")));
-        Graph->Rename(TEXT("PCG_Castle")); Graph->SetFlags(RF_Public|RF_Standalone);
-    }
-    FAssetRegistryModule::AssetCreated(Graph); if(!SaveAsset(Graph))return 2;
+    auto* Graph=RegionGraphs[0];
 
     UWorld* World=GEditor->NewMap();
     World->GetWorldSettings()->DefaultGameMode=ACastleGameMode::StaticClass();
@@ -118,6 +133,7 @@ int32 UCastleSetupCommandlet::Main(const FString& Params)
     FBSPOps::csgPrepMovingBrush(Bounds); Bounds->PostEditChange();
     Bounds->SetActorLabel(TEXT("Dynamic navigation - all generated regions"));
     auto* Director=World->SpawnActor<ACastleDirector>(); Director->SetActorLabel(TEXT("Castle PCG Director"));
+    Director->CavePCG->SetGraph(RegionGraphs[2]); Director->BossPCG->SetGraph(RegionGraphs[1]);
     Director->PCG->SetGraph(Graph); Director->RunSeed=1337;
     // Include an editor preview. BeginPlay clears it and regenerates through PCG.
     Director->GenerateLayout(GetDefault<UCastleLayoutSettings>()); Director->RunSeed=0;

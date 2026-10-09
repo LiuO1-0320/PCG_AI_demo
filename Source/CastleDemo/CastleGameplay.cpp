@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleLanguage.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
@@ -90,6 +91,7 @@ void ACastlePlayer::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction(TEXT("Restart"), IE_Pressed, this, &ACastlePlayer::Restart);
     Input->BindAction(TEXT("RestartSame"), IE_Pressed, this, &ACastlePlayer::RestartSame);
     Input->BindAction(TEXT("Help"), IE_Pressed, this, &ACastlePlayer::Help);
+    Input->BindKey(EKeys::F2,IE_Pressed,this,&ACastlePlayer::ToggleLanguage).bExecuteWhenPaused=true;
     Input->BindAction(TEXT("Pause"), IE_Pressed, this, &ACastlePlayer::Pause).bExecuteWhenPaused = true;
 }
 
@@ -106,6 +108,7 @@ void ACastlePlayer::Look(float V) { if (!bDead) AddControllerPitchInput(V); }
 void ACastlePlayer::FirePressed() { bFiring = true; bHelp = false; Fire(); }
 void ACastlePlayer::FireReleased() { bFiring = false; }
 void ACastlePlayer::Help() { bHelp = !bHelp; }
+void ACastlePlayer::ToggleLanguage() { CastleSetChinese(!CastleIsChinese()); }
 
 void ACastlePlayer::Tick(float Dt)
 {
@@ -254,7 +257,7 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
     switch (Kind)
     {
     case ECastleInteract::Chest: return TEXT("E  Open chest: coins, ammo and a relic");
-    case ECastleInteract::Shop: return FString::Printf(TEXT("E  Upgrade weapon + supplies | %d coins"), 30 + (P->WeaponLevel - 1) * 20);
+    case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("E 升级武器并补给 | %d 金币"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("E  Upgrade weapon + supplies | %d coins"), 30 + (P->WeaponLevel - 1) * 20));
     case ECastleInteract::Event: return TEXT("E  Make an offering: 15 health for a relic");
     case ECastleInteract::CaveEnter: return TEXT("E  Enter the treasure cave");
     case ECastleInteract::CaveReturn: return TEXT("E  Return to exploration");
@@ -396,7 +399,7 @@ void ACastleEnemy::Tick(float Dt)
     if (bCharging && Now >= BlastTime)
     {
         bCharging = false; Telegraph->SetVisibility(false);
-        if (FVector::Dist2D(P->GetActorLocation(), BlastCenter) < 400 && P->GetActorLocation().Z < 260)
+        if (FVector::Dist2D(P->GetActorLocation(), BlastCenter) < 400 && FMath::Abs(P->GetActorLocation().Z-P->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()-BlastCenter.Z)<160)
             UGameplayStatics::ApplyDamage(P, AttackDamage * 2.4f, GetController(), this, nullptr);
         DrawDebugCircle(GetWorld(), BlastCenter + FVector(0,0,10), 400, 48, FColor::Orange, false, .35f, 0, 8, FVector::ForwardVector, FVector::RightVector, false);
     }
@@ -423,7 +426,10 @@ void ACastleEnemy::Tick(float Dt)
     if (bBoss && Now >= NextBlast && !bCharging)
     {
         NextBlast = Now + 6; BlastTime = Now + 1.4f; bCharging = true;
-        BlastCenter = FVector(P->GetActorLocation().X, P->GetActorLocation().Y, 3);
+        FHitResult Ground; FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(CastleSlamGround),false,this); GroundQuery.AddIgnoredActor(P);
+        const FVector GroundStart=P->GetActorLocation()+FVector(0,0,60);
+        GetWorld()->LineTraceSingleByChannel(Ground,GroundStart,GroundStart-FVector(0,0,900),ECC_Visibility,GroundQuery);
+        BlastCenter=Ground.bBlockingHit?Ground.ImpactPoint+FVector(0,0,3):P->GetActorLocation()-FVector(0,0,85);
         Telegraph->SetWorldLocation(BlastCenter); Telegraph->SetVisibility(true);
         P->Tell(TEXT("BOSS SLAM: leave the red circle!"));
     }

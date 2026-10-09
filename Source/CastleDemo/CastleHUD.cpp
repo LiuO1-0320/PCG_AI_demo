@@ -1,13 +1,26 @@
 #include "CastleDemo.h"
+#include "CastleLanguage.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Engine/Font.h"
+#include "Misc/Paths.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "CanvasTypes.h"
+#include "CanvasItem.h"
 
 void ACastleHUD::Text(const FString& V,float X,float Y,FLinearColor C,float Scale)
 {
-    DrawText(V,C,X,Y,GEngine->GetSmallFont(),Scale,false);
+    if(!LanguageFont)
+    {
+        LanguageFont=NewObject<UFont>(this);
+        LanguageFont->FontCacheType=EFontCacheType::Runtime;
+        LanguageFont->GetMutableInternalCompositeFont().DefaultTypeface.Fonts.Emplace(
+            FName(TEXT("Regular")),FPaths::EngineContentDir()/TEXT("Slate/Fonts/DroidSansFallback.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
+    }
+    FCanvasTextItem Item(FVector2D(X,Y),FText::FromString(CastleText(V)),FSlateFontInfo(LanguageFont,12*Scale,FName(TEXT("Regular"))),C);
+    Item.EnableShadow(FLinearColor::Black);
+    Canvas->DrawItem(Item);
 }
 void ACastleHUD::Bar(float X,float Y,float W,float H,float V,float Max,FLinearColor C)
 {
@@ -26,60 +39,88 @@ void ACastleHUD::DrawHUD()
     const FLinearColor White(.88f,.91f,.94f),Teal(.2f,.85f,.84f),Gold(1,.76f,.3f),Muted(.5f,.57f,.65f);
     DrawRect(FLinearColor(.018f,.025f,.04f,.85f),20,20,410,82);
     Text(TEXT("THE HOLLOW CITADEL"),36,29,Gold,1.5f);
-    Text(FString::Printf(TEXT("FLOOR  %d / 3     %s"),D->Floor,*D->Region),36,58,White,1.05f);
-    Text(FString::Printf(TEXT("SEED %d   |   KILLS %d   |   RELICS %d"),D->RunSeed,D->Kills,P->Relics),36,80,Muted,.85f);
+    Text((CastleIsChinese()?FString::Printf(TEXT("楼层 %d / 3     %s"),D->Floor,*CastleText(D->Region)):FString::Printf(TEXT("FLOOR  %d / 3     %s"),D->Floor,*CastleText(D->Region))),36,58,White,1.05f);
+    Text((CastleIsChinese()?FString::Printf(TEXT("种子 %d | 击杀 %d | 藏品 %d"),D->RunSeed,D->Kills,P->Relics):FString::Printf(TEXT("SEED %d   |   KILLS %d   |   RELICS %d"),D->RunSeed,D->Kills,P->Relics)),36,80,Muted,.85f);
 
     DrawRect(FLinearColor(.018f,.025f,.04f,.9f),20,H-126,370,105);
-    Text(FString::Printf(TEXT("SHIELD  %.0f / %.0f"),P->Shield,P->MaxShield),35,H-117,Teal);
+    Text((CastleIsChinese()?FString::Printf(TEXT("护盾 %.0f / %.0f"),P->Shield,P->MaxShield):FString::Printf(TEXT("SHIELD  %.0f / %.0f"),P->Shield,P->MaxShield)),35,H-117,Teal);
     Bar(35,H-94,338,10,P->Shield,P->MaxShield,Teal);
-    Text(FString::Printf(TEXT("HEALTH  %.0f / %.0f"),P->Health,P->MaxHealth),35,H-77,White);
+    Text((CastleIsChinese()?FString::Printf(TEXT("生命 %.0f / %.0f"),P->Health,P->MaxHealth):FString::Printf(TEXT("HEALTH  %.0f / %.0f"),P->Health,P->MaxHealth)),35,H-77,White);
     Bar(35,H-54,338,10,P->Health,P->MaxHealth,FLinearColor(.87f,.25f,.26f));
     DrawRect(FLinearColor(.018f,.025f,.04f,.9f),W-310,H-126,290,105);
-    Text(P->bReloading?TEXT("RELOADING..."):FString::Printf(TEXT("%02d  /  %d"),P->Ammo,P->Reserve),W-291,H-114,White,1.9f);
-    Text(FString::Printf(TEXT("CARBINE Lv.%d    DAMAGE %.0f"),P->WeaponLevel,P->BulletDamage),W-291,H-73,Teal);
-    Text(FString::Printf(TEXT("GOLD  %d     R: reload"),P->Coins),W-291,H-48,Gold);
+    Text(P->bReloading?TEXT("RELOADING..."):(CastleIsChinese()?FString::Printf(TEXT("%02d  /  %d"),P->Ammo,P->Reserve):FString::Printf(TEXT("%02d  /  %d"),P->Ammo,P->Reserve)),W-291,H-114,White,1.9f);
+    Text((CastleIsChinese()?FString::Printf(TEXT("卡宾枪 等级 %d    伤害 %.0f"),P->WeaponLevel,P->BulletDamage):FString::Printf(TEXT("CARBINE Lv.%d    DAMAGE %.0f"),P->WeaponLevel,P->BulletDamage)),W-291,H-73,Teal);
+    Text((CastleIsChinese()?FString::Printf(TEXT("金币 %d     R：换弹"),P->Coins):FString::Printf(TEXT("GOLD  %d     R: reload"),P->Coins)),W-291,H-48,Gold);
     if(P->bReloading)Bar(W-291,H-26,245,4,1.25f-(P->ReloadEnd-Now),1.25f,Gold);
 
-    // Use the same grid and connections as the generated rooms.
-    const float MX=W-218,MY=28,Step=D->GridWidth==4?43:55,Tile=D->GridWidth==4?31:39;
-    const float LegendOffset=28+(D->GridWidth-1)*Step+Tile+12;
-    DrawRect(FLinearColor(.018f,.025f,.04f,.88f),MX-12,MY-8,210,LegendOffset+44);
-    Text(TEXT("FLOOR MAP"),MX,MY,Gold);
-    const TCHAR* Initials[]={TEXT("IN"),TEXT("S"),TEXT("F"),TEXT("C"),TEXT("E"),TEXT("V"),TEXT("R"),TEXT("EL"),TEXT("T"),TEXT("OUT")};
-    for(int32 I=0;I<D->Rooms.Num();++I)
+    const bool InCave=D->Region==TEXT("TREASURE CAVE"),InBoss=D->Region==TEXT("BOSS ARENA");
+    const auto& MapRooms=InCave?D->CaveRooms:D->Rooms;
+    const int32 MapWidth=InCave?2:D->GridWidth,MapHeight=InCave?3:D->GridWidth;
+    const FVector MapOrigin=InCave?D->CaveCenter:FVector::ZeroVector;
+    const float MapSpacing=InCave?2100.f:2400.f;
+    if(!InBoss)
     {
-        const auto& R=D->Rooms[I]; if(!R.bActive)continue;
-        float X=MX+(I%D->GridWidth)*Step,Y=MY+28+(D->GridWidth-1-I/D->GridWidth)*Step;
+    const float MX=W-218,MY=28,Step=MapWidth==4?43:55,Tile=MapWidth==4?31:39;
+    const float LegendOffset=28+(MapHeight-1)*Step+Tile+12;
+    DrawRect(FLinearColor(.018f,.025f,.04f,.88f),MX-12,MY-8,210,LegendOffset+44);
+    Text(InCave?TEXT("VAULT MAP"):TEXT("FLOOR MAP"),MX,MY,Gold);
+    const TCHAR* Initials[]={TEXT("IN"),TEXT("S"),TEXT("F"),TEXT("C"),TEXT("E"),TEXT("V"),TEXT("R"),TEXT("EL"),TEXT("T"),TEXT("OUT")};
+    for(int32 I=0;I<MapRooms.Num();++I)
+    {
+        const auto& R=MapRooms[I]; if(!R.bActive)continue;
+        float X=MX+(I%MapWidth)*Step,Y=MY+28+(MapHeight-1-I/MapWidth)*Step;
         if(R.Doors&1)DrawRect(Muted,X+Tile,Y+Tile*.45f,Step-Tile,4);
         if(R.Doors&2)DrawRect(Muted,X+Tile*.45f,Y-(Step-Tile),4,Step-Tile);
-        const FLinearColor Color=D->Floor==1 && !R.bRevealed?FLinearColor(.08f,.11f,.16f)
+        const FLinearColor Color=!R.bRevealed?FLinearColor(.08f,.11f,.16f)
             :R.Type==ECastleRoom::Combat?FLinearColor(.45f,.18f,.18f)
             :R.Type==ECastleRoom::Shop?FLinearColor(.1f,.36f,.34f):FLinearColor(.18f,.23f,.3f);
         DrawRect(Color,X,Y,Tile,Tile);
         if(R.bVisited)DrawRect(Teal,X+Tile-4,Y,4,Tile);
-        Text(D->Floor==1 && !R.bRevealed?TEXT("?"):Initials[static_cast<int32>(R.Type)],X+(D->GridWidth==4?5:12),Y+8,White,D->GridWidth==4?.72f:.9f);
+        Text(!R.bRevealed?TEXT("?"):Initials[static_cast<int32>(R.Type)],X+(MapWidth==4?5:12),Y+8,White,MapWidth==4?.72f:.9f);
     }
-    if(D->Region==TEXT("EXPLORATION"))
+    if(D->Region==TEXT("EXPLORATION") || InCave)
     {
-        const FVector Pos=P->GetActorLocation();
-        const float X=MX+Tile*.5f+Pos.X/2400*Step,Y=MY+28+Tile*.5f+(D->GridWidth-1-Pos.Y/2400)*Step;
+        const FVector Pos=P->GetActorLocation()-MapOrigin;
+        const float X=MX+Tile*.5f+Pos.X/MapSpacing*Step,Y=MY+28+Tile*.5f+(MapHeight-1-Pos.Y/MapSpacing)*Step;
         DrawRect(Teal,X-3,Y-3,6,6);
-        for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==ECastleInteract::BossEnter)
+        for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(!InCave && It->Kind==ECastleInteract::BossEnter)
         {
-            const auto L=It->GetActorLocation(); Text(TEXT("B"),MX+Tile*.5f+L.X/2400*Step,MY+28+Tile*.5f+(D->GridWidth-1-L.Y/2400)*Step,Gold);
+            const auto L=It->GetActorLocation(); Text(TEXT("B"),MX+Tile*.5f+L.X/2400*Step,MY+28+Tile*.5f+(MapWidth-1-L.Y/2400)*Step,Gold);
         }
     }
-    Text(TEXT("S shop / F foes / C chest"),MX,MY+LegendOffset,Muted,.72f);
-    Text(D->Floor==1?TEXT("? unknown / R rest / EL elite / T trap"):TEXT("E altar / V vault / B boss"),MX,MY+LegendOffset+14,Muted,.72f);
-    Text(D->Floor==1?TEXT("Objective: explore rooms; the exit is to the northeast"):D->bBossDefeated?TEXT("Objective: use the ASCEND portal"):D->Region==TEXT("BOSS ARENA")?TEXT("Objective: defeat the guardian"):TEXT("Objective: gather relics, find B gate"),26,116,White);
+    Text(InCave?TEXT("IN entrance / C relic / OUT exit"):TEXT("S shop / F foes / C chest"),MX,MY+LegendOffset,Muted,.72f);
+    Text(InCave?TEXT("Four rooms; follow the path to OUT"):TEXT("? fog / R rest / EL elite / T trap"),MX,MY+LegendOffset+14,Muted,.72f);
+    }
+    else
+    {
+        const float X=W-218,Y=28,Side=180,Scale=Side/4500.f;
+        DrawRect(FLinearColor(.018f,.025f,.04f,.88f),X-12,Y-8,210,232);
+        Text(TEXT("ARENA MAP"),X,Y,Gold);
+        DrawRect(FLinearColor(.14f,.12f,.2f),X,Y+28,Side,Side);
+        auto ArenaPoint=[&](FVector Pos) {return FVector2D(X+(Pos.X-D->BossCenter.X+2250)*Scale,Y+28+(2250-Pos.Y+D->BossCenter.Y)*Scale);};
+        for(const auto& Top:D->BossPlatforms)
+        {
+            const auto V=ArenaPoint(Top); DrawRect(FLinearColor(.6f,.3f,.8f),V.X-14,V.Y-17,28,34);
+        }
+        for(const auto& Cover:D->BossCoverPoints)
+        {
+            const auto V=ArenaPoint(Cover);DrawRect(Muted,V.X-4,V.Y-4,8,8);
+        }
+        const auto PlayerPos=ArenaPoint(P->GetActorLocation());DrawRect(Teal,PlayerPos.X-3,PlayerPos.Y-3,6,6);
+        if(IsValid(D->Boss)) {const auto B=ArenaPoint(D->Boss->GetActorLocation());Text(TEXT("B"),B.X,B.Y,Gold);}
+        Text(TEXT("Purple: raised decks / Grey: cover"),X,Y+214,Muted,.72f);
+    }
+    Text(InCave?TEXT("Objective: collect relics and reach the vault exit"):D->Floor==1?TEXT("Objective: explore rooms; the exit is to the northeast"):D->bBossDefeated?TEXT("Objective: use the ASCEND portal"):D->Region==TEXT("BOSS ARENA")?TEXT("Objective: defeat the guardian"):TEXT("Objective: gather relics, find B gate"),26,116,White);
+
+    Text(CastleIsChinese()?TEXT("F2：语言设置 · 简体中文 / English"):TEXT("F2: Language settings · English / 简体中文"),26,140,Muted,.85f);
 
     if(IsValid(D->Boss) && D->Boss->bActive)
     {
         float BW=FMath::Min(W*.42f,620.f),BX=(W-BW)*.5f;
         DrawRect(FLinearColor(.025f,.018f,.045f,.9f),BX-12,25,BW+24,66);
-        Text(D->BossName()+(D->Boss->Health<D->Boss->MaxHealth*.5f?TEXT("  /  ENRAGED"):TEXT("")),BX,31,FLinearColor(.8f,.6f,1),1.15f);
+        Text(CastleText(D->BossName())+(D->Boss->Health<D->Boss->MaxHealth*.5f?CastleText(TEXT("  /  ENRAGED")):FString()),BX,31,FLinearColor(.8f,.6f,1),1.15f);
         Bar(BX,60,BW,14,D->Boss->Health,D->Boss->MaxHealth,FLinearColor(.65f,.3f,.9f));
-        Text(FString::Printf(TEXT("%.0f / %.0f"),D->Boss->Health,D->Boss->MaxHealth),BX+BW*.43f,77,White,.7f);
+        Text((CastleIsChinese()?FString::Printf(TEXT("%.0f / %.0f"),D->Boss->Health,D->Boss->MaxHealth):FString::Printf(TEXT("%.0f / %.0f"),D->Boss->Health,D->Boss->MaxHealth)),BX+BW*.43f,77,White,.7f);
     }
 
     if(!P->bDead && !D->bWon)
