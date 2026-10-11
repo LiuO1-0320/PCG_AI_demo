@@ -1,0 +1,14 @@
+{
+  "toolset": "EditorToolset.EditorAppToolset",
+  "tool": "SelectActors",
+  "arguments": {
+    "actors": [
+      {
+        "refPath": "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.RogueliteParametricRoom_1"
+      }
+    ]
+  },
+  "result": {
+    "returnValue": null
+  }
+}

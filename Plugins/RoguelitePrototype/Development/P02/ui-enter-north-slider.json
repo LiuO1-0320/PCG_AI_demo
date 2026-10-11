@@ -1,0 +1,10 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "PressKey",
+  "arguments": {
+    "key": "Enter"
+  },
+  "result": {
+    "returnValue": true
+  }
+}

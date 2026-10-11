@@ -1,0 +1,299 @@
+{
+  "Task": "P00.5",
+  "Date": "2026-10-11",
+  "Project": "E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject",
+  "UEVersion": "5.8.3",
+  "GitHead": "2b36a47",
+  "EditorTargetBuild": "Succeeded, exit 0, incremental Win64 Development",
+  "NullRHIPIE": "Passed via Epic MCP",
+  "PrimaryEditorPIE": "Passed via Epic MCP after owner restarted editor",
+  "ManualVisualAndInput": "Not performed",
+  "BaselineCount": 37,
+  "ChangedCount": 0,
+  "UprojectMatchesBackup": true,
+  "MapSHA256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA",
+  "OldFiles": [
+    {
+      "Path": "Content/Demo/L_CastleDemo.umap",
+      "BeforeSHA256": "C3BEE36C6454235EADD8BE7CE67B02954AA740F454A49ACC2AC5FA05907AAECD",
+      "AfterSHA256": "C3BEE36C6454235EADD8BE7CE67B02954AA740F454A49ACC2AC5FA05907AAECD",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/PCG_BossArena.uasset",
+      "BeforeSHA256": "D4F824476BAEDAA1F8182395EB14FF96BAADE499A85E9C0F33D588C7F2E9E5D2",
+      "AfterSHA256": "D4F824476BAEDAA1F8182395EB14FF96BAADE499A85E9C0F33D588C7F2E9E5D2",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/PCG_Castle.uasset",
+      "BeforeSHA256": "3F6B25EAD2592B98541FEC3F6D3A6BCB4CDEA02316A2E8DFE620FB2E977BFD76",
+      "AfterSHA256": "3F6B25EAD2592B98541FEC3F6D3A6BCB4CDEA02316A2E8DFE620FB2E977BFD76",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/PCG_Exploration.uasset",
+      "BeforeSHA256": "9034F38F2FD545A8C23F8BE99FA359948F967DA4CBACE93025803AE4790580B1",
+      "AfterSHA256": "9034F38F2FD545A8C23F8BE99FA359948F967DA4CBACE93025803AE4790580B1",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/PCG_TreasureCave.uasset",
+      "BeforeSHA256": "07EBCAA79BA9C61FE90DC817DA5A3F63736359A15E8DE5D3B00AAB735364B58C",
+      "AfterSHA256": "07EBCAA79BA9C61FE90DC817DA5A3F63736359A15E8DE5D3B00AAB735364B58C",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Cave.uasset",
+      "BeforeSHA256": "5338773789FB79D284050A2B0418D54B4F32BCFEAAF54EB34AA9019223A376DE",
+      "AfterSHA256": "5338773789FB79D284050A2B0418D54B4F32BCFEAAF54EB34AA9019223A376DE",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Danger.uasset",
+      "BeforeSHA256": "A593BDED32B5C814F332E0CDA7FA7D6E6AAFEDFE36E0C843C05108352B56FBF4",
+      "AfterSHA256": "A593BDED32B5C814F332E0CDA7FA7D6E6AAFEDFE36E0C843C05108352B56FBF4",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Enemy.uasset",
+      "BeforeSHA256": "2E0E9B9B4803CA4DE7E8817E9671F087A50B7F87104A71EF7C5C5F45927265D4",
+      "AfterSHA256": "2E0E9B9B4803CA4DE7E8817E9671F087A50B7F87104A71EF7C5C5F45927265D4",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Floor.uasset",
+      "BeforeSHA256": "E82A4D022F5D701F0A1A52D4076887BB6937A922668E012BC7F7368E7E26C4E2",
+      "AfterSHA256": "E82A4D022F5D701F0A1A52D4076887BB6937A922668E012BC7F7368E7E26C4E2",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Gold.uasset",
+      "BeforeSHA256": "8AAB97D539D015CDAB6BB939B994DBC84C7E45FB86632AD2B9BF184ABBEB4D25",
+      "AfterSHA256": "8AAB97D539D015CDAB6BB939B994DBC84C7E45FB86632AD2B9BF184ABBEB4D25",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Metal.uasset",
+      "BeforeSHA256": "15B033C01B34CDBDADAA8B89A27D0058B5F5C2C20BAD7EB0885E9B4BF556B421",
+      "AfterSHA256": "15B033C01B34CDBDADAA8B89A27D0058B5F5C2C20BAD7EB0885E9B4BF556B421",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Portal.uasset",
+      "BeforeSHA256": "BE4A0EAF4BEF65D1498B1C1CD3BCB4934F1EC1857BB0D641A1BAB525A5B2661F",
+      "AfterSHA256": "BE4A0EAF4BEF65D1498B1C1CD3BCB4934F1EC1857BB0D641A1BAB525A5B2661F",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Purple.uasset",
+      "BeforeSHA256": "F50565B14780C44128C769DD27451D7721BD731E8A54A3209240B08392ADF0F4",
+      "AfterSHA256": "F50565B14780C44128C769DD27451D7721BD731E8A54A3209240B08392ADF0F4",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Sky.uasset",
+      "BeforeSHA256": "09B5CC96C070AF3CE861619FF5B200B384F9A1DDA06C7BAD6974D4099290358E",
+      "AfterSHA256": "09B5CC96C070AF3CE861619FF5B200B384F9A1DDA06C7BAD6974D4099290358E",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Stone.uasset",
+      "BeforeSHA256": "FBC569CC633FD2F2FFBC22C07E98B5FE34F16B43E5743FE9F1CD8680E1DF3001",
+      "AfterSHA256": "FBC569CC633FD2F2FFBC22C07E98B5FE34F16B43E5743FE9F1CD8680E1DF3001",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Teal.uasset",
+      "BeforeSHA256": "F831BC2D21A2AAB23EC56AA90935D2DFC062469C770FAD76DD74191053281CCB",
+      "AfterSHA256": "F831BC2D21A2AAB23EC56AA90935D2DFC062469C770FAD76DD74191053281CCB",
+      "Unchanged": true
+    },
+    {
+      "Path": "Content/Demo/Materials/M_Trim.uasset",
+      "BeforeSHA256": "56D9EEB7CFDC0DE762AC7322C854E10BC87D2172BB924B8D78AD6655F22DF2DD",
+      "AfterSHA256": "56D9EEB7CFDC0DE762AC7322C854E10BC87D2172BB924B8D78AD6655F22DF2DD",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleDemo.Build.cs",
+      "BeforeSHA256": "DDA4EEEB299D729F4FA601607DA36AA26EC5A7CF955C191C8AA196DC33BA085D",
+      "AfterSHA256": "DDA4EEEB299D729F4FA601607DA36AA26EC5A7CF955C191C8AA196DC33BA085D",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleDemo.cpp",
+      "BeforeSHA256": "95CBC5F7BDE0AB086AC2BAAE5731BE7AAE41711A4CFF85F6418D220961103AA4",
+      "AfterSHA256": "95CBC5F7BDE0AB086AC2BAAE5731BE7AAE41711A4CFF85F6418D220961103AA4",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleDemo.h",
+      "BeforeSHA256": "0AAB30C12848DBE2102F77A7D6566ECD98B609087155F62F5AECF131E66CDE60",
+      "AfterSHA256": "0AAB30C12848DBE2102F77A7D6566ECD98B609087155F62F5AECF131E66CDE60",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleGameplay.cpp",
+      "BeforeSHA256": "8904E5E8F6FA6B695937956878350658FEBE095525086C88435F14DFF1E28874",
+      "AfterSHA256": "8904E5E8F6FA6B695937956878350658FEBE095525086C88435F14DFF1E28874",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleGeneration.cpp",
+      "BeforeSHA256": "F4801036F08B6DB8EE0937E02B0AD5F57940A9C97BED2ADBAB49062C3AEB9C15",
+      "AfterSHA256": "F4801036F08B6DB8EE0937E02B0AD5F57940A9C97BED2ADBAB49062C3AEB9C15",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleHUD.cpp",
+      "BeforeSHA256": "53F3B12DC52F7E49DDB2FE220AA3CD7EC02AA22848C0DE365B9D2C1355151F82",
+      "AfterSHA256": "53F3B12DC52F7E49DDB2FE220AA3CD7EC02AA22848C0DE365B9D2C1355151F82",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleLanguage.cpp",
+      "BeforeSHA256": "742D9EABED707B82AE428C885CD2079727C126073020F5239115372A435E72D1",
+      "AfterSHA256": "742D9EABED707B82AE428C885CD2079727C126073020F5239115372A435E72D1",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleLanguage.h",
+      "BeforeSHA256": "7D64935ABA1EBBABAE9FF561CEADB7E42071C01DCB5619BE857D96F9837C8C6A",
+      "AfterSHA256": "7D64935ABA1EBBABAE9FF561CEADB7E42071C01DCB5619BE857D96F9837C8C6A",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleMenu.cpp",
+      "BeforeSHA256": "959C7D963BF2817B7F3107B3A2DD1A3D367FE1DFA250EA1F048652E6BB46DDFB",
+      "AfterSHA256": "959C7D963BF2817B7F3107B3A2DD1A3D367FE1DFA250EA1F048652E6BB46DDFB",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleNodeLayout.cpp",
+      "BeforeSHA256": "54EA257D6189A1B2777B4E78498A281D2139E9C844CC265CF27374C4785354B8",
+      "AfterSHA256": "54EA257D6189A1B2777B4E78498A281D2139E9C844CC265CF27374C4785354B8",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleRegions.cpp",
+      "BeforeSHA256": "C17377A72DD102E851BF738EBDA179224A4AF2D12C1BC16F953B97B5A99C2AC3",
+      "AfterSHA256": "C17377A72DD102E851BF738EBDA179224A4AF2D12C1BC16F953B97B5A99C2AC3",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleSetup.cpp",
+      "BeforeSHA256": "E77A1371C9FFC02BDA22E9DDAB1C14D97E5AB1185995AC3359F786827581934C",
+      "AfterSHA256": "E77A1371C9FFC02BDA22E9DDAB1C14D97E5AB1185995AC3359F786827581934C",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/CastleDemo/CastleSmoke.cpp",
+      "BeforeSHA256": "B5A6D9F5973D3E2F4B8EF0C843AFC9C216F3BA91B038297CE09BEB625F32B952",
+      "AfterSHA256": "B5A6D9F5973D3E2F4B8EF0C843AFC9C216F3BA91B038297CE09BEB625F32B952",
+      "Unchanged": true
+    },
+    {
+      "Path": "Config/DefaultEditor.ini",
+      "BeforeSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "AfterSHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "Unchanged": true
+    },
+    {
+      "Path": "Config/DefaultEngine.ini",
+      "BeforeSHA256": "EE40889FAE0783C50A6E8CF25C4EEC082FE2810F3D3700EC5F6D30E549CEB135",
+      "AfterSHA256": "EE40889FAE0783C50A6E8CF25C4EEC082FE2810F3D3700EC5F6D30E549CEB135",
+      "Unchanged": true
+    },
+    {
+      "Path": "Config/DefaultGame.ini",
+      "BeforeSHA256": "8439054C07CBA9962FC1377FBABB119F4648AE33CB71CCDEB16AFD9F0C90165F",
+      "AfterSHA256": "8439054C07CBA9962FC1377FBABB119F4648AE33CB71CCDEB16AFD9F0C90165F",
+      "Unchanged": true
+    },
+    {
+      "Path": "Config/DefaultInput.ini",
+      "BeforeSHA256": "21EB094BC03406DA80C3F33F5F5A0D7C2544FD42B7770569244ED85E00480528",
+      "AfterSHA256": "21EB094BC03406DA80C3F33F5F5A0D7C2544FD42B7770569244ED85E00480528",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/testfordemo.Target.cs",
+      "BeforeSHA256": "9BD293E350EDCC052AEB2EFF1C1512F5EFA05208F460C5A20EAEA5B2FB87D9EF",
+      "AfterSHA256": "9BD293E350EDCC052AEB2EFF1C1512F5EFA05208F460C5A20EAEA5B2FB87D9EF",
+      "Unchanged": true
+    },
+    {
+      "Path": "Source/testfordemoEditor.Target.cs",
+      "BeforeSHA256": "8A609964F07D55258FBB23EB5C53C8A51CE74EFAD1B13A445928833003700C78",
+      "AfterSHA256": "8A609964F07D55258FBB23EB5C53C8A51CE74EFAD1B13A445928833003700C78",
+      "Unchanged": true
+    },
+    {
+      "Path": "testfordemo.uproject",
+      "BeforeSHA256": "27A3AB541173D04F6D11A8D1AC31F6DC5C3A5D2319DEA6698B3F4ECCFB3659E3",
+      "AfterSHA256": "27A3AB541173D04F6D11A8D1AC31F6DC5C3A5D2319DEA6698B3F4ECCFB3659E3",
+      "Unchanged": true
+    }
+  ],
+  "NewFiles": [
+    "Content/Roguelite/AGENTS.md",
+    "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+    "Plugins/RoguelitePrototype/AGENTS.md",
+    "Plugins/RoguelitePrototype/Development/P005/06_EXECUTION_STATUS.before-P005.md",
+    "Plugins/RoguelitePrototype/Development/P005/baseline-files.json",
+    "Plugins/RoguelitePrototype/Development/P005/build-editor-direct.json",
+    "Plugins/RoguelitePrototype/Development/P005/build-editor-direct.log",
+    "Plugins/RoguelitePrototype/Development/P005/build-editor.json",
+    "Plugins/RoguelitePrototype/Development/P005/build-editor.log",
+    "Plugins/RoguelitePrototype/Development/P005/create-dev-map.log",
+    "Plugins/RoguelitePrototype/Development/P005/editor-pie.log",
+    "Plugins/RoguelitePrototype/Development/P005/git-status-before.txt",
+    "Plugins/RoguelitePrototype/Development/P005/mcp-verification.json",
+    "Plugins/RoguelitePrototype/Development/P005/primary-editor-verification.json",
+    "Plugins/RoguelitePrototype/Development/P005/testfordemo.uproject.before-P005.json",
+    "Plugins/RoguelitePrototype/Development/P005/validate_editor.py",
+    "Plugins/RoguelitePrototype/Development/P005/verification-files.json",
+    "Plugins/RoguelitePrototype/README.md",
+    "Plugins/RoguelitePrototype/RoguelitePrototype.uplugin",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevGameMode.cpp",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevMapCommandlet.cpp",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RoguelitePrototype.cpp",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevGameMode.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevMapCommandlet.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RoguelitePrototype.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/RoguelitePrototype.Build.cs",
+    "Plugins/RoguelitePrototype/Development/P005/final-verification.json"
+  ],
+  "ChangedExistingDocument": "Docs/06_EXECUTION_STATUS.md (original copied before edits)",
+  "GeneratedLocations": [
+    "Plugins/RoguelitePrototype/Binaries",
+    "Plugins/RoguelitePrototype/Intermediate",
+    "Binaries and Intermediate shared project build metadata",
+    "Saved and UE user-local caches/logs"
+  ],
+  "GitStatus": [
+    " M Content/Demo/L_CastleDemo.umap",
+    " M testfordemo.uproject",
+    "?? .agents/",
+    "?? .codex/",
+    "?? .ignore",
+    "?? .mcp.json",
+    "?? .vscode/",
+    "?? AGENTS.md",
+    "?? Content/Roguelite/",
+    "?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf",
+    "?? Docs/01_FINAL_DESIGN_SPEC.md",
+    "?? Docs/02_TECHNICAL_ARCHITECTURE.md",
+    "?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+    "?? Docs/04_ACCEPTANCE_MATRIX.md",
+    "?? Docs/05_MCP_SETUP_AND_CAPABILITY.md",
+    "?? Docs/06_EXECUTION_STATUS.md",
+    "?? Plugins/",
+    "?? prompts/",
+    "?? templates/",
+    "?? testfordemo.code-workspace"
+  ],
+  "NoStagingOrCommit": true,
+  "TemporaryEditorStopped": true
+}

@@ -1,0 +1,12 @@
+{
+  "toolset": "editor_toolset.toolsets.asset.AssetTools",
+  "tool": "save_assets",
+  "arguments": {
+    "asset_paths": [
+      "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev"
+    ]
+  },
+  "result": {
+    "returnValue": true
+  }
+}

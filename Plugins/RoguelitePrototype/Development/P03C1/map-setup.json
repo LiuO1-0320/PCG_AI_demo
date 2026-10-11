@@ -1,0 +1,109 @@
+{
+  "corridor": {
+    "refPath": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev.L_Roguelite_Corridor_Dev:PersistentLevel.RogueliteParametricCorridor_0"
+  },
+  "completed": true,
+  "calls": [
+    {
+      "toolset_name": "editor_toolset.toolsets.scene.SceneTools",
+      "tool_name": "get_current_level",
+      "arguments": {},
+      "returnValue": "/Game/Roguelite/Maps/L_Roguelite_Dev"
+    },
+    {
+      "toolset_name": "EditorToolset.EditorAppToolset",
+      "tool_name": "IsPIERunning",
+      "arguments": {},
+      "returnValue": false
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "is_dirty",
+      "arguments": {
+        "asset_path": "/Game/Roguelite/Maps/L_Roguelite_Dev"
+      },
+      "returnValue": false
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "exists",
+      "arguments": {
+        "path": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+      },
+      "returnValue": false
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "duplicate",
+      "arguments": {
+        "path": "/Game/Roguelite/Maps/L_Roguelite_Dev",
+        "new_path": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+      },
+      "returnValue": true
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "save_assets",
+      "arguments": {
+        "asset_paths": [
+          "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+        ]
+      },
+      "returnValue": true
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.scene.SceneTools",
+      "tool_name": "load_level",
+      "arguments": {
+        "level_path": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+      },
+      "returnValue": null
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.scene.SceneTools",
+      "tool_name": "get_current_level",
+      "arguments": {},
+      "returnValue": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.scene.SceneTools",
+      "tool_name": "add_to_scene_from_class",
+      "arguments": {
+        "actor_type": {
+          "refPath": "/Script/RoguelitePrototype.RogueliteParametricCorridor"
+        },
+        "name": "P03C1_Corridor",
+        "xform": {
+          "location": {
+            "x": 90000,
+            "y": 0,
+            "z": 0
+          },
+          "rotation": {
+            "pitch": 0,
+            "yaw": 0,
+            "roll": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      },
+      "returnValue": {
+        "refPath": "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev.L_Roguelite_Corridor_Dev:PersistentLevel.RogueliteParametricCorridor_0"
+      }
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "save_assets",
+      "arguments": {
+        "asset_paths": [
+          "/Game/Roguelite/Maps/L_Roguelite_Corridor_Dev"
+        ]
+      },
+      "returnValue": true
+    }
+  ]
+}

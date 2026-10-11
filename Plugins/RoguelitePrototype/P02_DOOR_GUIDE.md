@@ -1,0 +1,90 @@
+# P02 — 可编辑门洞与 Door Socket 使用说明
+
+UE 5.8.3；类 `ARogueliteParametricRoom`；本阶段仅门洞和 Socket。编译、官方 MCP、Details 输入及自动 PIE 已验证，用户本人 P02 人工体验验收待做。
+
+## 打开专用测试场景
+
+正常打开 `E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject`，在 Content Browser 打开：
+
+`/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev`
+
+在 Outliner 选择 **P02_DoorSocketRoom**，鼠标移到视口后按 **F** 聚焦。它位于 `(30000,0,0)`，不是远处复制过来的 P01 房间。地图的 GameMode Override 是 `RogueliteDevGameMode`。不要修改原 P01 地图来验收 P02。
+
+## Details 属性
+
+可以在 Details 搜索 `Door`，再展开 `Roguelite → Door Sockets` 的四侧配置。清空搜索可查看 `Room Dimensions` 和 `Validation`。以下尺寸均为厘米。
+
+| 属性 | 功能与测试默认值 |
+|---|---|
+| North/South/East/West Door → Enabled | 此侧是否开门洞；新房间默认关闭，避免改变既有 P01 外壳 |
+| Auto Center | 默认勾选；门洞自动位于墙中心 |
+| Manual Offset | 取消 Auto Center 后可编辑；默认 0，相对墙中心的沿墙偏移 |
+| Door Width | 门洞净宽，测试默认 200；至少 1，须保留侧墙余量 |
+| Door Height | 从完成地面 Z=0 起的净高，测试默认 250；至少 1，须保留横梁 |
+| Door Safety → Min Door Side Wall | 到室内转角的最小墙体余量，测试默认 50 |
+| Door Safety → Min Door Lintel Height | 门洞以上的最小横梁高度，测试默认 20 |
+| Door Sockets 只读数组 | 启用侧的计算结果，包括非法项；查看 bValid 和 ValidationMessage |
+| Validation → Validation Warnings | 当前房间/门洞/手工 POI 警告；Output Log 同时记录名称和路径 |
+| Rebuild Room | 手工移动 POI 后重新检查；不会移动 POI |
+
+这些默认值是可调灰盒参数，不代表最终美术、门体或通行净距已经定案。
+
+修改数字框后按 Enter 或移开焦点即可更新，无需 PIE。四侧门洞各自最多一个；关闭门洞恢复完整墙体。自动居中不清除保存的 ManualOffset，切回手动模式会重新使用该值。
+
+## 坐标与合法范围
+
+房间 Actor 中心为局部 XY 原点，完成地面为局部 Z=0。RoomLength 沿 X，RoomWidth 沿 Y。Actor Scale 保持 `(1,1,1)`，使用 Details 尺寸属性调整房间。
+
+| 侧面 | 朝外方向 | ManualOffset 正方向 | 用于计算门宽范围的墙长 |
+|---|---|---|---|
+| 北 North | +X | +Y | RoomWidth |
+| 南 South | -X | +Y | RoomWidth |
+| 东 East | +Y | +X | RoomLength |
+| 西 West | -Y | +X | RoomLength |
+
+对某侧墙，设上述墙长为 Span，则：
+
+- `DoorWidth ≤ Span - 2 × MinDoorSideWall`
+- `DoorHeight ≤ RoomHeight - MinDoorLintelHeight`
+- 手动 `abs(ManualOffset) ≤ (Span - DoorWidth) / 2 - MinDoorSideWall`
+- 门宽、高和两种安全余量必须是有限且至少 1 cm 的值；手动偏移必须有限。
+
+例如 Span=2000、DoorWidth=200、侧墙余量=50 时，偏移合法范围为 `[-850,+850]`。
+
+**非法配置会保留原始设计值，显示警告、红色箭头，并让对应侧恢复完整墙。** 修正参数或扩大房间后，合法开口恢复。不会偷偷把偏移移到角落，也不会把过高门洞裁到墙顶。红色箭头可能随很大的非法偏移出现在视口外，仍可通过 Validation Warnings 定位问题。未启用的侧不显示箭头。
+
+箭头表示局部朝外方向；合法配置为绿色，只在编辑器显示。它放在门洞中部便于观察；查询 Socket 的实际坐标仍是门槛 Z=0，不是箭头高度。本阶段没有可拖拽控制点。
+
+## 当前保存场景
+
+- 房间：3000×2500×500 cm；墙厚/地板厚 20；Location=(30000,0,0)，Rotation=0，Scale=1。
+- 四门启用，门宽高 200×250。北门手动 +300，东门手动 -250，南/西居中。
+- `P02_ManualPOI`：Location=(30900,600,100)，Yaw=30，Scale=(3,2,2)；房间的 ManualPOIActors 引用了它。
+
+当前北门局部 Socket 是 `(1520,300,0)`、世界 `(31520,300,0)`；东门局部 `(-250,1270,0)`、世界 `(29750,1270,0)`。Socket 使用墙体外表面，墙厚向室内净尺寸之外扩展。
+
+## 五步人工验收
+
+1. 打开专用地图，选中 `P02_DoorSocketRoom`，确认 Actor Scale=1。将 RoomLength/Width 设为 2000、Height=500，四门 Enabled/Auto Center 勾选、宽高 200/250。观察四个真实居中开口及绿色朝外箭头。分别关闭/重开四侧 Enabled，检查该侧切换为整墙/开口。
+2. 北门取消 Auto Center，Manual Offset=300；东门取消 Auto Center，Manual Offset=-250。修改 RoomLength=3000、RoomWidth=2500，再单独调整高度。预期门洞更新、沿墙偏移保留，不缩放整个房间 Actor。北/东的偏移参考系见上表。
+3. 记录 `P02_ManualPOI` 的位置、旋转、Scale；来回切换 2000×2000 和 3000×2500。预期 POI 数值不变；在 2000×2000 时原点仍在房内，但实际 Bounds 越界。选中房间 `P02_DoorSocketRoom`（不是 POI），清除 Details 的 Door 搜索，搜索 `Validation`，展开 `Validation Warnings` 和 `Out Of Bounds Manual POI Actors`。底部打开 Output Log，搜索 `P01_POI_OUT_OF_BOUNDS` 可看到明确的 POI 名称与路径。当前实现没有视口自动浮动警告。不要把 POI 附加到可缩放的墙段组件。
+4. 试填北门 Manual Offset=9999 或 Door Width=0。预期保存原值、警告、北侧恢复整墙。恢复 Offset=300、Width=200。也可先在 2000 宽下设 Offset=600，再缩 RoomWidth=1000，观察值保留且开口失效；扩回 2000 后原偏移重新生效。最后恢复上节保存配置。
+5. 只保存专用 P02 地图，打开另一个地图后再回来，核对房间/门参数和 POI；启动并停止 PIE，观察场景。预期独立开发 GameMode、没有旧地牢生成。当前 SpectatorPawn 的穿墙行为不能用于判定外墙碰撞；真实射线证据见交付报告。用户键鼠体验、Undo/Redo 和碰撞 Pawn/Sweep 尚未验收。
+
+## 如何看到 POI 警告
+
+房间变小时会重新检测引用列表中 POI 的实际 Bounds。警告位于**房间 Actor** 的 Details，选中 POI 本身不会显示房间诊断；Details 仍筛选 `Door` 也可能隐藏 Validation 分类。
+
+查看当前状态：选择 `P02_DoorSocketRoom`，清除 Details 搜索，再搜索 `Validation`，展开数组项。只有当前确实越界时数组才非空，恢复合法房间尺寸后会清空；原日志仍作为历史记录保留。
+
+查看历史检测结果：点击编辑器底部 **Output Log**，在 **Search Log** 输入 `P01_POI_OUT_OF_BOUNDS`；黄色 Warning 文字包含 `Room=... POI=... Path=... LocalMin=... LocalMax=...`。若已关闭 Warnings 级别，在 Filters 中重新启用。2026-10-11 的用户验收反馈已在当前编辑器实测找到 `P02_ManualPOI` 的越界日志。
+
+当前没有给越界 POI 绘制视口红框、浮动文字或自动弹出通知；门洞的绿色/红色箭头只表示门洞配置，不能当作 POI 越界标识。只移动 POI 而不改变房间时，点击房间的 Rebuild Room 重新检查。尚未实现的自动视口提示不能记为通过。
+
+## 以后查询接口
+
+`GetDoorSockets()` 返回所有启用侧的 `FRogueliteDoorSocket`，含非法项供诊断；使用前检查 `bValid`。`TryGetDoorSocket(Side, OutSocket)` 仅在此侧启用且合法时返回 true。字段包括 Side、局部/世界门槛位置、局部/世界朝外方向、宽高、墙厚、应用偏移及 ValidationMessage。
+
+位置会随房间位置/旋转计算；90/180/270 度位置及方向已实际验证。未来门体/封墙可使用 Side 和净尺寸，但本阶段没有连接占用、永久入口/出口角色、拼接或门控。若以后在运行时直接改配置，应调用 RebuildRoom 使几何同步。不要用包含隐藏墙段/箭头的 Actor 视觉 Bounds 代替参数化尺寸规则。
+
+原 P01 地图与旧 Demo 不受本次资产修改影响；编译、限制和仅本轮恢复见 [P02_RESULT.md](<E:/Unreal Projects/PCG_AI_demo_1/Plugins/RoguelitePrototype/P02_RESULT.md>)。

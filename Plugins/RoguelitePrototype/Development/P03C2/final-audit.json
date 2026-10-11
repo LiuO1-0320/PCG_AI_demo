@@ -1,0 +1,428 @@
+{
+  "baseline_count": 301,
+  "changed": [
+    {
+      "path": "AGENTS.md",
+      "before": "3cdc253c0ad94c6300bf610f2b73f8dd9f56b1df528f0d7eb0fa1ccb5ae908d6",
+      "after": "32a2cc139fb86f30919e0e5c79c97575a4e522bc47e8c7aa9ed4f67e00efa505",
+      "authorized": true
+    },
+    {
+      "path": "Docs/02_TECHNICAL_ARCHITECTURE.md",
+      "before": "71eeefac22ae0d07ed0b9c82615a1a5357845dcef6703b4f3711c655df85824f",
+      "after": "13b16805978dcf321bc1d25c487e077ef700b9d20f5c760fe8724d7a628a28cc",
+      "authorized": true
+    },
+    {
+      "path": "Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "before": "52ca99daf6b8ae237bdb51bc73e5f4d2f21a4cc1f1061b52e0f435c85cf91fd5",
+      "after": "a34fdfdcd1da2a911d8319cc9406868d77e328ee6e8122b947381d4cb74effc9",
+      "authorized": true
+    },
+    {
+      "path": "Docs/06_EXECUTION_STATUS.md",
+      "before": "919a4c728dc3210331491b8c6d23bef34bcacd56a0e3a9160bb6575eae7b824b",
+      "after": "447030d1d61140fab79bf7d93b265482cd7ca664e065cc59d86b98790b9aab2e",
+      "authorized": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/README.md",
+      "before": "4f8a1fcd365188595b09500ef2185cec71965511228ca5098ecf8535ee529307",
+      "after": "b045cfc674940de92774870592798484c2a5989af19ace05ea2c3507ddea1669",
+      "authorized": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+      "before": "990dc0aed8e7ed56128b9475ec85e8cc88427ec23f4c674175395cf3584e5e1c",
+      "after": "7dd3aef04d5e3fcbfcc30b09c88acb992b84380f4fb31ec810e0080fd228428f",
+      "authorized": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteRoomAssembly.cpp",
+      "before": "a58e29615cfaaf8aeeff629a3e4f9e97567d19c4dab0b8c85e6e0cb0ac632ffa",
+      "after": "286e7a34fa14eeb58089a44f17c8a805733b813d5d6ed4bce0a5cfc5ddb83fcd",
+      "authorized": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+      "before": "c9872e59aabbad110d471e3e4df389ca979d89b02dbd267803a214dc9c216022",
+      "after": "7c0ae8e3aadea5b8183dc83fcdd2e02f1b103d42e31b8a95ae968620f4618f10",
+      "authorized": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteRoomAssembly.h",
+      "before": "f74126d1dfdcb62d0b088dc07718fdd3a3968a9fbc4c9da73b1ed7d2d07ded6a",
+      "after": "9bef7c91c46b4f9e89499e988798d676a2495ab9e38676166b8133a8501d0023",
+      "authorized": true
+    },
+    {
+      "path": "prompts/P01_TO_P13_TASKS.md",
+      "before": "937f247af0928d862e9c2d2a095f0a6b19be83226c135545cab00601a514d92c",
+      "after": "4cc49760806ab533902c5c7e38881446a7114cbf18bac1db643b31ebd4034f30",
+      "authorized": true
+    }
+  ],
+  "unchanged_count": 291,
+  "missing": [],
+  "backups": [
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/AGENTS.md",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/02_TECHNICAL_ARCHITECTURE.md",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/06_EXECUTION_STATUS.md",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/README.md",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteRoomAssembly.cpp",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteRoomAssembly.h",
+      "original_matches": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/prompts/P01_TO_P13_TASKS.md",
+      "original_matches": true
+    }
+  ],
+  "new_files": [
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_CorridorAssembly_Dev.umap",
+      "bytes": 99899,
+      "sha256": "6dc2ee890bb71ec176dfb0b232563984f07d5a833a60d344545b8a704c1d2802"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03-C2_RESULT.md",
+      "bytes": 15433,
+      "sha256": "8fc945324839aae3d36dca5ec1edcc7f173b4de0352dd891878c69b42492620c"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03C2_CORRIDOR_ASSEMBLY_GUIDE.md",
+      "bytes": 4500,
+      "sha256": "f0ff834924d00eeef1e72c94146d2734803483801256e58b4f4d06ae389bc7b1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/assembly-details.png",
+      "bytes": 709754,
+      "sha256": "b4a4c3dbe35585ece5dc3ac3be08f6fe0723926c3f06bbb42536b96f306548c8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/assembly-overview.png",
+      "bytes": 290870,
+      "sha256": "0919b1e0fb257ad68180b5162b3b9bc7226b312504e3d0356666247bb7863ad5"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/audit_files.py",
+      "bytes": 2712,
+      "sha256": "f92e235a7837c2ff3cf488175dc02b1fd19313ea6a939ffe3b16700d36a40b3e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/backup-manifest.json",
+      "bytes": 713,
+      "sha256": "6aa3536d77517493508a60b8543e8cf63860e932eb7c893b9377d1044d366abf"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/baseline-files.json",
+      "bytes": 51267,
+      "sha256": "cfc9888bfe208d46c145a8bf48eb8413f8b267d5ec4455a07fdee0188ecb8a3a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-baseline.json",
+      "bytes": 18873,
+      "sha256": "6110cfc6af4c2ed0aafb1f9cb7edf912792df0f58892c793bac516461cbd7588"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-baseline.log",
+      "bytes": 5857,
+      "sha256": "80996a8ed3b31bf719bba92d49252c0149294318d6865094552a788174ffeec4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-diagnostic.json",
+      "bytes": 25354,
+      "sha256": "98c6fbac5d1599a4943f2b982135e72b1324ac6c50929882dc9688b693580ca5"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-diagnostic.log",
+      "bytes": 8052,
+      "sha256": "f80ada5859390c38a6b03e3d662cf3255d4960fec296e9efc48bebb6acb81b40"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-final.json",
+      "bytes": 25425,
+      "sha256": "672966faeba41a9dfc9af25603c434511dad4d7653f64659f47ddb047f40c726"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-final.log",
+      "bytes": 8073,
+      "sha256": "4ac16f2fe96e3a9f78ec749c510b61e160103b4e10363dfe7670ee7cfcf027f1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-map-seed.json",
+      "bytes": 25351,
+      "sha256": "13544ede809e6fc7518d67e3909d2b206b2038b6c3ecc3abf0de6a6a09da718d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-map-seed.log",
+      "bytes": 8048,
+      "sha256": "b15bcbcb8cf834ddbaa673757d6ceadd6d3caca5224e747c0479412043c850b3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-p03c2.json",
+      "bytes": 41554,
+      "sha256": "86952b2c2e243f10237806696f211b74f11f6661430554a7662ddb6643c861a0"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/build-p03c2.log",
+      "bytes": 12882,
+      "sha256": "82aecfbf96b83f271c2b45054052919daad78fb1687f6d4733ca0cfea04d1f1a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/c2_mcp.py",
+      "bytes": 953,
+      "sha256": "342772e9b0303674ff1f51dfa525bc19ab8479afb1c76741fbcd367e05b50805"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/corridor-to-B.png",
+      "bytes": 835846,
+      "sha256": "2a9d393d3e4665d6a9dd6ff2d779dbbe23baf6d4243060a23c6f18efcd8ec3e2"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/editor-closed-final.json",
+      "bytes": 61,
+      "sha256": "f942ec74bdac3abc00771d5f06b32e04ba28010d953cdf5dbc59693d4c656b84"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/editor-closed.json",
+      "bytes": 62,
+      "sha256": "ea7b96c2ed7715b8f09b9891b52e67145421cbf606612f2ea72238d88048ed7f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/editor-session-final.json",
+      "bytes": 118588,
+      "sha256": "0903ab55821de43f1e02402bedb94d3f65467a7a07ad1a210b4b0e92b791a144"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/editor-session.json",
+      "bytes": 118583,
+      "sha256": "fed6b3214adfb86db14ea559ec8a4f985f43c51a82ea6734b11723adf3deaac7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/editor_session.py",
+      "bytes": 2605,
+      "sha256": "995a0750342393bcb0c42dd5085dd9aed2f215f5f480aa70487ebf6b3148ce88"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/final-proof.json",
+      "bytes": 816874,
+      "sha256": "a575bd1a886346030f3ae93f8d78b350e528108e0759babc879742281df346e1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/final_proof.py",
+      "bytes": 6343,
+      "sha256": "ac2de8963f113c63f726b5f09a9fb4f63cace877838501312484b89359b5dacb"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/finish_validation.py",
+      "bytes": 3396,
+      "sha256": "328a987ca12901e161c06719db07f523253c690bcae2e943eb6f9ba198debc00"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/git-before.txt",
+      "bytes": 514,
+      "sha256": "cdc3d79854d1459798120bbd2f92e9513d25d144f9a4d061c03ec81d777088d8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/map-create-final-console.txt",
+      "bytes": 28983,
+      "sha256": "84c8046d42d21dac7eb547cc1142dcf870928bbeeb7e433a731cbdf5434bd67e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/map-create-final.log",
+      "bytes": 247545,
+      "sha256": "bddd6f1007bfbe96b5ca3c853a572206d01ebd7a3fb5461711ffe9ad13fc216e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/map-create.log",
+      "bytes": 248969,
+      "sha256": "7a64adce5aa3a2cc548d0cc3ee49aecfdee5e0a73b7bd0ebdc38b37fae71fab9"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/map-diagnostic-console.txt",
+      "bytes": 41726,
+      "sha256": "5c89e74cf1cf706706d1ca135fd4cf8eb3195e633ef81b239451afa59de5a15a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/map-diagnostic.log",
+      "bytes": 259701,
+      "sha256": "262de7c54169298a6c733740d898685323e0cb951eaf6926bf31f7dcdfd723bd"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/nav-delayed-readback.json",
+      "bytes": 153013,
+      "sha256": "d844f5c32ee46e7b31016904f86ae007b164057b5a23e26bb0b3a03fce9b0d4e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/navigation-runtime.json",
+      "bytes": 541208,
+      "sha256": "b2346ef69f1b81a74d31ee100365cde4fc63f9c811838b801966648d1a39192d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/p03c2-editor-final.log",
+      "bytes": 420926,
+      "sha256": "df5cb96be5df7e18421ad479a24bc013cf3170940cf3469ddefc4a1981073c5d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/p03c2-editor.log",
+      "bytes": 668255,
+      "sha256": "f74d4beb410b9fa2abf966bc89c95aed5c4baef97ce12a8adf7b49f3a7a9ac7e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/room-regression.json",
+      "bytes": 90277,
+      "sha256": "b87fd94531d36ea6235363aa71cc4fabae5a168228db26813f79291fbfe266b4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/seam-A-C.png",
+      "bytes": 900214,
+      "sha256": "45c46d856e50cec87aa655ec0102d0def50ecedd48ff258473ca2a849722d222"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/stop-editor-final.json",
+      "bytes": 397,
+      "sha256": "937d2565c0fda5d3838a5bfb94e39778ebe71919039dae73868c24d834e29c20"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/stop-editor.json",
+      "bytes": 84,
+      "sha256": "14feb91b6c107d3230ade7cd8fa8bbdcfc63e45a0cbb9256664af9ff6ec7f35f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/validate_assembly.py",
+      "bytes": 11401,
+      "sha256": "265ce3df87416c769cef5c79649a36cd2650114acad214ccf901411765eb8162"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/validate_navigation_runtime.py",
+      "bytes": 5520,
+      "sha256": "7c0fbfb375a68810d5ea22747a40c2fcc18d29b110abb88c403575d318b356ea"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/validate_room_regression.py",
+      "bytes": 4085,
+      "sha256": "525ab9f3e624762dfe519b12b6c908864bca9b3704950e4ec34d7a303a1eec09"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/validation-tail.json",
+      "bytes": 504644,
+      "sha256": "0ae6a33ab64a9e9c20ae1c81cdf00ccd8a05e060787a307aa2706bee285faeba"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/validation.json",
+      "bytes": 4649277,
+      "sha256": "ca82b5bf7c225a10b204dc8dd1081d4d9c29c22ad0ab43e3c3aa14b13af4562f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/AGENTS.md",
+      "bytes": 8050,
+      "sha256": "3cdc253c0ad94c6300bf610f2b73f8dd9f56b1df528f0d7eb0fa1ccb5ae908d6"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/02_TECHNICAL_ARCHITECTURE.md",
+      "bytes": 13975,
+      "sha256": "71eeefac22ae0d07ed0b9c82615a1a5357845dcef6703b4f3711c655df85824f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "bytes": 10594,
+      "sha256": "52ca99daf6b8ae237bdb51bc73e5f4d2f21a4cc1f1061b52e0f435c85cf91fd5"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Docs/06_EXECUTION_STATUS.md",
+      "bytes": 27685,
+      "sha256": "919a4c728dc3210331491b8c6d23bef34bcacd56a0e3a9160bb6575eae7b824b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/prompts/P01_TO_P13_TASKS.md",
+      "bytes": 15951,
+      "sha256": "937f247af0928d862e9c2d2a095f0a6b19be83226c135545cab00601a514d92c"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/README.md",
+      "bytes": 9751,
+      "sha256": "4f8a1fcd365188595b09500ef2185cec71965511228ca5098ecf8535ee529307"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+      "bytes": 16061,
+      "sha256": "990dc0aed8e7ed56128b9475ec85e8cc88427ec23f4c674175395cf3584e5e1c"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteRoomAssembly.cpp",
+      "bytes": 26683,
+      "sha256": "a58e29615cfaaf8aeeff629a3e4f9e97567d19c4dab0b8c85e6e0cb0ac632ffa"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+      "bytes": 6942,
+      "sha256": "c9872e59aabbad110d471e3e4df389ca979d89b02dbd267803a214dc9c216022"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C2/Backups/Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteRoomAssembly.h",
+      "bytes": 9300,
+      "sha256": "f74126d1dfdcb62d0b088dc07718fdd3a3968a9fbc4c9da73b1ed7d2d07ded6a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteAssemblyTestRig.cpp",
+      "bytes": 8375,
+      "sha256": "f2727e57ecca063cb6f6ff07c5d9b893cbdc0e0bc6ecc009464b1b29a6d6584f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteCorridorAssembly.cpp",
+      "bytes": 26209,
+      "sha256": "62e87b37590a08900ca72ae8707f12630cd40d0ee629b54c44798fe2e6d7b61b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteCorridorAssemblyMapCommandlet.cpp",
+      "bytes": 4334,
+      "sha256": "4bdf9280b5f6380947ac96703b0b8843795ff07c24cfab2d7103cb73bd08e6b3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteAssemblyTestRig.h",
+      "bytes": 1165,
+      "sha256": "53e6f6f2828635e41b45c778ae4aca00aa1dbbb605c672d416745882fa5f9815"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteCorridorAssemblyMapCommandlet.h",
+      "bytes": 349,
+      "sha256": "60a5dcf2f0db4ce5c572724274e433667e2c64b89c97ec3f17dae9991b845023"
+    }
+  ],
+  "git_status": " M Content/Demo/L_CastleDemo.umap\n M testfordemo.uproject\n?? .agents/\n?? .codex/\n?? .ignore\n?? .mcp.json\n?? .vscode/\n?? AGENTS.md\n?? Content/Roguelite/\n?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf\n?? Docs/01_FINAL_DESIGN_SPEC.md\n?? Docs/02_TECHNICAL_ARCHITECTURE.md\n?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md\n?? Docs/04_ACCEPTANCE_MATRIX.md\n?? Docs/05_MCP_SETUP_AND_CAPABILITY.md\n?? Docs/06_EXECUTION_STATUS.md\n?? Docs/Backups/\n?? Plugins/\n?? prompts/\n?? templates/\n?? testfordemo.code-workspace\n",
+  "project_unchanged": true,
+  "demo_dirty_map_unchanged": true,
+  "existing_assets_unchanged": true,
+  "no_unexpected_existing_change": true,
+  "all_backups_match": true,
+  "execution_status_final_hash_refreshed": true
+}

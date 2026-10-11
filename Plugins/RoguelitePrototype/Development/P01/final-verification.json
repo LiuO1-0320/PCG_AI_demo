@@ -1,0 +1,554 @@
+{
+  "task": "P01",
+  "project": "E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject",
+  "completed_utc": "2026-10-11T09:34:24.425Z",
+  "protected_file_count": 47,
+  "protected_files_unchanged": true,
+  "protected_files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 5578,
+      "sha256": "E872BCCE4278821A7C71082B84AC7A4A9B3912ECF17F9590627BDDAAF099A3D3",
+      "baseline_sha256": "E872BCCE4278821A7C71082B84AC7A4A9B3912ECF17F9590627BDDAAF099A3D3",
+      "unchanged": true
+    },
+    {
+      "path": "Config/DefaultEditor.ini",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "baseline_sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "unchanged": true
+    },
+    {
+      "path": "Config/DefaultEngine.ini",
+      "bytes": 3438,
+      "sha256": "EE40889FAE0783C50A6E8CF25C4EEC082FE2810F3D3700EC5F6D30E549CEB135",
+      "baseline_sha256": "EE40889FAE0783C50A6E8CF25C4EEC082FE2810F3D3700EC5F6D30E549CEB135",
+      "unchanged": true
+    },
+    {
+      "path": "Config/DefaultGame.ini",
+      "bytes": 357,
+      "sha256": "8439054C07CBA9962FC1377FBABB119F4648AE33CB71CCDEB16AFD9F0C90165F",
+      "baseline_sha256": "8439054C07CBA9962FC1377FBABB119F4648AE33CB71CCDEB16AFD9F0C90165F",
+      "unchanged": true
+    },
+    {
+      "path": "Config/DefaultInput.ini",
+      "bytes": 10706,
+      "sha256": "21EB094BC03406DA80C3F33F5F5A0D7C2544FD42B7770569244ED85E00480528",
+      "baseline_sha256": "21EB094BC03406DA80C3F33F5F5A0D7C2544FD42B7770569244ED85E00480528",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/L_CastleDemo.umap",
+      "bytes": 378154,
+      "sha256": "C3BEE36C6454235EADD8BE7CE67B02954AA740F454A49ACC2AC5FA05907AAECD",
+      "baseline_sha256": "C3BEE36C6454235EADD8BE7CE67B02954AA740F454A49ACC2AC5FA05907AAECD",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Cave.uasset",
+      "bytes": 5436,
+      "sha256": "5338773789FB79D284050A2B0418D54B4F32BCFEAAF54EB34AA9019223A376DE",
+      "baseline_sha256": "5338773789FB79D284050A2B0418D54B4F32BCFEAAF54EB34AA9019223A376DE",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Danger.uasset",
+      "bytes": 5446,
+      "sha256": "A593BDED32B5C814F332E0CDA7FA7D6E6AAFEDFE36E0C843C05108352B56FBF4",
+      "baseline_sha256": "A593BDED32B5C814F332E0CDA7FA7D6E6AAFEDFE36E0C843C05108352B56FBF4",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Enemy.uasset",
+      "bytes": 5051,
+      "sha256": "2E0E9B9B4803CA4DE7E8817E9671F087A50B7F87104A71EF7C5C5F45927265D4",
+      "baseline_sha256": "2E0E9B9B4803CA4DE7E8817E9671F087A50B7F87104A71EF7C5C5F45927265D4",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Floor.uasset",
+      "bytes": 5441,
+      "sha256": "E82A4D022F5D701F0A1A52D4076887BB6937A922668E012BC7F7368E7E26C4E2",
+      "baseline_sha256": "E82A4D022F5D701F0A1A52D4076887BB6937A922668E012BC7F7368E7E26C4E2",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Gold.uasset",
+      "bytes": 5436,
+      "sha256": "8AAB97D539D015CDAB6BB939B994DBC84C7E45FB86632AD2B9BF184ABBEB4D25",
+      "baseline_sha256": "8AAB97D539D015CDAB6BB939B994DBC84C7E45FB86632AD2B9BF184ABBEB4D25",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Metal.uasset",
+      "bytes": 5441,
+      "sha256": "15B033C01B34CDBDADAA8B89A27D0058B5F5C2C20BAD7EB0885E9B4BF556B421",
+      "baseline_sha256": "15B033C01B34CDBDADAA8B89A27D0058B5F5C2C20BAD7EB0885E9B4BF556B421",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Portal.uasset",
+      "bytes": 5446,
+      "sha256": "BE4A0EAF4BEF65D1498B1C1CD3BCB4934F1EC1857BB0D641A1BAB525A5B2661F",
+      "baseline_sha256": "BE4A0EAF4BEF65D1498B1C1CD3BCB4934F1EC1857BB0D641A1BAB525A5B2661F",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Purple.uasset",
+      "bytes": 5446,
+      "sha256": "F50565B14780C44128C769DD27451D7721BD731E8A54A3209240B08392ADF0F4",
+      "baseline_sha256": "F50565B14780C44128C769DD27451D7721BD731E8A54A3209240B08392ADF0F4",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Sky.uasset",
+      "bytes": 5431,
+      "sha256": "09B5CC96C070AF3CE861619FF5B200B384F9A1DDA06C7BAD6974D4099290358E",
+      "baseline_sha256": "09B5CC96C070AF3CE861619FF5B200B384F9A1DDA06C7BAD6974D4099290358E",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Stone.uasset",
+      "bytes": 5441,
+      "sha256": "FBC569CC633FD2F2FFBC22C07E98B5FE34F16B43E5743FE9F1CD8680E1DF3001",
+      "baseline_sha256": "FBC569CC633FD2F2FFBC22C07E98B5FE34F16B43E5743FE9F1CD8680E1DF3001",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Teal.uasset",
+      "bytes": 5436,
+      "sha256": "F831BC2D21A2AAB23EC56AA90935D2DFC062469C770FAD76DD74191053281CCB",
+      "baseline_sha256": "F831BC2D21A2AAB23EC56AA90935D2DFC062469C770FAD76DD74191053281CCB",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Trim.uasset",
+      "bytes": 5436,
+      "sha256": "56D9EEB7CFDC0DE762AC7322C854E10BC87D2172BB924B8D78AD6655F22DF2DD",
+      "baseline_sha256": "56D9EEB7CFDC0DE762AC7322C854E10BC87D2172BB924B8D78AD6655F22DF2DD",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/PCG_BossArena.uasset",
+      "bytes": 9626,
+      "sha256": "D4F824476BAEDAA1F8182395EB14FF96BAADE499A85E9C0F33D588C7F2E9E5D2",
+      "baseline_sha256": "D4F824476BAEDAA1F8182395EB14FF96BAADE499A85E9C0F33D588C7F2E9E5D2",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/PCG_Castle.uasset",
+      "bytes": 9448,
+      "sha256": "3F6B25EAD2592B98541FEC3F6D3A6BCB4CDEA02316A2E8DFE620FB2E977BFD76",
+      "baseline_sha256": "3F6B25EAD2592B98541FEC3F6D3A6BCB4CDEA02316A2E8DFE620FB2E977BFD76",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/PCG_Exploration.uasset",
+      "bytes": 9488,
+      "sha256": "9034F38F2FD545A8C23F8BE99FA359948F967DA4CBACE93025803AE4790580B1",
+      "baseline_sha256": "9034F38F2FD545A8C23F8BE99FA359948F967DA4CBACE93025803AE4790580B1",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Demo/PCG_TreasureCave.uasset",
+      "bytes": 9653,
+      "sha256": "07EBCAA79BA9C61FE90DC817DA5A3F63736359A15E8DE5D3B00AAB735364B58C",
+      "baseline_sha256": "07EBCAA79BA9C61FE90DC817DA5A3F63736359A15E8DE5D3B00AAB735364B58C",
+      "unchanged": true
+    },
+    {
+      "path": "Content/Roguelite/AGENTS.md",
+      "bytes": 385,
+      "sha256": "9B8766AC4737A14CCC0E54F355132E16D6A5A75897E107E0176CE026ACEA973F",
+      "baseline_sha256": "9B8766AC4737A14CCC0E54F355132E16D6A5A75897E107E0176CE026ACEA973F",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/RoguelitePrototype.uplugin",
+      "bytes": 508,
+      "sha256": "6B7B283F68D73FBF099F3C0DC9AC5D2347E9DCEAB4661CB847B06BE4B0C2E00A",
+      "baseline_sha256": "6B7B283F68D73FBF099F3C0DC9AC5D2347E9DCEAB4661CB847B06BE4B0C2E00A",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevGameMode.cpp",
+      "bytes": 1176,
+      "sha256": "EEC97E64A12F27995AFE20E2B0A9B4AC16616D01D091ACBC4F9D0A2DBCC13F2F",
+      "baseline_sha256": "EEC97E64A12F27995AFE20E2B0A9B4AC16616D01D091ACBC4F9D0A2DBCC13F2F",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevMapCommandlet.cpp",
+      "bytes": 2913,
+      "sha256": "D8F3CCD9502803B8D0B6071AFC966E6EBECDE740341DA036A31F48FE59345576",
+      "baseline_sha256": "D8F3CCD9502803B8D0B6071AFC966E6EBECDE740341DA036A31F48FE59345576",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RoguelitePrototype.cpp",
+      "bytes": 390,
+      "sha256": "CD0F28249D9100722AF99DBA0A58764017719D1D3FD9791A528E0EFDCC3901B5",
+      "baseline_sha256": "CD0F28249D9100722AF99DBA0A58764017719D1D3FD9791A528E0EFDCC3901B5",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevGameMode.h",
+      "bytes": 381,
+      "sha256": "0CCFE72D65A37F0B59EAD831F5A79CCBD7B1807C8C75433D653962895771F3EA",
+      "baseline_sha256": "0CCFE72D65A37F0B59EAD831F5A79CCBD7B1807C8C75433D653962895771F3EA",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevMapCommandlet.h",
+      "bytes": 422,
+      "sha256": "E571040A82B94F1549C8D58A27E32F24646C720694D20221273364D142FEECEB",
+      "baseline_sha256": "E571040A82B94F1549C8D58A27E32F24646C720694D20221273364D142FEECEB",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RoguelitePrototype.h",
+      "bytes": 102,
+      "sha256": "7166290D7B3F7D6F0816376DF96F609E003453DFB260254F34726FC15DBC5A84",
+      "baseline_sha256": "7166290D7B3F7D6F0816376DF96F609E003453DFB260254F34726FC15DBC5A84",
+      "unchanged": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/RoguelitePrototype.Build.cs",
+      "bytes": 417,
+      "sha256": "1BBB4506AFE3A36F975AB37BD245C2050EAA4327EFA891DC3E19F09D158D3BE0",
+      "baseline_sha256": "1BBB4506AFE3A36F975AB37BD245C2050EAA4327EFA891DC3E19F09D158D3BE0",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.Build.cs",
+      "bytes": 515,
+      "sha256": "DDA4EEEB299D729F4FA601607DA36AA26EC5A7CF955C191C8AA196DC33BA085D",
+      "baseline_sha256": "DDA4EEEB299D729F4FA601607DA36AA26EC5A7CF955C191C8AA196DC33BA085D",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.cpp",
+      "bytes": 144,
+      "sha256": "95CBC5F7BDE0AB086AC2BAAE5731BE7AAE41711A4CFF85F6418D220961103AA4",
+      "baseline_sha256": "95CBC5F7BDE0AB086AC2BAAE5731BE7AAE41711A4CFF85F6418D220961103AA4",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.h",
+      "bytes": 14217,
+      "sha256": "0AAB30C12848DBE2102F77A7D6566ECD98B609087155F62F5AECF131E66CDE60",
+      "baseline_sha256": "0AAB30C12848DBE2102F77A7D6566ECD98B609087155F62F5AECF131E66CDE60",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleGameplay.cpp",
+      "bytes": 26059,
+      "sha256": "8904E5E8F6FA6B695937956878350658FEBE095525086C88435F14DFF1E28874",
+      "baseline_sha256": "8904E5E8F6FA6B695937956878350658FEBE095525086C88435F14DFF1E28874",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleGeneration.cpp",
+      "bytes": 28743,
+      "sha256": "F4801036F08B6DB8EE0937E02B0AD5F57940A9C97BED2ADBAB49062C3AEB9C15",
+      "baseline_sha256": "F4801036F08B6DB8EE0937E02B0AD5F57940A9C97BED2ADBAB49062C3AEB9C15",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleHUD.cpp",
+      "bytes": 10669,
+      "sha256": "53F3B12DC52F7E49DDB2FE220AA3CD7EC02AA22848C0DE365B9D2C1355151F82",
+      "baseline_sha256": "53F3B12DC52F7E49DDB2FE220AA3CD7EC02AA22848C0DE365B9D2C1355151F82",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.cpp",
+      "bytes": 10437,
+      "sha256": "742D9EABED707B82AE428C885CD2079727C126073020F5239115372A435E72D1",
+      "baseline_sha256": "742D9EABED707B82AE428C885CD2079727C126073020F5239115372A435E72D1",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.h",
+      "bytes": 248,
+      "sha256": "7D64935ABA1EBBABAE9FF561CEADB7E42071C01DCB5619BE857D96F9837C8C6A",
+      "baseline_sha256": "7D64935ABA1EBBABAE9FF561CEADB7E42071C01DCB5619BE857D96F9837C8C6A",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleMenu.cpp",
+      "bytes": 6248,
+      "sha256": "959C7D963BF2817B7F3107B3A2DD1A3D367FE1DFA250EA1F048652E6BB46DDFB",
+      "baseline_sha256": "959C7D963BF2817B7F3107B3A2DD1A3D367FE1DFA250EA1F048652E6BB46DDFB",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleNodeLayout.cpp",
+      "bytes": 5886,
+      "sha256": "54EA257D6189A1B2777B4E78498A281D2139E9C844CC265CF27374C4785354B8",
+      "baseline_sha256": "54EA257D6189A1B2777B4E78498A281D2139E9C844CC265CF27374C4785354B8",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleRegions.cpp",
+      "bytes": 8327,
+      "sha256": "C17377A72DD102E851BF738EBDA179224A4AF2D12C1BC16F953B97B5A99C2AC3",
+      "baseline_sha256": "C17377A72DD102E851BF738EBDA179224A4AF2D12C1BC16F953B97B5A99C2AC3",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleSetup.cpp",
+      "bytes": 8117,
+      "sha256": "E77A1371C9FFC02BDA22E9DDAB1C14D97E5AB1185995AC3359F786827581934C",
+      "baseline_sha256": "E77A1371C9FFC02BDA22E9DDAB1C14D97E5AB1185995AC3359F786827581934C",
+      "unchanged": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleSmoke.cpp",
+      "bytes": 24132,
+      "sha256": "B5A6D9F5973D3E2F4B8EF0C843AFC9C216F3BA91B038297CE09BEB625F32B952",
+      "baseline_sha256": "B5A6D9F5973D3E2F4B8EF0C843AFC9C216F3BA91B038297CE09BEB625F32B952",
+      "unchanged": true
+    },
+    {
+      "path": "Source/testfordemo.Target.cs",
+      "bytes": 354,
+      "sha256": "9BD293E350EDCC052AEB2EFF1C1512F5EFA05208F460C5A20EAEA5B2FB87D9EF",
+      "baseline_sha256": "9BD293E350EDCC052AEB2EFF1C1512F5EFA05208F460C5A20EAEA5B2FB87D9EF",
+      "unchanged": true
+    },
+    {
+      "path": "Source/testfordemoEditor.Target.cs",
+      "bytes": 368,
+      "sha256": "8A609964F07D55258FBB23EB5C53C8A51CE74EFAD1B13A445928833003700C78",
+      "baseline_sha256": "8A609964F07D55258FBB23EB5C53C8A51CE74EFAD1B13A445928833003700C78",
+      "unchanged": true
+    },
+    {
+      "path": "testfordemo.uproject",
+      "bytes": 634,
+      "sha256": "27A3AB541173D04F6D11A8D1AC31F6DC5C3A5D2319DEA6698B3F4ECCFB3659E3",
+      "baseline_sha256": "27A3AB541173D04F6D11A8D1AC31F6DC5C3A5D2319DEA6698B3F4ECCFB3659E3",
+      "unchanged": true
+    }
+  ],
+  "backup_verification": [
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Content__Roguelite__Maps__L_Roguelite_Dev.umap.before-P01",
+      "bytes": 15296,
+      "sha256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA",
+      "original_path": "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+      "baseline_sha256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA",
+      "valid": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__README.md.before-P01",
+      "bytes": 4077,
+      "sha256": "654E994162781477AF3936E9C21600E73F855EFD2AB8E00426920BD109929619",
+      "original_path": "Plugins/RoguelitePrototype/README.md",
+      "baseline_sha256": "654E994162781477AF3936E9C21600E73F855EFD2AB8E00426920BD109929619",
+      "valid": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__AGENTS.md.before-P01",
+      "bytes": 807,
+      "sha256": "8BD81AF786E5095F73398ECD8B06AA6E86725C7F19F37786958E8727805E6B92",
+      "original_path": "Plugins/RoguelitePrototype/AGENTS.md",
+      "baseline_sha256": "8BD81AF786E5095F73398ECD8B06AA6E86725C7F19F37786958E8727805E6B92",
+      "valid": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Docs__06_EXECUTION_STATUS.md.before-P01",
+      "bytes": 5362,
+      "sha256": "0680F7AF8B11A8880F89B395CD2768D08816AE2061A6E01F7A41F700D6BF30FD",
+      "original_path": "Docs/06_EXECUTION_STATUS.md",
+      "baseline_sha256": "0680F7AF8B11A8880F89B395CD2768D08816AE2061A6E01F7A41F700D6BF30FD",
+      "valid": true
+    }
+  ],
+  "created_authored_files": [
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricRoom.h",
+      "bytes": 3875,
+      "sha256": "060A933D037D0EE23016146B9335A1921CBE11016139C61B94C12E62B56B3728"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricRoom.cpp",
+      "bytes": 6970,
+      "sha256": "0D548A76E1588D8064D1ACEC75D55C3AE6043B08684F167D4639837301D43583"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_ROOM_GUIDE.md",
+      "bytes": 4227,
+      "sha256": "8081D0FBC572C7FFA04908B0F6D3C2174C9972C1EEDEA68C9BC07DA937B657FF"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_RESULT.md",
+      "bytes": 7857,
+      "sha256": "1E887A82A8D175044CB8C46F87FDE8E06376127A689FBE9494C630A4BF1082AF"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validate_room.py",
+      "bytes": 18914,
+      "sha256": "D11163977854412113D71289F41394ED1BDFACB6888609C7820F1A603E343DF1"
+    }
+  ],
+  "modified_existing_files": [
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+      "bytes": 23259,
+      "sha256": "00785AC0E1FCA81EC8A7CCC1EBFBE85EBF355732F749A7257CC3C3173A7A7281"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/README.md",
+      "bytes": 4730,
+      "sha256": "27BDCFF81E779ED0A3D83B58050817F8A6D462882AED8F755D9E88134550948C"
+    },
+    {
+      "path": "Docs/06_EXECUTION_STATUS.md",
+      "bytes": 9255,
+      "sha256": "739FE5D6E563AD26731947CBF5676B7248D8C7F00C537FA7F3C0EB5CCB172389"
+    }
+  ],
+  "evidence_files": [
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/backup-manifest.json",
+      "bytes": 1433,
+      "sha256": "91AD1C9B82B429AFA355E29C5BBF61EE6DBC348111B8EAC54B2AE456F6BB4B8D"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Content__Roguelite__Maps__L_Roguelite_Dev.umap.before-P01",
+      "bytes": 15296,
+      "sha256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Docs__06_EXECUTION_STATUS.md.before-P01",
+      "bytes": 5362,
+      "sha256": "0680F7AF8B11A8880F89B395CD2768D08816AE2061A6E01F7A41F700D6BF30FD"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__AGENTS.md.before-P01",
+      "bytes": 807,
+      "sha256": "8BD81AF786E5095F73398ECD8B06AA6E86725C7F19F37786958E8727805E6B92"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__README.md.before-P01",
+      "bytes": 4077,
+      "sha256": "654E994162781477AF3936E9C21600E73F855EFD2AB8E00426920BD109929619"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/baseline-files.json",
+      "bytes": 8055,
+      "sha256": "1FC9C8711EEAA847171261833E1F638C5C6BD72B72F7679D243E2E20604505E1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-baseline.json",
+      "bytes": 18732,
+      "sha256": "0278BF3CE054223AC61594199AF778ABDDB7D0F130EF4C4F43E8AF0236B850A7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-baseline.log",
+      "bytes": 5860,
+      "sha256": "19234DCA7B688EFC8770F884CBECF31CD7A97888E8BB5C112A3C206B0094A5D0"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-p01.json",
+      "bytes": 33671,
+      "sha256": "F44D18B0481F8143A584D90279580B9B55076EE2357EC54F89E0855FA4918A38"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-p01.log",
+      "bytes": 12355,
+      "sha256": "66451E6142DC39E2EF5CBDF9048BA58AD92865600FE440F11133297DA26FA815"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/git-status-before.txt",
+      "bytes": 496,
+      "sha256": "70E4B7A51B62BE9AE514A30169B960FC1A96B98C5E2780ED983304C166D9C331"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/primary-editor-3000x2500.png",
+      "bytes": 455145,
+      "sha256": "25E1B4F7E9544DAB81DC5A001FBAAF41B342BE2C622108E9BF10EF524531C5B3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/primary-editor-verification.json",
+      "bytes": 5346,
+      "sha256": "93B6B8E96EEB5F3DE41003EAE33120C61056BA0C0926FBAB26644D3A93A6755F"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validate_room.py",
+      "bytes": 18914,
+      "sha256": "D11163977854412113D71289F41394ED1BDFACB6888609C7820F1A603E343DF1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-canonical-editor.log",
+      "bytes": 387184,
+      "sha256": "144EF85D064229B6C58E5FE75709B5DB7BC2F160B23DD4C6CF9F215B997CD0F7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-canonical.json",
+      "bytes": 508417,
+      "sha256": "D2BF31B56FBE843E9D883A2D48291D18ADD4706724B27F807A4381B40DB76941"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-editor.log",
+      "bytes": 314545,
+      "sha256": "7D266B7D0F6C7116398234B3C306BE72CC628E96ED72E3614533EB321CC09FCE"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation.json",
+      "bytes": 39686,
+      "sha256": "F7423C1220AEC3E205128808D7FE90A92D6238FAA3D0D8C70AD29432104252DF"
+    }
+  ],
+  "builds": [
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-baseline.log",
+      "exit_code_observed": 0,
+      "key_lines": [
+        "Target is up to date",
+        "Result: Succeeded",
+        "Total execution time: 3.08 seconds"
+      ]
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-p01.log",
+      "exit_code_observed": 0,
+      "key_lines": [
+        "Using Visual Studio 14.44.35228 toolchain (E:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207) and Windows 10.0.22621.0 SDK (E:\\Windows Kits\\10).",
+        "[3/5] Link [x64] UnrealEditor-RoguelitePrototype.dll [NoUba]",
+        "[4/5] Link [x64] UnrealEditor-RoguelitePrototype.lib [NoUba]",
+        "Result: Succeeded",
+        "Total execution time: 400.33 seconds"
+      ]
+    }
+  ],
+  "mcp_checks": {
+    "total": 107,
+    "failed": 0,
+    "passed": true,
+    "temporary_editor_stopped": true
+  },
+  "git_status_before": " M Content/Demo/L_CastleDemo.umap\r\n M testfordemo.uproject\r\n?? .agents/\r\n?? .codex/\r\n?? .ignore\r\n?? .mcp.json\r\n?? .vscode/\r\n?? AGENTS.md\r\n?? Content/Roguelite/\r\n?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf\r\n?? Docs/01_FINAL_DESIGN_SPEC.md\r\n?? Docs/02_TECHNICAL_ARCHITECTURE.md\r\n?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md\r\n?? Docs/04_ACCEPTANCE_MATRIX.md\r\n?? Docs/05_MCP_SETUP_AND_CAPABILITY.md\r\n?? Docs/06_EXECUTION_STATUS.md\r\n?? Plugins/\r\n?? prompts/\r\n?? templates/\r\n?? testfordemo.code-workspace\r\n",
+  "git_status_after": " M Content/Demo/L_CastleDemo.umap\n M testfordemo.uproject\n?? .agents/\n?? .codex/\n?? .ignore\n?? .mcp.json\n?? .vscode/\n?? AGENTS.md\n?? Content/Roguelite/\n?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf\n?? Docs/01_FINAL_DESIGN_SPEC.md\n?? Docs/02_TECHNICAL_ARCHITECTURE.md\n?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md\n?? Docs/04_ACCEPTANCE_MATRIX.md\n?? Docs/05_MCP_SETUP_AND_CAPABILITY.md\n?? Docs/06_EXECUTION_STATUS.md\n?? Plugins/\n?? prompts/\n?? templates/\n?? testfordemo.code-workspace\n",
+  "git_status_listing_unchanged": true,
+  "git_commit_staging_reset_clean_performed": false,
+  "uproject_modified_by_p01": false,
+  "default_maps_config_modified": false,
+  "saved_map_dimensions_cm": {
+    "RoomLength": 3000,
+    "RoomWidth": 2500,
+    "RoomHeight": 500,
+    "WallThickness": 20,
+    "FloorThickness": 20
+  },
+  "current_editor_map": "/Game/Roguelite/Maps/L_Roguelite_Dev",
+  "current_map_dirty": false,
+  "current_pie_running": false,
+  "manual_acceptance_complete": false,
+  "next_phase_started": false
+}

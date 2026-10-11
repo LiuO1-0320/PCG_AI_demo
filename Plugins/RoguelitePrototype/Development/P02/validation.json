@@ -1,0 +1,12 @@
+{
+  "task": "P02",
+  "project": "E:\\Unreal Projects\\PCG_AI_demo_1\\testfordemo.uproject",
+  "map": "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev",
+  "calls": [],
+  "checks": [],
+  "schemas": {},
+  "temporary_editor_pid": 24312,
+  "passed": false,
+  "error": "RuntimeError('Editor exited before MCP: 3')",
+  "temporary_editor_stopped": true
+}

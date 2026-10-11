@@ -1,0 +1,19 @@
+{
+  "toolset": "editor_toolset.toolsets.scene.SceneTools",
+  "tool": "trace_world",
+  "arguments": {
+    "start": {
+      "x": 31300,
+      "y": 225,
+      "z": 100
+    },
+    "end": {
+      "x": 31700,
+      "y": 225,
+      "z": 100
+    }
+  },
+  "result": {
+    "returnValue": 200
+  }
+}

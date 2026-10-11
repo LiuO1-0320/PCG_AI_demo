@@ -1,0 +1,284 @@
+{
+  "task": "P02 manual warning feedback",
+  "date": "2026-10-11T21:40:25.758120+08:00",
+  "finding": "Warnings exist in current log and become visible in opened Output Log. No automatic POI viewport overlay exists.",
+  "source_unchanged": [
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricRoom.h",
+      "same_as_p02_delivery": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricRoom.cpp",
+      "same_as_p02_delivery": true
+    }
+  ],
+  "protected_count": 51,
+  "protected_files": [
+    {
+      "path": "AGENTS.md",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Config/DefaultEditor.ini",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Config/DefaultEngine.ini",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Config/DefaultGame.ini",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Config/DefaultInput.ini",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/L_CastleDemo.umap",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Cave.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Danger.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Enemy.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Floor.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Gold.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Metal.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Portal.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Purple.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Sky.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Stone.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Teal.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/Materials/M_Trim.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/PCG_BossArena.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/PCG_Castle.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/PCG_Exploration.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Demo/PCG_TreasureCave.uasset",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Roguelite/AGENTS.md",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validate_room.py",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_RESULT.md",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_ROOM_GUIDE.md",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/RoguelitePrototype.uplugin",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevGameMode.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevMapCommandlet.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RoguelitePrototype.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevGameMode.h",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevMapCommandlet.h",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RoguelitePrototype.h",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/RoguelitePrototype.Build.cs",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.Build.cs",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.h",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleGameplay.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleGeneration.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleHUD.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.h",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleMenu.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleNodeLayout.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleRegions.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleSetup.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/CastleDemo/CastleSmoke.cpp",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/testfordemo.Target.cs",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "Source/testfordemoEditor.Target.cs",
+      "same_as_p02_baseline": true
+    },
+    {
+      "path": "testfordemo.uproject",
+      "same_as_p02_baseline": true
+    }
+  ],
+  "map": "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev",
+  "current_room_diagnostics": {
+    "returnValue": "{\"roomLength\":3000,\"roomWidth\":2500,\"roomHeight\":500,\"manualPOIActors\":[{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.StaticMeshActor_2\"}],\"validationWarnings\":[],\"outOfBoundsManualPOIActors\":[]}"
+  },
+  "current_map_dirty_state": {
+    "returnValue": true
+  },
+  "map_save_called": false,
+  "code_build_ran": false,
+  "source_or_asset_mutation_called": false,
+  "ui_actions": "Opened Output Log and typed P01_POI_OUT_OF_BOUNDS filter; did not move or scale actors.",
+  "current_log_warning_samples": [
+    "[2026.10.11-13.34.27:223][962]LogRoguelitePrototype: Warning: P01_POI_OUT_OF_BOUNDS 手工 POI 越界：Room=P02_DoorSocketRoom POI=P02_ManualPOI Path=/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.StaticMeshActor_2 LocalMin=X=720.096 Y=438.397 Z=0.000 LocalMax=X=1079.904 Y=761.603 Z=200.000；仅警告，不修改 POI。",
+    "[2026.10.11-13.34.27:223][962]LogRoguelitePrototype: Warning: P01_POI_OUT_OF_BOUNDS 手工 POI 越界：Room=P02_DoorSocketRoom POI=P02_ManualPOI Path=/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.StaticMeshActor_2 LocalMin=X=720.096 Y=438.397 Z=0.000 LocalMax=X=1079.904 Y=761.603 Z=200.000；仅警告，不修改 POI。",
+    "[2026.10.11-13.34.27:223][962]LogRoguelitePrototype: Warning: P01_POI_OUT_OF_BOUNDS 手工 POI 越界：Room=P02_DoorSocketRoom POI=P02_ManualPOI Path=/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.StaticMeshActor_2 LocalMin=X=720.096 Y=438.397 Z=0.000 LocalMax=X=1079.904 Y=761.603 Z=200.000；仅警告，不修改 POI。"
+  ],
+  "modified_documents": [
+    {
+      "path": "Plugins/RoguelitePrototype/P02_DOOR_GUIDE.md",
+      "sha256": "EFE0D45F2D34CC3D4657C41EAF3D91082AD5977405A16A5590F2C0FEADE117B7",
+      "before_backup": "E:\\Unreal Projects\\PCG_AI_demo_1\\Plugins\\RoguelitePrototype\\Development\\P02\\Feedback_POI\\Backups\\Plugins__RoguelitePrototype__P02_DOOR_GUIDE.md.before-warning-feedback"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P02_RESULT.md",
+      "sha256": "27EF01D80A098DE3CE703778C0F2C76F25B662CBD28DD73E1928DC52C5EA4779",
+      "before_backup": "E:\\Unreal Projects\\PCG_AI_demo_1\\Plugins\\RoguelitePrototype\\Development\\P02\\Feedback_POI\\Backups\\Plugins__RoguelitePrototype__P02_RESULT.md.before-warning-feedback"
+    },
+    {
+      "path": "Docs/06_EXECUTION_STATUS.md",
+      "sha256": "C4F45261AC032586117929D25EF7BA01A827B8859A47C51D8C0DBD1F8947EA4B",
+      "before_backup": "E:\\Unreal Projects\\PCG_AI_demo_1\\Plugins\\RoguelitePrototype\\Development\\P02\\Feedback_POI\\Backups\\Docs__06_EXECUTION_STATUS.md.before-warning-feedback"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/backup-manifest.json",
+      "sha256": "B509FC46E65E50BFD7725C24B0835615655D9B18B235AAF0BB0E2A725D864C9B"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Docs__06_EXECUTION_STATUS.md.before-warning-feedback",
+      "sha256": "F9E5E96B33C9FB3A2F719F1823C8D94FCFF837245A251036347FCD1C4D65A6F2"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Plugins__RoguelitePrototype__P02_DOOR_GUIDE.md.before-warning-feedback",
+      "sha256": "A6070490181E1A21E1DEEF27A13DBCE3CB8AD7BBDBC319A3B507AC77651DC2DE"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Plugins__RoguelitePrototype__P02_RESULT.md.before-warning-feedback",
+      "sha256": "40103F4D35CC97FA54D0CE20C0DFAAE9CB250767089A2FA83F674CDEF7A45FBE"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/output-log-visible.png",
+      "sha256": "D477526D6AAF408FC33A4CC544D02B4659418C57BF5D29EFE3802F42D135B708"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/ui-log-filter.json",
+      "sha256": "9C4482279E36587D4208D63D740B5DF3E7103A2E5FF756F01938E2766EA6AA43"
+    }
+  ],
+  "p02_manual_pass": false,
+  "automatic_viewport_poi_warning_implemented": false,
+  "p03_started": false
+}

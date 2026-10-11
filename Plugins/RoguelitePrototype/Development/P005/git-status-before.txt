@@ -1,0 +1,20 @@
+## main...origin/main
+ M Content/Demo/L_CastleDemo.umap
+ M testfordemo.uproject
+?? .agents/
+?? .codex/
+?? .ignore
+?? .mcp.json
+?? .vscode/
+?? AGENTS.md
+?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf
+?? Docs/01_FINAL_DESIGN_SPEC.md
+?? Docs/02_TECHNICAL_ARCHITECTURE.md
+?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md
+?? Docs/04_ACCEPTANCE_MATRIX.md
+?? Docs/05_MCP_SETUP_AND_CAPABILITY.md
+?? Docs/06_EXECUTION_STATUS.md
+?? Plugins/
+?? prompts/
+?? templates/
+?? testfordemo.code-workspace

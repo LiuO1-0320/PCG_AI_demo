@@ -1,0 +1,26 @@
+[
+  {
+    "Original": "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+    "Backup": "Plugins/RoguelitePrototype/Development/P01/Backups/Content__Roguelite__Maps__L_Roguelite_Dev.umap.before-P01",
+    "SHA256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA",
+    "BackupSHA256": "A5F6778E9222B02FE81AD8DD173C387A3FFDF4C77EBDEA757FBE07B2B977B3AA"
+  },
+  {
+    "Original": "Plugins/RoguelitePrototype/README.md",
+    "Backup": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__README.md.before-P01",
+    "SHA256": "654E994162781477AF3936E9C21600E73F855EFD2AB8E00426920BD109929619",
+    "BackupSHA256": "654E994162781477AF3936E9C21600E73F855EFD2AB8E00426920BD109929619"
+  },
+  {
+    "Original": "Plugins/RoguelitePrototype/AGENTS.md",
+    "Backup": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__AGENTS.md.before-P01",
+    "SHA256": "8BD81AF786E5095F73398ECD8B06AA6E86725C7F19F37786958E8727805E6B92",
+    "BackupSHA256": "8BD81AF786E5095F73398ECD8B06AA6E86725C7F19F37786958E8727805E6B92"
+  },
+  {
+    "Original": "Docs/06_EXECUTION_STATUS.md",
+    "Backup": "Plugins/RoguelitePrototype/Development/P01/Backups/Docs__06_EXECUTION_STATUS.md.before-P01",
+    "SHA256": "0680F7AF8B11A8880F89B395CD2768D08816AE2061A6E01F7A41F700D6BF30FD",
+    "BackupSHA256": "0680F7AF8B11A8880F89B395CD2768D08816AE2061A6E01F7A41F700D6BF30FD"
+  }
+]

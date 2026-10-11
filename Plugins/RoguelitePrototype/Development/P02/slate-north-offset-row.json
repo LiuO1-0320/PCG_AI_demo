@@ -1,0 +1,12 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Snapshot",
+  "arguments": {
+    "ref": "g45",
+    "maxDepth": 50,
+    "bIncludeSourceLocations": true
+  },
+  "result": {
+    "returnValue": "generic \"Manual Offset\\r\\n300.0 cm\\r\\nReset to Default\\r\\nCreate Key\" [pos=1532,522 size=339,27] [src=DetailItemNode.cpp:300] [ref=g45]\n  splitter [pos=1532,522 size=339,26] [src=SDetailSingleItemRow.cpp:456] [ref=sp21]\n    generic \"Manual Offset\" [pos=1586,528 size=72,13] [src=PropertyEditorHelpers.cpp:71] [ref=g63]\n    slider [pos=1707,525 size=117,20] [src=SNumericEntryBox.h:269] [ref=sl1]\n      text \"300.0 cm\" [pos=1716,528 size=99,13] [src=SSpinBox.cpp:186] [ref=x86]\n      image [pos=1822,535 size=0,0] [src=SSpinBox.cpp:221] [ref=i111]\n    button \"Reset to Default\" [pos=1851,523 size=20,24] [src=SToolBarButtonBlock.cpp:411] [ref=b87]\n    combobox [pos=0,0 size=0,0] [src=SClippingHorizontalBox.cpp:497] [ref=co38]\n      button [pos=0,0 size=0,0] [src=SComboButton.cpp:52] [ref=b88]\n        image [pos=0,0 size=0,0] [src=SClippingHorizontalBox.cpp:508] [ref=i112]\n        image [pos=0,0 size=0,0] [src=SComboButton.cpp:98] [ref=i113]\n"
+  }
+}

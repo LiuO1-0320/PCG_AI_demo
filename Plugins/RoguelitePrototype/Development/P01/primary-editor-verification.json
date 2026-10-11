@@ -1,0 +1,178 @@
+{
+  "task": "P01",
+  "project": "E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject",
+  "map": "/Game/Roguelite/Maps/L_Roguelite_Dev",
+  "user_reopened": true,
+  "calls": [
+    {
+      "toolset_name": "EditorToolset.EditorAppToolset",
+      "tool_name": "SelectActors",
+      "arguments": {
+        "actors": [
+          {
+            "refPath": "/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0"
+          }
+        ]
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":null}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "EditorToolset.EditorAppToolset",
+      "tool_name": "SetCameraTransform",
+      "arguments": {
+        "transform": {
+          "location": {
+            "x": 13500,
+            "y": -3500,
+            "z": 2600
+          },
+          "rotation": {
+            "pitch": -28,
+            "yaw": 135,
+            "roll": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":null}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.object.ObjectTools",
+      "tool_name": "get_properties",
+      "arguments": {
+        "instance": {
+          "refPath": "/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0"
+        },
+        "properties": [
+          "roomLength",
+          "roomWidth",
+          "roomHeight",
+          "wallThickness",
+          "floorThickness",
+          "manualPOIActors",
+          "validationWarnings"
+        ]
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":\"{\\\"roomLength\\\":3000,\\\"roomWidth\\\":2500,\\\"roomHeight\\\":500,\\\"wallThickness\\\":20,\\\"floorThickness\\\":20,\\\"manualPOIActors\\\":[{\\\"refPath\\\":\\\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.StaticMeshActor_1\\\"}],\\\"validationWarnings\\\":[]}\"}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.actor.ActorTools",
+      "tool_name": "get_components",
+      "arguments": {
+        "actor": {
+          "refPath": "/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0"
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":[{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.RoomRoot\"},{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.Floor\"},{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.NorthWall\"},{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.SouthWall\"},{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.EastWall\"},{\"refPath\":\"/Game/Roguelite/Maps/L_Roguelite_Dev.L_Roguelite_Dev:PersistentLevel.RogueliteParametricRoom_0.WestWall\"}]}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.scene.SceneTools",
+      "tool_name": "get_current_level",
+      "arguments": {},
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":\"/Game/Roguelite/Maps/L_Roguelite_Dev\"}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "editor_toolset.toolsets.asset.AssetTools",
+      "tool_name": "is_dirty",
+      "arguments": {
+        "asset_path": "/Game/Roguelite/Maps/L_Roguelite_Dev"
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":false}"
+          }
+        ]
+      }
+    },
+    {
+      "toolset_name": "EditorToolset.EditorAppToolset",
+      "tool_name": "IsPIERunning",
+      "arguments": {},
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"returnValue\":false}"
+          }
+        ]
+      }
+    }
+  ],
+  "capture": {
+    "toolset_name": "EditorToolset.EditorAppToolset",
+    "tool_name": "CaptureViewport",
+    "annotations": {
+      "gridSpacing": 0,
+      "gridExtent": 0,
+      "gridHeight": 0,
+      "maxLabelDistance": 0,
+      "maxLabels": 0,
+      "classFilter": {
+        "refPath": "/Script/RoguelitePrototype.RogueliteParametricRoom"
+      }
+    },
+    "cameraLocation": {
+      "x": 13500,
+      "y": -3500,
+      "z": 2600
+    },
+    "cameraRotation": {
+      "pitch": -28.000000000000004,
+      "yaw": 135,
+      "roll": -1.8011004884021977e-15
+    },
+    "cameraFOV": 90,
+    "grid": {
+      "spacingCm": 0,
+      "extentCm": 0,
+      "height": 0
+    },
+    "labeledActors": [],
+    "image_path": "Plugins/RoguelitePrototype/Development/P01/primary-editor-3000x2500.png",
+    "mime_type": "image/png",
+    "bytes": 455145,
+    "sha256": "25e1b4f7e9544dab81dc5a001fbaaf41b342be2c622108e9bf10ef524531c5b3"
+  },
+  "manual_interaction_tested": false
+}

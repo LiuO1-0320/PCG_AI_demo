@@ -1,0 +1,10 @@
+{
+  "toolset": "editor_toolset.toolsets.asset.AssetTools",
+  "tool": "is_dirty",
+  "arguments": {
+    "asset_path": "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev"
+  },
+  "result": {
+    "returnValue": false
+  }
+}

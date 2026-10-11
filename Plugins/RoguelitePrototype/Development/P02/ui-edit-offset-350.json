@@ -1,0 +1,12 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Type",
+  "arguments": {
+    "ref": "tb4",
+    "text": "350",
+    "submit": true
+  },
+  "result": {
+    "returnValue": true
+  }
+}

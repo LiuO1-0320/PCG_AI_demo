@@ -1,0 +1,1565 @@
+{
+  "task": "P03-C1",
+  "root": "E:\\Unreal Projects\\PCG_AI_demo_1",
+  "head": "2b36a479b56dd88867f9d396826493134aa7f956",
+  "checks": {
+    "253_existing_files": true,
+    "only_five_allowed_existing_documents_changed": true,
+    "248_other_files_unchanged": true,
+    "none_missing": true,
+    "five_backups_match": true,
+    "new_files_scoped": true,
+    "main_333_passed": true,
+    "details_11_passed": true,
+    "final_native_sweep_passed": true,
+    "owned_editor_closed_port_stopped": true,
+    "git_status_matches_before": true
+  },
+  "passed": true,
+  "changed_existing": [
+    {
+      "path": "AGENTS.md",
+      "before": "109efa446d04e38e64b1b500c3f2680d12b40613cff6de6d6e0104022eefa3f2",
+      "after": "3cdc253c0ad94c6300bf610f2b73f8dd9f56b1df528f0d7eb0fa1ccb5ae908d6"
+    },
+    {
+      "path": "Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "before": "8429a9a7a819809c7e48f63ab0637edabc6b92ec3b41aa61d399e95362405d30",
+      "after": "52ca99daf6b8ae237bdb51bc73e5f4d2f21a4cc1f1061b52e0f435c85cf91fd5"
+    },
+    {
+      "path": "Docs/06_EXECUTION_STATUS.md",
+      "before": "55f6415172ad08d855f9c86d3555631accd65a501bbe2c74c7470d49ca1eaeea",
+      "after": "919a4c728dc3210331491b8c6d23bef34bcacd56a0e3a9160bb6575eae7b824b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/README.md",
+      "before": "1bbf420387884c8c5b28b2e1086d056c51c03a98c49589fbf116443d5df23e94",
+      "after": "4f8a1fcd365188595b09500ef2185cec71965511228ca5098ecf8535ee529307"
+    },
+    {
+      "path": "prompts/P01_TO_P13_TASKS.md",
+      "before": "2594b836d646039c2d77bb23046fd26174544e85190f21d0eb804fe3a69e988f",
+      "after": "937f247af0928d862e9c2d2a095f0a6b19be83226c135545cab00601a514d92c"
+    }
+  ],
+  "protected_unchanged": [
+    {
+      "path": ".gitignore",
+      "before": "bc1a368740b827d9f9147c9b90f1ae3a3f3d3d3afa52a0f1cdd1ebb2cfb878ae",
+      "after": "bc1a368740b827d9f9147c9b90f1ae3a3f3d3d3afa52a0f1cdd1ebb2cfb878ae"
+    },
+    {
+      "path": ".ignore",
+      "before": "8266ddf906cdd4745142173bef39988b0fb6fab502c785163161bbeac25cd10c",
+      "after": "8266ddf906cdd4745142173bef39988b0fb6fab502c785163161bbeac25cd10c"
+    },
+    {
+      "path": ".mcp.json",
+      "before": "75fb39fcb7f93295c59d15ea5b1845962fad2340a124c4d0b55dbe1306481912",
+      "after": "75fb39fcb7f93295c59d15ea5b1845962fad2340a124c4d0b55dbe1306481912"
+    },
+    {
+      "path": "README_DEMO.md",
+      "before": "677b30c06c08862433fe3620ce7afd627933684b1a5b16764a54b0ed9908f660",
+      "after": "677b30c06c08862433fe3620ce7afd627933684b1a5b16764a54b0ed9908f660"
+    },
+    {
+      "path": "testfordemo.code-workspace",
+      "before": "b965b0ce60ea02b5093f06b6565f91796e8e096cdced4dae1df8e902a45ce0de",
+      "after": "b965b0ce60ea02b5093f06b6565f91796e8e096cdced4dae1df8e902a45ce0de"
+    },
+    {
+      "path": "testfordemo.uproject",
+      "before": "27a3ab541173d04f6d11a8d1ac31f6dc5c3a5d2319dea6698b3f4eccfb3659e3",
+      "after": "27a3ab541173d04f6d11a8d1ac31f6dc5c3a5d2319dea6698b3f4eccfb3659e3"
+    },
+    {
+      "path": ".agents/skills/unreal-workflow/SKILL.md",
+      "before": "1413f39d615508a67ca0313e69ccf3218349b73035b2d070a3cc94a6777135c0",
+      "after": "1413f39d615508a67ca0313e69ccf3218349b73035b2d070a3cc94a6777135c0"
+    },
+    {
+      "path": ".codex/config.toml",
+      "before": "04c732ec22cdce79e97c916a8f89cc8741d09fb72bd8da12004e52a262bf1633",
+      "after": "04c732ec22cdce79e97c916a8f89cc8741d09fb72bd8da12004e52a262bf1633"
+    },
+    {
+      "path": ".vscode/compileCommands_Default.json",
+      "before": "e2e440b75306d730d818743ef1555b84de56745b56d9abbf76ad60375b59ec72",
+      "after": "e2e440b75306d730d818743ef1555b84de56745b56d9abbf76ad60375b59ec72"
+    },
+    {
+      "path": ".vscode/compileCommands_testfordemo.json",
+      "before": "9e702e91789e3db5459240089bf4e609b9f104eddb6a87e9ccf3d09b97ed7de0",
+      "after": "9e702e91789e3db5459240089bf4e609b9f104eddb6a87e9ccf3d09b97ed7de0"
+    },
+    {
+      "path": ".vscode/c_cpp_properties.json",
+      "before": "0994331ed8d4b820ec0b296ba19223a53c4400cf70fd39fec5aa3302cadf7a29",
+      "after": "0994331ed8d4b820ec0b296ba19223a53c4400cf70fd39fec5aa3302cadf7a29"
+    },
+    {
+      "path": ".vscode/compileCommands_Default/CastleDemo.0.rsp",
+      "before": "9cda4078ade6a6fcace3a940607643ae4a9c08c9223f5746011b7c0d7ebfe4f0",
+      "after": "9cda4078ade6a6fcace3a940607643ae4a9c08c9223f5746011b7c0d7ebfe4f0"
+    },
+    {
+      "path": ".vscode/compileCommands_testfordemo/CastleDemo.0.rsp",
+      "before": "9cda4078ade6a6fcace3a940607643ae4a9c08c9223f5746011b7c0d7ebfe4f0",
+      "after": "9cda4078ade6a6fcace3a940607643ae4a9c08c9223f5746011b7c0d7ebfe4f0"
+    },
+    {
+      "path": "Config/DefaultEditor.ini",
+      "before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Config/DefaultEngine.ini",
+      "before": "ee40889fae0783c50a6e8cf25c4eec082fe2810f3d3700ec5f6d30e549ceb135",
+      "after": "ee40889fae0783c50a6e8cf25c4eec082fe2810f3d3700ec5f6d30e549ceb135"
+    },
+    {
+      "path": "Config/DefaultGame.ini",
+      "before": "8439054c07cba9962fc1377fbabb119f4648ae33cb71ccdeb16afd9f0c90165f",
+      "after": "8439054c07cba9962fc1377fbabb119f4648ae33cb71ccdeb16afd9f0c90165f"
+    },
+    {
+      "path": "Config/DefaultInput.ini",
+      "before": "21eb094bc03406da80c3f33f5f5a0d7c2544fd42b7770569244ed85e00480528",
+      "after": "21eb094bc03406da80c3f33f5f5a0d7c2544fd42b7770569244ed85e00480528"
+    },
+    {
+      "path": "Content/Demo/L_CastleDemo.umap",
+      "before": "c3bee36c6454235eadd8be7ce67b02954aa740f454a49acc2ac5fa05907aaecd",
+      "after": "c3bee36c6454235eadd8be7ce67b02954aa740f454a49acc2ac5fa05907aaecd"
+    },
+    {
+      "path": "Content/Demo/PCG_BossArena.uasset",
+      "before": "d4f824476baedaa1f8182395eb14ff96baade499a85e9c0f33d588c7f2e9e5d2",
+      "after": "d4f824476baedaa1f8182395eb14ff96baade499a85e9c0f33d588c7f2e9e5d2"
+    },
+    {
+      "path": "Content/Demo/PCG_Castle.uasset",
+      "before": "3f6b25ead2592b98541fec3f6d3a6bcb4cdea02316a2e8dfe620fb2e977bfd76",
+      "after": "3f6b25ead2592b98541fec3f6d3a6bcb4cdea02316a2e8dfe620fb2e977bfd76"
+    },
+    {
+      "path": "Content/Demo/PCG_Exploration.uasset",
+      "before": "9034f38f2fd545a8c23f8be99fa359948f967da4cbace93025803ae4790580b1",
+      "after": "9034f38f2fd545a8c23f8be99fa359948f967da4cbace93025803ae4790580b1"
+    },
+    {
+      "path": "Content/Demo/PCG_TreasureCave.uasset",
+      "before": "07ebcaa79ba9c61fe90dc817da5a3f63736359a15e8de5d3b00aab735364b58c",
+      "after": "07ebcaa79ba9c61fe90dc817da5a3f63736359a15e8de5d3b00aab735364b58c"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Cave.uasset",
+      "before": "5338773789fb79d284050a2b0418d54b4f32bcfeaaf54eb34aa9019223a376de",
+      "after": "5338773789fb79d284050a2b0418d54b4f32bcfeaaf54eb34aa9019223a376de"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Danger.uasset",
+      "before": "a593bded32b5c814f332e0cda7fa7d6e6aafedfe36e0c843c05108352b56fbf4",
+      "after": "a593bded32b5c814f332e0cda7fa7d6e6aafedfe36e0c843c05108352b56fbf4"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Enemy.uasset",
+      "before": "2e0e9b9b4803ca4de7e8817e9671f087a50b7f87104a71ef7c5c5f45927265d4",
+      "after": "2e0e9b9b4803ca4de7e8817e9671f087a50b7f87104a71ef7c5c5f45927265d4"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Floor.uasset",
+      "before": "e82a4d022f5d701f0a1a52d4076887bb6937a922668e012bc7f7368e7e26c4e2",
+      "after": "e82a4d022f5d701f0a1a52d4076887bb6937a922668e012bc7f7368e7e26c4e2"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Gold.uasset",
+      "before": "8aab97d539d015cdab6bb939b994dbc84c7e45fb86632ad2b9bf184abbeb4d25",
+      "after": "8aab97d539d015cdab6bb939b994dbc84c7e45fb86632ad2b9bf184abbeb4d25"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Metal.uasset",
+      "before": "15b033c01b34cdbdadaa8b89a27d0058b5f5c2c20bad7eb0885e9b4bf556b421",
+      "after": "15b033c01b34cdbdadaa8b89a27d0058b5f5c2c20bad7eb0885e9b4bf556b421"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Portal.uasset",
+      "before": "be4a0eaf4bef65d1498b1c1cd3bcb4934f1ec1857bb0d641a1bab525a5b2661f",
+      "after": "be4a0eaf4bef65d1498b1c1cd3bcb4934f1ec1857bb0d641a1bab525a5b2661f"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Purple.uasset",
+      "before": "f50565b14780c44128c769dd27451d7721bd731e8a54a3209240b08392adf0f4",
+      "after": "f50565b14780c44128c769dd27451d7721bd731e8a54a3209240b08392adf0f4"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Sky.uasset",
+      "before": "09b5cc96c070af3ce861619ff5b200b384f9a1dda06c7bad6974d4099290358e",
+      "after": "09b5cc96c070af3ce861619ff5b200b384f9a1dda06c7bad6974d4099290358e"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Stone.uasset",
+      "before": "fbc569cc633fd2f2ffbc22c07e98b5fe34f16b43e5743fe9f1cd8680e1df3001",
+      "after": "fbc569cc633fd2f2ffbc22c07e98b5fe34f16b43e5743fe9f1cd8680e1df3001"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Teal.uasset",
+      "before": "f831bc2d21a2aab23ec56aa90935d2dfc062469c770fad76dd74191053281ccb",
+      "after": "f831bc2d21a2aab23ec56aa90935d2dfc062469c770fad76dd74191053281ccb"
+    },
+    {
+      "path": "Content/Demo/Materials/M_Trim.uasset",
+      "before": "56d9eeb7cfdc0de762ac7322c854e10bc87d2172bb924b8d78ad6655f22df2dd",
+      "after": "56d9eeb7cfdc0de762ac7322c854e10bc87d2172bb924b8d78ad6655f22df2dd"
+    },
+    {
+      "path": "Content/Roguelite/AGENTS.md",
+      "before": "9b8766ac4737a14ccc0e54f355132e16d6a5a75897e107e0176ce026acea973f",
+      "after": "9b8766ac4737a14ccc0e54f355132e16d6a5a75897e107e0176ce026acea973f"
+    },
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_Dev.umap",
+      "before": "7292e538ac2d9ff35e31bb1cb6b89ec400c5def70ed913db6098bb95a86259b8",
+      "after": "7292e538ac2d9ff35e31bb1cb6b89ec400c5def70ed913db6098bb95a86259b8"
+    },
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.umap",
+      "before": "38ce98be15143c6c22ae79c822a66d3ad407cb7e7e6ac1aabdb4e085288c0056",
+      "after": "38ce98be15143c6c22ae79c822a66d3ad407cb7e7e6ac1aabdb4e085288c0056"
+    },
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_RoomAssembly_Dev.umap",
+      "before": "ac9904be003a5614cec91fc3781f1c4a5f5b269a519f99eb3d1e5c8aed714c42",
+      "after": "ac9904be003a5614cec91fc3781f1c4a5f5b269a519f99eb3d1e5c8aed714c42"
+    },
+    {
+      "path": "Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf",
+      "before": "19564e207ced3b3fe2b7bdb8205b4b4a56b66344a8e8cc8774e33d5ac4fca714",
+      "after": "19564e207ced3b3fe2b7bdb8205b4b4a56b66344a8e8cc8774e33d5ac4fca714"
+    },
+    {
+      "path": "Docs/01_FINAL_DESIGN_SPEC.md",
+      "before": "8e807a63998b4a4fadf1a64d6004478548da0024ab3d8e6e9ea134b3fb489c3b",
+      "after": "8e807a63998b4a4fadf1a64d6004478548da0024ab3d8e6e9ea134b3fb489c3b"
+    },
+    {
+      "path": "Docs/02_TECHNICAL_ARCHITECTURE.md",
+      "before": "71eeefac22ae0d07ed0b9c82615a1a5357845dcef6703b4f3711c655df85824f",
+      "after": "71eeefac22ae0d07ed0b9c82615a1a5357845dcef6703b4f3711c655df85824f"
+    },
+    {
+      "path": "Docs/04_ACCEPTANCE_MATRIX.md",
+      "before": "dc5e0ca4bda53a24cb4325d2d6ec1fa156cf6dd4e1d7183e80a0d8950cc8d4dd",
+      "after": "dc5e0ca4bda53a24cb4325d2d6ec1fa156cf6dd4e1d7183e80a0d8950cc8d4dd"
+    },
+    {
+      "path": "Docs/05_MCP_SETUP_AND_CAPABILITY.md",
+      "before": "fe7499ee82be2bb7371ee1bdc0c96d4887228e4764444e03c3094b9cfd23a134",
+      "after": "fe7499ee82be2bb7371ee1bdc0c96d4887228e4764444e03c3094b9cfd23a134"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/AGENTS.md",
+      "before": "e872bcce4278821a7c71082b84ac7a4a9b3912ecf17f9590627bddaaf099a3d3",
+      "after": "e872bcce4278821a7c71082b84ac7a4a9b3912ecf17f9590627bddaaf099a3d3"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/MANIFEST.md",
+      "before": "59a8fdc9ec9f33391630c3d3a5773eb357aff86bc806dfc951f9ef5285d8d795",
+      "after": "59a8fdc9ec9f33391630c3d3a5773eb357aff86bc806dfc951f9ef5285d8d795"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/VERIFY.md",
+      "before": "fa4a67864064b02487a2e7f26d188c9307c70a847570892c89c4761464fa808b",
+      "after": "fa4a67864064b02487a2e7f26d188c9307c70a847570892c89c4761464fa808b"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Docs/01_FINAL_DESIGN_SPEC.md",
+      "before": "0812b66200a49a4049bf8d2998663ad61d1bb0ebfcb04f30277d2f30f6de9ed3",
+      "after": "0812b66200a49a4049bf8d2998663ad61d1bb0ebfcb04f30277d2f30f6de9ed3"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Docs/02_TECHNICAL_ARCHITECTURE.md",
+      "before": "392351cdc5edade99e67aa0c3e48f9300aa527a41e768f3de77a9fee5c0e072a",
+      "after": "392351cdc5edade99e67aa0c3e48f9300aa527a41e768f3de77a9fee5c0e072a"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "before": "64efecdfed16ef832fc0a6f7a7a81221f57f117d8d4173f6998d1c1f01750700",
+      "after": "64efecdfed16ef832fc0a6f7a7a81221f57f117d8d4173f6998d1c1f01750700"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Docs/04_ACCEPTANCE_MATRIX.md",
+      "before": "eb5eb42917c5aa89429d4b11b23a04595c23000b572ea05a0633c8f84e106e31",
+      "after": "eb5eb42917c5aa89429d4b11b23a04595c23000b572ea05a0633c8f84e106e31"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Docs/06_EXECUTION_STATUS.md",
+      "before": "b4a66cff7fa9ffcdbdae19f8a673f699a77317f30ba63b5c3b3ee0f0582d883c",
+      "after": "b4a66cff7fa9ffcdbdae19f8a673f699a77317f30ba63b5c3b3ee0f0582d883c"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/Plugins/RoguelitePrototype/README.md",
+      "before": "b25d2163afbf22f4abfd4ee0eab18c581e244f9dd026644f8ef996ca70643b5f",
+      "after": "b25d2163afbf22f4abfd4ee0eab18c581e244f9dd026644f8ef996ca70643b5f"
+    },
+    {
+      "path": "Docs/Backups/DOC-UPDATE-01-v2.1-20261012/prompts/P01_TO_P13_TASKS.md",
+      "before": "91ecc033ebda9787cbce1128ec88fa23ccac1b597b97ee6b6d00c57d7f96e19c",
+      "after": "91ecc033ebda9787cbce1128ec88fa23ccac1b597b97ee6b6d00c57d7f96e19c"
+    },
+    {
+      "path": "Docs/Design/build_first_floor_design.py",
+      "before": "478da7614fc71f7228b48ab6aa9c3b85129cfd9a4fda915865b656c402eb9bed",
+      "after": "478da7614fc71f7228b48ab6aa9c3b85129cfd9a4fda915865b656c402eb9bed"
+    },
+    {
+      "path": "output/pdf/first_floor_pcg_design.pdf",
+      "before": "477adda91b206488f34bd160c086d66bd709294fc0e4190b4ce8d5d9af466033",
+      "after": "477adda91b206488f34bd160c086d66bd709294fc0e4190b4ce8d5d9af466033"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/AGENTS.md",
+      "before": "8bd81af786e5095f73398ecd8b06aa6e86725c7f19f37786958e8727805e6b92",
+      "after": "8bd81af786e5095f73398ecd8b06aa6e86725c7f19f37786958e8727805e6b92"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_RESULT.md",
+      "before": "1e887a82a8d175044cb8c46f87fde8e06376127a689fbe9494c630a4bf1082af",
+      "after": "1e887a82a8d175044cb8c46f87fde8e06376127a689fbe9494c630a4bf1082af"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P01_ROOM_GUIDE.md",
+      "before": "8081d0fbc572c7ffa04908b0f6d3c2174c9972c1eedea68c9bc07da937b657ff",
+      "after": "8081d0fbc572c7ffa04908b0f6d3c2174c9972c1eedea68c9bc07da937b657ff"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P02_DOOR_GUIDE.md",
+      "before": "efe0d45f2d34cc3d4657c41eaf3d91082ad5977405a16a5590f2c0feade117b7",
+      "after": "efe0d45f2d34cc3d4657c41eaf3d91082ad5977405a16a5590f2c0feade117b7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P02_RESULT.md",
+      "before": "27ef01d80a098de3ce703778c0f2c76f25b662cbd28dd73e1928dc52c5ea4779",
+      "after": "27ef01d80a098de3ce703778c0f2c76f25b662cbd28dd73e1928dc52c5ea4779"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03A_RESULT.md",
+      "before": "cb7f4cbb2b8f18b5377a7059b15120742897c643e5b7a779ec548a69338c7863",
+      "after": "cb7f4cbb2b8f18b5377a7059b15120742897c643e5b7a779ec548a69338c7863"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03A_ROOM_ASSEMBLY_GUIDE.md",
+      "before": "f66471564d9b5ef940671bf7126ae751aa52e5d3f11bcd267ee88a0df784822a",
+      "after": "f66471564d9b5ef940671bf7126ae751aa52e5d3f11bcd267ee88a0df784822a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/RoguelitePrototype.uplugin",
+      "before": "6b7b283f68d73fbf099f3c0dc9ac5d2347e9dceab4661cb847b06be4b0c2e00a",
+      "after": "6b7b283f68d73fbf099f3c0dc9ac5d2347e9dceab4661cb847b06be4b0c2e00a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/06_EXECUTION_STATUS.before-P005.md",
+      "before": "4c2a6349984da53b9a53eb2c42166ff03635374239fd7f4699ac66dcbb5e307e",
+      "after": "4c2a6349984da53b9a53eb2c42166ff03635374239fd7f4699ac66dcbb5e307e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/baseline-files.json",
+      "before": "5d25cf21b54ee3be47b93f4473eb45afeee7d2ef4c40024b29f2061f32db4a9f",
+      "after": "5d25cf21b54ee3be47b93f4473eb45afeee7d2ef4c40024b29f2061f32db4a9f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/build-editor-direct.json",
+      "before": "f188a0061538d2bfa9a5d986b2926ae35356a3ecd2c2b045195c9b9886a02355",
+      "after": "f188a0061538d2bfa9a5d986b2926ae35356a3ecd2c2b045195c9b9886a02355"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/build-editor-direct.log",
+      "before": "72e4ba8e815e00e4e682f984e30bc51436bd0df4c4048c22e5e722bdd41e09ac",
+      "after": "72e4ba8e815e00e4e682f984e30bc51436bd0df4c4048c22e5e722bdd41e09ac"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/build-editor.json",
+      "before": "cd8eb80bc2ce722c9af948c6b1bbe2e5bc93d3a1a42c5f5536893b7d524978a8",
+      "after": "cd8eb80bc2ce722c9af948c6b1bbe2e5bc93d3a1a42c5f5536893b7d524978a8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/build-editor.log",
+      "before": "0bdf35e9af20af6975afa1b795f9ac4689aa542b10a2f046660daad80d5e0d73",
+      "after": "0bdf35e9af20af6975afa1b795f9ac4689aa542b10a2f046660daad80d5e0d73"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/create-dev-map.log",
+      "before": "14eb5e0913dd5a2203ddf1a5ee0cc72a2cf38c46a0be5868497dfd5d4e5581e8",
+      "after": "14eb5e0913dd5a2203ddf1a5ee0cc72a2cf38c46a0be5868497dfd5d4e5581e8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/editor-pie.log",
+      "before": "cd630c6849cbc4ed63a30195795d609c6cb37cbd5a6a9680da1093a65c542707",
+      "after": "cd630c6849cbc4ed63a30195795d609c6cb37cbd5a6a9680da1093a65c542707"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/final-verification.json",
+      "before": "0fc0fa9c7dd4ba6590bdd7a0194d8ddaa00411aa0667ed35e00709cef4dd8296",
+      "after": "0fc0fa9c7dd4ba6590bdd7a0194d8ddaa00411aa0667ed35e00709cef4dd8296"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/git-status-before.txt",
+      "before": "b0b0366046624b868c38eb2038108c7c819d5756ac67ca5521d9fabef9d7df18",
+      "after": "b0b0366046624b868c38eb2038108c7c819d5756ac67ca5521d9fabef9d7df18"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/mcp-verification.json",
+      "before": "a1d001f937687288083c26823665e5df47b1debfabfb210d26aa5d02c53421d3",
+      "after": "a1d001f937687288083c26823665e5df47b1debfabfb210d26aa5d02c53421d3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/primary-editor-verification.json",
+      "before": "2ff1b9dc615c34f87c7825d2291adc6a72e9c907f155b1d12923325a70bddbe4",
+      "after": "2ff1b9dc615c34f87c7825d2291adc6a72e9c907f155b1d12923325a70bddbe4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/testfordemo.uproject.before-P005.json",
+      "before": "27a3ab541173d04f6d11a8d1ac31f6dc5c3a5d2319dea6698b3f4eccfb3659e3",
+      "after": "27a3ab541173d04f6d11a8d1ac31f6dc5c3a5d2319dea6698b3f4eccfb3659e3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/validate_editor.py",
+      "before": "a7eecb7ef5a44ffd4f89bee5c944fdf1c1b767d2ce0032d7c7f820f4f96a313d",
+      "after": "a7eecb7ef5a44ffd4f89bee5c944fdf1c1b767d2ce0032d7c7f820f4f96a313d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P005/verification-files.json",
+      "before": "9a0c74cdee632246abb9339b019c008e18f900c130965a871be5ca0725c4fdca",
+      "after": "9a0c74cdee632246abb9339b019c008e18f900c130965a871be5ca0725c4fdca"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/backup-manifest.json",
+      "before": "91ad1c9b82b429afa355e29c5bbf61ee6dbc348111b8eac54b2ae456f6bb4b8d",
+      "after": "91ad1c9b82b429afa355e29c5bbf61ee6dbc348111b8eac54b2ae456f6bb4b8d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/baseline-files.json",
+      "before": "1fc9c8711eeaa847171261833e1f638c5c6bd72b72f7679d243e2e20604505e1",
+      "after": "1fc9c8711eeaa847171261833e1f638c5c6bd72b72f7679d243e2e20604505e1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-baseline.json",
+      "before": "0278bf3ce054223ac61594199af778abddb7d0f130ef4c4f43e8af0236b850a7",
+      "after": "0278bf3ce054223ac61594199af778abddb7d0f130ef4c4f43e8af0236b850a7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-baseline.log",
+      "before": "19234dca7b688efc8770f884cbecf31cd7a97888e8bb5c112a3c206b0094a5d0",
+      "after": "19234dca7b688efc8770f884cbecf31cd7a97888e8bb5c112a3c206b0094a5d0"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-p01.json",
+      "before": "f44d18b0481f8143a584d90279580b9b55076ee2357ec54f89e0855fa4918a38",
+      "after": "f44d18b0481f8143a584d90279580b9b55076ee2357ec54f89e0855fa4918a38"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/build-p01.log",
+      "before": "66451e6142dc39e2ef5cbdf9048ba58ad92865600fe440f11133297da26fa815",
+      "after": "66451e6142dc39e2ef5cbdf9048ba58ad92865600fe440f11133297da26fa815"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/final-verification.json",
+      "before": "3b4937fb05a439ea245f3ba07b2883a951c6369cd1bd97d1e90e9a152ffaf443",
+      "after": "3b4937fb05a439ea245f3ba07b2883a951c6369cd1bd97d1e90e9a152ffaf443"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/git-status-before.txt",
+      "before": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331",
+      "after": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/primary-editor-3000x2500.png",
+      "before": "25e1b4f7e9544dab81dc5a001fbaaf41b342be2c622108e9bf10ef524531c5b3",
+      "after": "25e1b4f7e9544dab81dc5a001fbaaf41b342be2c622108e9bf10ef524531c5b3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/primary-editor-verification.json",
+      "before": "93b6b8e96eeb5f3de41003eae33120c61056ba0c0926fbab26644d3a93a6755f",
+      "after": "93b6b8e96eeb5f3de41003eae33120c61056ba0c0926fbab26644d3a93a6755f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validate_room.py",
+      "before": "d11163977854412113d71289f41394ed1bdfacb6888609c7820f1a603e343df1",
+      "after": "d11163977854412113d71289f41394ed1bdfacb6888609c7820f1a603e343df1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-canonical-editor.log",
+      "before": "144ef85d064229b6c58e5fe75709b5db7bc2f160b23dd4c6cf9f215b997cd0f7",
+      "after": "144ef85d064229b6c58e5fe75709b5db7bc2f160b23dd4c6cf9f215b997cd0f7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-canonical.json",
+      "before": "d2bf31b56fbe843e9d883a2d48291d18add4706724b27f807a4381b40db76941",
+      "after": "d2bf31b56fbe843e9d883a2d48291d18add4706724b27f807a4381b40db76941"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation-editor.log",
+      "before": "7d266b7d0f6c7116398234b3c306be72cc628e96ed72e3614533eb321cc09fce",
+      "after": "7d266b7d0f6c7116398234b3c306be72cc628e96ed72e3614533eb321cc09fce"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/validation.json",
+      "before": "f7423c1220aec3e205128808d7fe90a92d6238faa3d0d8c70ad29432104252df",
+      "after": "f7423c1220aec3e205128808d7fe90a92d6238faa3d0d8c70ad29432104252df"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Content__Roguelite__Maps__L_Roguelite_Dev.umap.before-P01",
+      "before": "a5f6778e9222b02fe81ad8dd173c387a3ffdf4c77ebdea757fbe07b2b977b3aa",
+      "after": "a5f6778e9222b02fe81ad8dd173c387a3ffdf4c77ebdea757fbe07b2b977b3aa"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Docs__06_EXECUTION_STATUS.md.before-P01",
+      "before": "0680f7af8b11a8880f89b395cd2768d08816ae2061a6e01f7a41f700d6bf30fd",
+      "after": "0680f7af8b11a8880f89b395cd2768d08816ae2061a6e01f7a41f700d6bf30fd"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__AGENTS.md.before-P01",
+      "before": "8bd81af786e5095f73398ecd8b06aa6e86725c7f19f37786958e8727805e6b92",
+      "after": "8bd81af786e5095f73398ecd8b06aa6e86725c7f19f37786958e8727805e6b92"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P01/Backups/Plugins__RoguelitePrototype__README.md.before-P01",
+      "before": "654e994162781477af3936e9c21600e73f855efd2ab8e00426920bd109929619",
+      "after": "654e994162781477af3936e9c21600e73f855efd2ab8e00426920bd109929619"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/backup-manifest.json",
+      "before": "52a8f55bda9000d7c112a85e9a339612c9c69f45347a3cf56ee5c74f63f421a1",
+      "after": "52a8f55bda9000d7c112a85e9a339612c9c69f45347a3cf56ee5c74f63f421a1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/baseline-files.json",
+      "before": "9f41d13f0add4b92dcb6c409cb7c5e529feece78e9eac9af685258fa91a50e68",
+      "after": "9f41d13f0add4b92dcb6c409cb7c5e529feece78e9eac9af685258fa91a50e68"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-baseline-normal.json",
+      "before": "79c7421a975bdc8c9caef69a572cce1ced4339e78068b466d29b86ee2d15b731",
+      "after": "79c7421a975bdc8c9caef69a572cce1ced4339e78068b466d29b86ee2d15b731"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-baseline-normal.log",
+      "before": "bf6094e3c0b69d5e7a261fb9a2473645dc9507834fdde72372fb16e468154495",
+      "after": "bf6094e3c0b69d5e7a261fb9a2473645dc9507834fdde72372fb16e468154495"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-baseline.json",
+      "before": "914f178fecef4ae2d8b6e479943bbb6d6989e3314a0496e886c2db01498ba720",
+      "after": "914f178fecef4ae2d8b6e479943bbb6d6989e3314a0496e886c2db01498ba720"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-baseline.log",
+      "before": "9ef5c45d67eb8092aa541aec6943e5c3606e767a3941eebb25d4854be2a6a187",
+      "after": "9ef5c45d67eb8092aa541aec6943e5c3606e767a3941eebb25d4854be2a6a187"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-p02-final.json",
+      "before": "213229df95d505c0d97a8d66d3422b170a2e0d7c3f594ca7589bd577046b7254",
+      "after": "213229df95d505c0d97a8d66d3422b170a2e0d7c3f594ca7589bd577046b7254"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-p02-final.log",
+      "before": "0a24e95e901a067b7527397d64519551bbf6c42c62e62a7a78f9b8d75ed23213",
+      "after": "0a24e95e901a067b7527397d64519551bbf6c42c62e62a7a78f9b8d75ed23213"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-p02.json",
+      "before": "fbdab21de7363b1e5a3f11371e838311ecf724a952dc85c8bd14e1b4d1e43bff",
+      "after": "fbdab21de7363b1e5a3f11371e838311ecf724a952dc85c8bd14e1b4d1e43bff"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/build-p02.log",
+      "before": "fcebe29836478b1cfc5bdb0f9439f9acaf3db468f27de43819ed40b79f0fcd05",
+      "after": "fcebe29836478b1cfc5bdb0f9439f9acaf3db468f27de43819ed40b79f0fcd05"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/editor-preflight.json",
+      "before": "65d70fcf633df3b57c33db858eef5dd1ae20c1364de9d8ad0e451d47a0f971db",
+      "after": "65d70fcf633df3b57c33db858eef5dd1ae20c1364de9d8ad0e451d47a0f971db"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/final-verification.json",
+      "before": "800c69893ec3f5fd40a5bb51dbdcf6a8cb9594757f4fb6a73dedf6e28a324b24",
+      "after": "800c69893ec3f5fd40a5bb51dbdcf6a8cb9594757f4fb6a73dedf6e28a324b24"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/git-status-before.txt",
+      "before": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331",
+      "after": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/P02_PAUSE_CHECKPOINT.md",
+      "before": "cbee40a3be70b0ab654ee062fc47e122ea617efb94a13b3dd4500707d29f9b4d",
+      "after": "cbee40a3be70b0ab654ee062fc47e122ea617efb94a13b3dd4500707d29f9b4d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-details.json",
+      "before": "efe31bd2682a954a8096cad76d588868cfb3f9c7c6831483947b928bae49c767",
+      "after": "efe31bd2682a954a8096cad76d588868cfb3f9c7c6831483947b928bae49c767"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-door-filter.json",
+      "before": "fa27105a2649564249a66d97d8b8d1feb72aa11c8974be9ac9dec647bc500ee6",
+      "after": "fa27105a2649564249a66d97d8b8d1feb72aa11c8974be9ac9dec647bc500ee6"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-door-focused.json",
+      "before": "660ba7f4cf412940edeecd9b02a66879bbf3753652466fbf3d64ad29b55bfcd8",
+      "after": "660ba7f4cf412940edeecd9b02a66879bbf3753652466fbf3d64ad29b55bfcd8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-north-offset-row.json",
+      "before": "b59eaf76cc10758606e66b97c65f415ec3964cf6e0f9ca8228c9c00886b21ee7",
+      "after": "b59eaf76cc10758606e66b97c65f415ec3964cf6e0f9ca8228c9c00886b21ee7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-observe.json",
+      "before": "ffb7d6fe0ab1ffab3ce9c6dd8bbdb710e93e86b1280bbb6b435d53a900ceee68",
+      "after": "ffb7d6fe0ab1ffab3ce9c6dd8bbdb710e93e86b1280bbb6b435d53a900ceee68"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-offset-enter.json",
+      "before": "c4a4584cb8edc702642a61b0af813927ef95393ac866842f76276e7213b746d4",
+      "after": "c4a4584cb8edc702642a61b0af813927ef95393ac866842f76276e7213b746d4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-offset-input.json",
+      "before": "1b2b0377f5f521219ead4a44ce28cfadec82ca27a5c839c6d4e9e675ede0d983",
+      "after": "1b2b0377f5f521219ead4a44ce28cfadec82ca27a5c839c6d4e9e675ede0d983"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-offset-restore-input.json",
+      "before": "c4a4584cb8edc702642a61b0af813927ef95393ac866842f76276e7213b746d4",
+      "after": "c4a4584cb8edc702642a61b0af813927ef95393ac866842f76276e7213b746d4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-roots.json",
+      "before": "338946a39b5dc59988592111f34194b81b4e04ee4ab0e35b15ab57c33f620029",
+      "after": "338946a39b5dc59988592111f34194b81b4e04ee4ab0e35b15ab57c33f620029"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/slate-windows.json",
+      "before": "9f8a41f277099922c103976cdd26944470f42e873a9f8e2a566f7d6c3b5ce0de",
+      "after": "9f8a41f277099922c103976cdd26944470f42e873a9f8e2a566f7d6c3b5ce0de"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/supplement_client.py",
+      "before": "b593c6872d77c930e1b996ee39338d0c252245a8cc7f2099cf3af433fa3f34de",
+      "after": "b593c6872d77c930e1b996ee39338d0c252245a8cc7f2099cf3af433fa3f34de"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-click-details-search.json",
+      "before": "e2b9365704d3812ced414d6a061312a3616cfa2ee090e8e52412f16c0f24170e",
+      "after": "e2b9365704d3812ced414d6a061312a3616cfa2ee090e8e52412f16c0f24170e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-door-details-image.json",
+      "before": "d92a09cd34aacbf0f012918373641477e65d879a05ef865e982aff160d7b10e5",
+      "after": "d92a09cd34aacbf0f012918373641477e65d879a05ef865e982aff160d7b10e5"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-door-details-image.png",
+      "before": "d50fb78cdb04e7d3147358e7c890669c0b740b7a9856d58cd76159f4bf05972b",
+      "after": "d50fb78cdb04e7d3147358e7c890669c0b740b7a9856d58cd76159f4bf05972b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-edit-offset-350.json",
+      "before": "96272cd4b7d4b0a76edfa59c478074424d93f89b0af32c9d9ab1b81543dbd499",
+      "after": "96272cd4b7d4b0a76edfa59c478074424d93f89b0af32c9d9ab1b81543dbd499"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-enter-north-slider.json",
+      "before": "1bbe9b783d0fbd486f32dbb72552d3d7397b82be51bfac3177a1c0e304931795",
+      "after": "1bbe9b783d0fbd486f32dbb72552d3d7397b82be51bfac3177a1c0e304931795"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-final-map-clean.json",
+      "before": "8da8f92a2b1937f5801024187db56cf2f720ef799654ff8d32026635032b7525",
+      "after": "8da8f92a2b1937f5801024187db56cf2f720ef799654ff8d32026635032b7525"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-focus-north-slider.json",
+      "before": "863dfcadc35f2b50cb6b413f836be207acbc51a0f870bdbd37b839ca0c834194",
+      "after": "863dfcadc35f2b50cb6b413f836be207acbc51a0f870bdbd37b839ca0c834194"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-offset-300-restored.json",
+      "before": "74e54ecff584f197c56f01cffdc6915d640c5824b9e843a2edc90df03dfc24a8",
+      "after": "74e54ecff584f197c56f01cffdc6915d640c5824b9e843a2edc90df03dfc24a8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-offset-350-opening-trace.json",
+      "before": "eba638250bbc2c70a0d3816483932d46c17bb8380039ac386d8db2e2ec1e26ba",
+      "after": "eba638250bbc2c70a0d3816483932d46c17bb8380039ac386d8db2e2ec1e26ba"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-offset-350-properties.json",
+      "before": "67d26d1cf5772225c477ec5c49dbb572a92ad91d8e63db21922623db9b1dfdbf",
+      "after": "67d26d1cf5772225c477ec5c49dbb572a92ad91d8e63db21922623db9b1dfdbf"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-offset-350-wall-trace.json",
+      "before": "528005c7bbd765a3d50104d13d9479bf3c242b9cf633eb9c76432f9b825e118f",
+      "after": "528005c7bbd765a3d50104d13d9479bf3c242b9cf633eb9c76432f9b825e118f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-open-north-offset.json",
+      "before": "ea56a0a831bb9359b6957fa79d27cc8e9f0f0f3e75a6ececa231d6961802f122",
+      "after": "ea56a0a831bb9359b6957fa79d27cc8e9f0f0f3e75a6ececa231d6961802f122"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-refocus-offset.json",
+      "before": "863dfcadc35f2b50cb6b413f836be207acbc51a0f870bdbd37b839ca0c834194",
+      "after": "863dfcadc35f2b50cb6b413f836be207acbc51a0f870bdbd37b839ca0c834194"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-reopen-offset.json",
+      "before": "1bbe9b783d0fbd486f32dbb72552d3d7397b82be51bfac3177a1c0e304931795",
+      "after": "1bbe9b783d0fbd486f32dbb72552d3d7397b82be51bfac3177a1c0e304931795"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-restore-offset-300.json",
+      "before": "db381b05d7bf4331862f0893ca1011394dff0644ff80b9ddf18e34b7020ba8cc",
+      "after": "db381b05d7bf4331862f0893ca1011394dff0644ff80b9ddf18e34b7020ba8cc"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-save-owned-map.json",
+      "before": "b47e5260dc0c5806b9a4d9e9abd078c1aeabc835a6057a9a4abceafb4d0cced9",
+      "after": "b47e5260dc0c5806b9a4d9e9abd078c1aeabc835a6057a9a4abceafb4d0cced9"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-search-door.json",
+      "before": "c42ad51eb4e863a2330913a3bb314d957ce0be6b964818d97bf48581150b7a16",
+      "after": "c42ad51eb4e863a2330913a3bb314d957ce0be6b964818d97bf48581150b7a16"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-select-offset-text.json",
+      "before": "71ce8e4caacff5ed3baae1faa00957b3563884f4608cd4c50d2ca64f84412640",
+      "after": "71ce8e4caacff5ed3baae1faa00957b3563884f4608cd4c50d2ca64f84412640"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-select-own-window.json",
+      "before": "92df2012223b03833629cc8443ac8ee67b7aabda3a00fd208910e87a4221a3e6",
+      "after": "92df2012223b03833629cc8443ac8ee67b7aabda3a00fd208910e87a4221a3e6"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-select-restore-text.json",
+      "before": "71ce8e4caacff5ed3baae1faa00957b3563884f4608cd4c50d2ca64f84412640",
+      "after": "71ce8e4caacff5ed3baae1faa00957b3563884f4608cd4c50d2ca64f84412640"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-select-room.json",
+      "before": "c6f6d7a7bc7804e3905f371183b09edd2a9d06f2fe0c50ad268cfc0bbf67a1d1",
+      "after": "c6f6d7a7bc7804e3905f371183b09edd2a9d06f2fe0c50ad268cfc0bbf67a1d1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-selected-room-markers.json",
+      "before": "d35ddfbc22089e090a753cc8fdb81685870f202916ec09d9e433c60df1c7a25a",
+      "after": "d35ddfbc22089e090a753cc8fdb81685870f202916ec09d9e433c60df1c7a25a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-selected-room-markers.png",
+      "before": "25d14f52372aa293cef077eda7ac1f9f979226979088d3f90811ba2bd8d6dfd4",
+      "after": "25d14f52372aa293cef077eda7ac1f9f979226979088d3f90811ba2bd8d6dfd4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/ui-type-after-focus.json",
+      "before": "2589f9d3d02ac59f11f73a1ccc65576b4710d9c9175472f3971826da807caa28",
+      "after": "2589f9d3d02ac59f11f73a1ccc65576b4710d9c9175472f3971826da807caa28"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validate_door_sockets.py",
+      "before": "91ec282aba79880d5456d048c5578458e954e325e2ae4f75575d2d2196fa28f3",
+      "after": "91ec282aba79880d5456d048c5578458e954e325e2ae4f75575d2d2196fa28f3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-editor.log",
+      "before": "1c96b203c9530036c000701498b6a811db71ea7a630dcfa76466e5a8512105ca",
+      "after": "1c96b203c9530036c000701498b6a811db71ea7a630dcfa76466e5a8512105ca"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-normal-editor.log",
+      "before": "386ca0b5e2b03d404dc37d1f916adfe0110906c43fe6bdb4df4c59b6c8ba6c3c",
+      "after": "386ca0b5e2b03d404dc37d1f916adfe0110906c43fe6bdb4df4c59b6c8ba6c3c"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-normal.json",
+      "before": "4720da3c2eea52a80d73c0d250fd1f7c0622422fc7e8f8c10e6593edc8f06bf7",
+      "after": "4720da3c2eea52a80d73c0d250fd1f7c0622422fc7e8f8c10e6593edc8f06bf7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-saved-centered-2000x2000.png",
+      "before": "9adce816d569cf51089d18ed21dcc9b3d18af2a31d0e8a8d42d0820b9e52b059",
+      "after": "9adce816d569cf51089d18ed21dcc9b3d18af2a31d0e8a8d42d0820b9e52b059"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-saved-editor.log",
+      "before": "6a0a78e0d3a57b0a683480eb9161643cf639e7c88b3823f27b4059e6d2fe421d",
+      "after": "6a0a78e0d3a57b0a683480eb9161643cf639e7c88b3823f27b4059e6d2fe421d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-saved.json",
+      "before": "7a962ce594d76ddf7a97ec2c4d874df691c0696aa3912e5608ed67ba69a10f35",
+      "after": "7a962ce594d76ddf7a97ec2c4d874df691c0696aa3912e5608ed67ba69a10f35"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-transform-centered-2000x2000.png",
+      "before": "c07f9ed8168f7ffc69541809892fe02d113cb09d74b82918c8ede12a75fc18cd",
+      "after": "c07f9ed8168f7ffc69541809892fe02d113cb09d74b82918c8ede12a75fc18cd"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-transform-editor.log",
+      "before": "f7badf721819aa4ac2053e4191bca03c713dbb968f9247a134bdf44817016f7b",
+      "after": "f7badf721819aa4ac2053e4191bca03c713dbb968f9247a134bdf44817016f7b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-transform-reloaded-final.png",
+      "before": "c73942a746dbcc26f679ef18e271523ef53e1f0aaafe6350c83640e1c34247ad",
+      "after": "c73942a746dbcc26f679ef18e271523ef53e1f0aaafe6350c83640e1c34247ad"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation-transform.json",
+      "before": "c1c0e3e854b15d009a810bad470a71c98e5e015f05a88e66ce14cc218abafd02",
+      "after": "c1c0e3e854b15d009a810bad470a71c98e5e015f05a88e66ce14cc218abafd02"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/validation.json",
+      "before": "c1f6c9e92cb5b8f8fcea6e455a03e9164ec7338b3d82c2d84779de9a5b7f5c86",
+      "after": "c1f6c9e92cb5b8f8fcea6e455a03e9164ec7338b3d82c2d84779de9a5b7f5c86"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Backups/Docs__06_EXECUTION_STATUS.md.before-P02",
+      "before": "739fe5d6e563ad26731947cbf5676b7248d8c7f00c537fa7f3c0eb5ccb172389",
+      "after": "739fe5d6e563ad26731947cbf5676b7248d8c7f00c537fa7f3c0eb5ccb172389"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Backups/Plugins__RoguelitePrototype__README.md.before-P02",
+      "before": "27bdcff81e779ed0a3d83b58050817f8a6d462882aed8f755d9e88134550948c",
+      "after": "27bdcff81e779ed0a3d83b58050817f8a6d462882aed8f755d9e88134550948c"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Backups/Plugins__RoguelitePrototype__Source__RoguelitePrototype__Private__RogueliteParametricRoom.cpp.before-P02",
+      "before": "0d548a76e1588d8064d1acec75d55c3ae6043b08684f167d4639837301d43583",
+      "after": "0d548a76e1588d8064d1acec75d55c3ae6043b08684f167d4639837301d43583"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Backups/Plugins__RoguelitePrototype__Source__RoguelitePrototype__Public__RogueliteParametricRoom.h.before-P02",
+      "before": "060a933d037d0ee23016146b9335a1921cbe11016139c61b94c12e62b56b3728",
+      "after": "060a933d037d0ee23016146b9335a1921cbe11016139c61b94c12e62b56b3728"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/backup-manifest.json",
+      "before": "b509fc46e65e50bfd7725c24b0835615655d9b18b235aaf0bb0e2a725d864c9b",
+      "after": "b509fc46e65e50bfd7725c24b0835615655d9b18b235aaf0bb0e2a725d864c9b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/final-verification.json",
+      "before": "e27be97498a155d34c1347c5ae90648ad0944ebd58e441ed970cfbec52950ff7",
+      "after": "e27be97498a155d34c1347c5ae90648ad0944ebd58e441ed970cfbec52950ff7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/output-log-visible.png",
+      "before": "d477526d6aaf408fc33a4cc544d02b4659418c57bf5d29efe3802f42d135b708",
+      "after": "d477526d6aaf408fc33a4cc544d02b4659418c57bf5d29efe3802f42d135b708"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/ui-log-filter.json",
+      "before": "9c4482279e36587d4208d63d740b5df3e7103a2e5ff756f01938e2766ea6aa43",
+      "after": "9c4482279e36587d4208d63d740b5df3e7103a2e5ff756f01938e2766ea6aa43"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Docs__06_EXECUTION_STATUS.md.before-warning-feedback",
+      "before": "f9e5e96b33c9fb3a2f719f1823c8d94fcff837245a251036347fcd1c4d65a6f2",
+      "after": "f9e5e96b33c9fb3a2f719f1823c8d94fcff837245a251036347fcd1c4d65a6f2"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Plugins__RoguelitePrototype__P02_DOOR_GUIDE.md.before-warning-feedback",
+      "before": "a6070490181e1a21e1deef27a13dbce3cb8ad7bbdbc319a3b507ac77651dc2de",
+      "after": "a6070490181e1a21e1deef27a13dbce3cb8ad7bbdbc319a3b507ac77651dc2de"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P02/Feedback_POI/Backups/Plugins__RoguelitePrototype__P02_RESULT.md.before-warning-feedback",
+      "before": "40103f4d35cc97fa54d0ce20c0dfaae9cb250767089a2fa83f674cdef7a45fbe",
+      "after": "40103f4d35cc97fa54d0ce20c0dfaae9cb250767089a2fa83f674cdef7a45fbe"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/assembly-details-initial.json",
+      "before": "9af0cb0007991ee75dce059d5a80a326a2d41a6dbc9266074a053b370b0caa91",
+      "after": "9af0cb0007991ee75dce059d5a80a326a2d41a6dbc9266074a053b370b0caa91"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/audit_files.py",
+      "before": "665ec33e237ba358333ff0a1af0f0c7e79851d7b5f1ae12d7eb4a72115739e94",
+      "after": "665ec33e237ba358333ff0a1af0f0c7e79851d7b5f1ae12d7eb4a72115739e94"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/backup-manifest.json",
+      "before": "9bb080bad61663df1e4dbf79e38852396dd7b31e99f2594d683fabb41ebf7f19",
+      "after": "9bb080bad61663df1e4dbf79e38852396dd7b31e99f2594d683fabb41ebf7f19"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/baseline-files.json",
+      "before": "83bfb1b773cdfeecad2bfbe61d7ab178f8a043574da4500eb27e7de3c0f894e8",
+      "after": "83bfb1b773cdfeecad2bfbe61d7ab178f8a043574da4500eb27e7de3c0f894e8"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-baseline.json",
+      "before": "7bda1086d3fd6f25c14748a55e69136f806660a77f1b91e52450361035f928c1",
+      "after": "7bda1086d3fd6f25c14748a55e69136f806660a77f1b91e52450361035f928c1"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-baseline.log",
+      "before": "7fddedef3eb1d0a57e84b34a36ba8aa210af464069a092cdab0774e35055234d",
+      "after": "7fddedef3eb1d0a57e84b34a36ba8aa210af464069a092cdab0774e35055234d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-p03a-ground.json",
+      "before": "8c7bdd56c13c2471a161836b1a7a4bd535439fcd6c062c660fa4ea58576e43a2",
+      "after": "8c7bdd56c13c2471a161836b1a7a4bd535439fcd6c062c660fa4ea58576e43a2"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-p03a-ground.log",
+      "before": "adb8eec278012b10a4a47e11c46a7f30bc7c6bc1f6d36052776c161e50f450f9",
+      "after": "adb8eec278012b10a4a47e11c46a7f30bc7c6bc1f6d36052776c161e50f450f9"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-p03a.json",
+      "before": "3663718b1bdd47b0fd17f5f7a7d5f83e59f505dcdfc34e6166ab6ef8532c2921",
+      "after": "3663718b1bdd47b0fd17f5f7a7d5f83e59f505dcdfc34e6166ab6ef8532c2921"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/build-p03a.log",
+      "before": "58eb4dc2e2d3217f857bd5d57172b81741bb342bd87f95935a0adcde6c6704fd",
+      "after": "58eb4dc2e2d3217f857bd5d57172b81741bb342bd87f95935a0adcde6c6704fd"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/capture_and_supplement.py",
+      "before": "cd548557ccb11f27d824f22e9a23f819e5109b4f3cfcf9f704f3d6d9a61b51fe",
+      "after": "cd548557ccb11f27d824f22e9a23f819e5109b4f3cfcf9f704f3d6d9a61b51fe"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/door-seam.png",
+      "before": "b03168bcdabc67ef9efe89adf7425e00f59ab35fa820b343f8ae5d4309eb8c43",
+      "after": "b03168bcdabc67ef9efe89adf7425e00f59ab35fa820b343f8ae5d4309eb8c43"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor-ground-closed.json",
+      "before": "d6799d1ab25ffbd3095bb963be2eb87f30cb20f6ab129fbb0791403d66d53747",
+      "after": "d6799d1ab25ffbd3095bb963be2eb87f30cb20f6ab129fbb0791403d66d53747"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor-ground-session.json",
+      "before": "13b54cd62bdbf4751c8bbe8a817b7d274e98bbfe3c3a0507bc902a6adaddc00d",
+      "after": "13b54cd62bdbf4751c8bbe8a817b7d274e98bbfe3c3a0507bc902a6adaddc00d"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor-session-closed.json",
+      "before": "7a6c29c8c9af7b6cb9cf87e05bc3c51a3712da600543978867ce2f3a6c3db692",
+      "after": "7a6c29c8c9af7b6cb9cf87e05bc3c51a3712da600543978867ce2f3a6c3db692"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor-session.json",
+      "before": "0aca514bb4bdc0650443d08df63cbfaecae45d3bef5f79924a626325127434cc",
+      "after": "0aca514bb4bdc0650443d08df63cbfaecae45d3bef5f79924a626325127434cc"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor_resume.py",
+      "before": "76e213141b4b80b13f1a714da6bc527607b1a299768abe249c63018cd3897b44",
+      "after": "76e213141b4b80b13f1a714da6bc527607b1a299768abe249c63018cd3897b44"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/editor_session.py",
+      "before": "3e374be07a146898e72fa88356bd108791c940c86747d8a267972550852ed06a",
+      "after": "3e374be07a146898e72fa88356bd108791c940c86747d8a267972550852ed06a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/final-editor-check.json",
+      "before": "1c9b34c65ca0b6c88510563f4ac5bef9028ba5a4a221b3523a1328f149a423cd",
+      "after": "1c9b34c65ca0b6c88510563f4ac5bef9028ba5a4a221b3523a1328f149a423cd"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/final-editor-ground.json",
+      "before": "d7a77dbd624595c141d10c63029c2f14c3691e29f8d631076d2ece0d09e9eb02",
+      "after": "d7a77dbd624595c141d10c63029c2f14c3691e29f8d631076d2ece0d09e9eb02"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/final-verification.json",
+      "before": "a102386f6ab16c5d58f5241e19b55624d38e1d784f4976289d48f55890beb0fc",
+      "after": "a102386f6ab16c5d58f5241e19b55624d38e1d784f4976289d48f55890beb0fc"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/final_editor_check.py",
+      "before": "9c1966df9af23c32a5745f2b9fd931a42b233e51aa1bdf929badec5df7067792",
+      "after": "9c1966df9af23c32a5745f2b9fd931a42b233e51aa1bdf929badec5df7067792"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/git-status-before.txt",
+      "before": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331",
+      "after": "70e4b7a51b62be9ae514a30169b960fc1a96b98c5e2780ed983304c166d9c331"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/mcp_client.py",
+      "before": "980afde19acab6a1aa4459043cf230fc7414bae2eb40af568153a00b2ae8d533",
+      "after": "980afde19acab6a1aa4459043cf230fc7414bae2eb40af568153a00b2ae8d533"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/overview.png",
+      "before": "c181dc4546a80ca652cfd141dc807e5b0e65913b3d0a37325a97341474bd5eb4",
+      "after": "c181dc4546a80ca652cfd141dc807e5b0e65913b3d0a37325a97341474bd5eb4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/p03a-editor-ground.log",
+      "before": "76b8e9426a8039527f54f84a49e1c9657305cab532a36e1a8010ef79bd8340d7",
+      "after": "76b8e9426a8039527f54f84a49e1c9657305cab532a36e1a8010ef79bd8340d7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/p03a-editor.log",
+      "before": "8093e26031deacf1861154f998e48c8c63913867d8888528e2b174fcbfd68527",
+      "after": "8093e26031deacf1861154f998e48c8c63913867d8888528e2b174fcbfd68527"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/preflight.json",
+      "before": "22d3fa23ec9a6646076d619c09a7cf1ea423b42500d6439f47fa7bc55735707f",
+      "after": "22d3fa23ec9a6646076d619c09a7cf1ea423b42500d6439f47fa7bc55735707f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/seam-edge-diagnostic.json",
+      "before": "b5f5eacc3027e4e318a436527a8b402268e9d449ff6f60abc5939bd8ce08bf31",
+      "after": "b5f5eacc3027e4e318a436527a8b402268e9d449ff6f60abc5939bd8ce08bf31"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/stop-editor-ground.json",
+      "before": "77cb22a78ce29bb01889b5a21b5f645b26045e1211baaddca1ad1f2b330af669",
+      "after": "77cb22a78ce29bb01889b5a21b5f645b26045e1211baaddca1ad1f2b330af669"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/stop-editor.json",
+      "before": "f3c579b131fe9d7888eeeb81131e83a2bcc2176503cd398503e0b4e935a538a3",
+      "after": "f3c579b131fe9d7888eeeb81131e83a2bcc2176503cd398503e0b4e935a538a3"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/supplement-ground-door-seam.png",
+      "before": "21fd29dae0dbc0ca7000df3b4136de9562d73fa9eb991d0ca8aa4ef9694c4b5b",
+      "after": "21fd29dae0dbc0ca7000df3b4136de9562d73fa9eb991d0ca8aa4ef9694c4b5b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/supplement-ground-overview.png",
+      "before": "164cc292cd828935da7049b06ee9fdd50efaba8096ad65ea35e161469a65e354",
+      "after": "164cc292cd828935da7049b06ee9fdd50efaba8096ad65ea35e161469a65e354"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/supplement-ground.json",
+      "before": "73d9f3643177fc1cfcd9b8a76fc82c6e20da1c8152e3f1e19d25e6cf2c9f8b41",
+      "after": "73d9f3643177fc1cfcd9b8a76fc82c6e20da1c8152e3f1e19d25e6cf2c9f8b41"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/supplement.json",
+      "before": "19c2b3fee3094e8863a4bed082a6667c57adfc00438eb7d1b6ed3f5492167f00",
+      "after": "19c2b3fee3094e8863a4bed082a6667c57adfc00438eb7d1b6ed3f5492167f00"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/ui-hover-release.json",
+      "before": "a424e4283c3c0703cde064ffb3ddecabf8ff8b21b1b1fe5b55579c6338ae831e",
+      "after": "a424e4283c3c0703cde064ffb3ddecabf8ff8b21b1b1fe5b55579c6338ae831e"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validate_assembly.py",
+      "before": "d0d34afe2af138b37e589b6235cf2f27ebef22aaf3ff6ad6a2b033ac81719cbc",
+      "after": "d0d34afe2af138b37e589b6235cf2f27ebef22aaf3ff6ad6a2b033ac81719cbc"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-canonical.json",
+      "before": "47665b0ecccdfec582c4cea75fcf79aafee768a326ab2d14b790b06e8eef559b",
+      "after": "47665b0ecccdfec582c4cea75fcf79aafee768a326ab2d14b790b06e8eef559b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-first.json",
+      "before": "7b0a73ab3a75336faeb1d073c45bd8033c818c741df65ec9b6094b393fbed96b",
+      "after": "7b0a73ab3a75336faeb1d073c45bd8033c818c741df65ec9b6094b393fbed96b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-fourth.json",
+      "before": "165dc406e5f0b37da28656d73d17603900686a5dc7ef17ea42efc6e467d01778",
+      "after": "165dc406e5f0b37da28656d73d17603900686a5dc7ef17ea42efc6e467d01778"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-ground.json",
+      "before": "d30c9d0268e624f7e883ee87b6698da5a919b1536e0bdbc08a99eb574fb43224",
+      "after": "d30c9d0268e624f7e883ee87b6698da5a919b1536e0bdbc08a99eb574fb43224"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-second.json",
+      "before": "2f3667df9a9679fcbd0fd1f2d99388a4cc56dabfac18fe208ddf2de4cedbdc3a",
+      "after": "2f3667df9a9679fcbd0fd1f2d99388a4cc56dabfac18fe208ddf2de4cedbdc3a"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/validation-third.json",
+      "before": "e4b00c7bcea844db7d67750f2c2870042d73141f955070ade456cb6da1dbe1be",
+      "after": "e4b00c7bcea844db7d67750f2c2870042d73141f955070ade456cb6da1dbe1be"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/Backups/Docs__06_EXECUTION_STATUS.md.before-P03A",
+      "before": "c4f45261ac032586117929d25ef7ba01a827b8859a47c51d8c0dbd1f8947ea4b",
+      "after": "c4f45261ac032586117929d25ef7ba01a827b8859a47c51d8c0dbd1f8947ea4b"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/Backups/Plugins__RoguelitePrototype__README.md.before-P03A",
+      "before": "430e1b5f63c3bb70874a6da06dfc7b15524e56eb1c71d40cf3665c4660e8a487",
+      "after": "430e1b5f63c3bb70874a6da06dfc7b15524e56eb1c71d40cf3665c4660e8a487"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03A/Backups/Plugins__RoguelitePrototype__Source__RoguelitePrototype__RoguelitePrototype.Build.cs.before-P03A",
+      "before": "1bbb4506afe3a36f975ab37bd245c2050eaa4327efa891dc3e19f09d158d3be0",
+      "after": "1bbb4506afe3a36f975ab37bd245c2050eaa4327efa891dc3e19f09d158d3be0"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/RoguelitePrototype.Build.cs",
+      "before": "6f051082fa3b6505904e4c7191774c6ce55d12e0b5125407b7dbdcc778322751",
+      "after": "6f051082fa3b6505904e4c7191774c6ce55d12e0b5125407b7dbdcc778322751"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevGameMode.cpp",
+      "before": "eec97e64a12f27995afe20e2b0a9b4ac16616d01d091acbc4f9d0a2dbcc13f2f",
+      "after": "eec97e64a12f27995afe20e2b0a9b4ac16616d01d091acbc4f9d0a2dbcc13f2f"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteDevMapCommandlet.cpp",
+      "before": "d8f3ccd9502803b8d0b6071afc966e6ebecde740341da036a31f48fe59345576",
+      "after": "d8f3ccd9502803b8d0b6071afc966e6ebecde740341da036a31f48fe59345576"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricRoom.cpp",
+      "before": "651c4355a2c29c870cdc416b4f2fcc2665af5ca6547309af9d9442a27bb012e4",
+      "after": "651c4355a2c29c870cdc416b4f2fcc2665af5ca6547309af9d9442a27bb012e4"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RoguelitePrototype.cpp",
+      "before": "cd0f28249d9100722af99dba0a58764017719d1d3fd9791a528e0efdcc3901b5",
+      "after": "cd0f28249d9100722af99dba0a58764017719d1d3fd9791a528e0efdcc3901b5"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteRoomAssembly.cpp",
+      "before": "a58e29615cfaaf8aeeff629a3e4f9e97567d19c4dab0b8c85e6e0cb0ac632ffa",
+      "after": "a58e29615cfaaf8aeeff629a3e4f9e97567d19c4dab0b8c85e6e0cb0ac632ffa"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevGameMode.h",
+      "before": "0ccfe72d65a37f0b59ead831f5a79ccbd7b1807c8c75433d653962895771f3ea",
+      "after": "0ccfe72d65a37f0b59ead831f5a79ccbd7b1807c8c75433d653962895771f3ea"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteDevMapCommandlet.h",
+      "before": "e571040a82b94f1549c8d58a27e32f24646c720694d20221273364d142feeceb",
+      "after": "e571040a82b94f1549c8d58a27e32f24646c720694d20221273364d142feeceb"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricRoom.h",
+      "before": "8f9ecd4711c5bbaab16337b7f82ee8c771e0acbaa8e5faf4fb1136e0fc3e6aa7",
+      "after": "8f9ecd4711c5bbaab16337b7f82ee8c771e0acbaa8e5faf4fb1136e0fc3e6aa7"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RoguelitePrototype.h",
+      "before": "7166290d7b3f7d6f0816376df96f609e003453dfb260254f34726fc15dbc5a84",
+      "after": "7166290d7b3f7d6f0816376df96f609e003453dfb260254f34726fc15dbc5a84"
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteRoomAssembly.h",
+      "before": "f74126d1dfdcb62d0b088dc07718fdd3a3968a9fbc4c9da73b1ed7d2d07ded6a",
+      "after": "f74126d1dfdcb62d0b088dc07718fdd3a3968a9fbc4c9da73b1ed7d2d07ded6a"
+    },
+    {
+      "path": "prompts/P00_BOOTSTRAP_READ_ONLY.md",
+      "before": "cc6536ac6b7ef0748903e021477c404616a682a0c63937057f80b4389d88960c",
+      "after": "cc6536ac6b7ef0748903e021477c404616a682a0c63937057f80b4389d88960c"
+    },
+    {
+      "path": "Scripts/BuildDemo.ps1",
+      "before": "70b9c158c7ffd21c09fefe984767942ddb4f24228c3c2924580c0e29751915a6",
+      "after": "70b9c158c7ffd21c09fefe984767942ddb4f24228c3c2924580c0e29751915a6"
+    },
+    {
+      "path": "Scripts/EnginePath.ps1",
+      "before": "b3a057aa1863649c3e3e57c1349fc56f7d26d337e75b03e6bd29a3a0962fec01",
+      "after": "b3a057aa1863649c3e3e57c1349fc56f7d26d337e75b03e6bd29a3a0962fec01"
+    },
+    {
+      "path": "Scripts/PlayDemo.ps1",
+      "before": "4beeaebbcdcb41726b9d7138540c8972fc0d8d2690dddc7e68a23172de6306dd",
+      "after": "4beeaebbcdcb41726b9d7138540c8972fc0d8d2690dddc7e68a23172de6306dd"
+    },
+    {
+      "path": "Scripts/ValidateDemo.ps1",
+      "before": "4bcb869f5689c56e7c36a41735ebebf7b8530dd5b12aed7dd9c574af5c1cf8fb",
+      "after": "4bcb869f5689c56e7c36a41735ebebf7b8530dd5b12aed7dd9c574af5c1cf8fb"
+    },
+    {
+      "path": "Source/testfordemo.Target.cs",
+      "before": "9bd293e350edcc052aeb2eff1c1512f5efa05208f460c5a20eaea5b2fb87d9ef",
+      "after": "9bd293e350edcc052aeb2eff1c1512f5efa05208f460c5a20eaea5b2fb87d9ef"
+    },
+    {
+      "path": "Source/testfordemoEditor.Target.cs",
+      "before": "8a609964f07d55258fbb23eb5c53c8a51ce74efad1b13a445928833003700c78",
+      "after": "8a609964f07d55258fbb23eb5c53c8a51ce74efad1b13a445928833003700c78"
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.Build.cs",
+      "before": "dda4eeeb299d729f4fa601607da36aa26ec5a7cf955c191c8aa196dc33ba085d",
+      "after": "dda4eeeb299d729f4fa601607da36aa26ec5a7cf955c191c8aa196dc33ba085d"
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.cpp",
+      "before": "95cbc5f7bde0ab086ac2baae5731be7aae41711a4cff85f6418d220961103aa4",
+      "after": "95cbc5f7bde0ab086ac2baae5731be7aae41711a4cff85f6418d220961103aa4"
+    },
+    {
+      "path": "Source/CastleDemo/CastleDemo.h",
+      "before": "0aab30c12848dbe2102f77a7d6566ecd98b609087155f62f5aecf131e66cde60",
+      "after": "0aab30c12848dbe2102f77a7d6566ecd98b609087155f62f5aecf131e66cde60"
+    },
+    {
+      "path": "Source/CastleDemo/CastleGameplay.cpp",
+      "before": "8904e5e8f6fa6b695937956878350658febe095525086c88435f14dff1e28874",
+      "after": "8904e5e8f6fa6b695937956878350658febe095525086c88435f14dff1e28874"
+    },
+    {
+      "path": "Source/CastleDemo/CastleGeneration.cpp",
+      "before": "f4801036f08b6db8ee0937e02b0ad5f57940a9c97bed2adbab49062c3aeb9c15",
+      "after": "f4801036f08b6db8ee0937e02b0ad5f57940a9c97bed2adbab49062c3aeb9c15"
+    },
+    {
+      "path": "Source/CastleDemo/CastleHUD.cpp",
+      "before": "53f3b12dc52f7e49ddb2fe220aa3cd7ec02aa22848c0de365b9d2c1355151f82",
+      "after": "53f3b12dc52f7e49ddb2fe220aa3cd7ec02aa22848c0de365b9d2c1355151f82"
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.cpp",
+      "before": "742d9eabed707b82ae428c885cd2079727c126073020f5239115372a435e72d1",
+      "after": "742d9eabed707b82ae428c885cd2079727c126073020f5239115372a435e72d1"
+    },
+    {
+      "path": "Source/CastleDemo/CastleLanguage.h",
+      "before": "7d64935aba1ebbabae9ff561ceadb7e42071c01dcb5619be857d96f9837c8c6a",
+      "after": "7d64935aba1ebbabae9ff561ceadb7e42071c01dcb5619be857d96f9837c8c6a"
+    },
+    {
+      "path": "Source/CastleDemo/CastleMenu.cpp",
+      "before": "959c7d963bf2817b7f3107b3a2dd1a3d367fe1dfa250ea1f048652e6bb46ddfb",
+      "after": "959c7d963bf2817b7f3107b3a2dd1a3d367fe1dfa250ea1f048652e6bb46ddfb"
+    },
+    {
+      "path": "Source/CastleDemo/CastleNodeLayout.cpp",
+      "before": "54ea257d6189a1b2777b4e78498a281d2139e9c844cc265cf27374c4785354b8",
+      "after": "54ea257d6189a1b2777b4e78498a281d2139e9c844cc265cf27374c4785354b8"
+    },
+    {
+      "path": "Source/CastleDemo/CastleRegions.cpp",
+      "before": "c17377a72dd102e851bf738ebda179224a4af2d12c1bc16f953b97b5a99c2ac3",
+      "after": "c17377a72dd102e851bf738ebda179224a4af2d12c1bc16f953b97b5a99c2ac3"
+    },
+    {
+      "path": "Source/CastleDemo/CastleSetup.cpp",
+      "before": "e77a1371c9ffc02bda22e9ddab1c14d97e5ab1185995ac3359f786827581934c",
+      "after": "e77a1371c9ffc02bda22e9ddab1c14d97e5ab1185995ac3359f786827581934c"
+    },
+    {
+      "path": "Source/CastleDemo/CastleSmoke.cpp",
+      "before": "b5a6d9f5973d3e2f4b8ef0c843afc9c216f3ba91b038297ce09beb625f32b952",
+      "after": "b5a6d9f5973d3e2f4b8ef0c843afc9c216f3ba91b038297ce09beb625f32b952"
+    },
+    {
+      "path": "templates/CODEX_HANDOFF_REPORT.md",
+      "before": "26eaebdf53144edb861a2ed542665ef484ebcd3cbf45c3bb122b460ccc6dafb8",
+      "after": "26eaebdf53144edb861a2ed542665ef484ebcd3cbf45c3bb122b460ccc6dafb8"
+    },
+    {
+      "path": "templates/WORK_RESULT_FEEDBACK.md",
+      "before": "be349ee5042e52d86fdefaf2a931663afc1d99ab7e5c0453b0896cf49f33b9ef",
+      "after": "be349ee5042e52d86fdefaf2a931663afc1d99ab7e5c0453b0896cf49f33b9ef"
+    }
+  ],
+  "missing": [],
+  "backups": [
+    {
+      "path": "AGENTS.md",
+      "backup_matches_baseline": true
+    },
+    {
+      "path": "prompts/P01_TO_P13_TASKS.md",
+      "backup_matches_baseline": true
+    },
+    {
+      "path": "Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "backup_matches_baseline": true
+    },
+    {
+      "path": "Docs/06_EXECUTION_STATUS.md",
+      "backup_matches_baseline": true
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/README.md",
+      "backup_matches_baseline": true
+    }
+  ],
+  "new_files": [
+    {
+      "path": "Content/Roguelite/Maps/L_Roguelite_Corridor_Dev.umap",
+      "sha256": "c71fe12b3ec7a0ef622bbc4a55b20dfa8c1feb56125434998bdfe1907c7772ce",
+      "bytes": 36790
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03C1_CORRIDOR_GUIDE.md",
+      "sha256": "f4c30966f7b42ab3acc87cec23a855a6757266fc7f09b4ff490e7e6a213ee880",
+      "bytes": 5664
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/P03C1_RESULT.md",
+      "sha256": "4f1fcba55cd2533f4d29e8a30c0c3d174d2a7279de3fecfe41373df9eb3633d5",
+      "bytes": 16772
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/audit_final.py",
+      "sha256": "9ddb7b53b09b47ea711004413131c4a1a3e33f796ce41186a84aeb3d6145d5f2",
+      "bytes": 4485
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/backup-manifest.json",
+      "sha256": "ae454a3ae18bb1f24811c79e72b4248c6b430e4019d23833bfac8bcc9d9050de",
+      "bytes": 490
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/baseline-files.json",
+      "sha256": "3b531aa6a701a3ae5d9641398997c345e1067da6cfb010a24abf72c9f137ca49",
+      "bytes": 42810
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/build-baseline.json",
+      "sha256": "90424f295e7dfca18f9a2022b4652c1b258ee63bbfb9e4d0d35df1a2570a2a1d",
+      "bytes": 16484
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/build-baseline.log",
+      "sha256": "0f299035921b0ca20426883bc75f2a2150ad754179deff5b1013d85868f8da0e",
+      "bytes": 5318
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/build-p03c1.json",
+      "sha256": "a8a87d19861aae5dbbe61b4f42191f5de95dd203d4613ebc92970b21aad4c918",
+      "bytes": 41088
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/build-p03c1.log",
+      "sha256": "43bb1b8fb0bed16e2c3f74b9852e98779916b4a8463488fba6290a993a7f7ce2",
+      "bytes": 12579
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/capture_final.py",
+      "sha256": "e8aea46ce2227ae60dcac06a34c4592af611bd907736e1331fee1a1bf82a8382",
+      "bytes": 2053
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-details-editor.png",
+      "sha256": "043aae3867f486ac11790d00eb23be65ae55b6c1b43486d44d8fae8be6cab994",
+      "bytes": 512046
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-details-ui.png",
+      "sha256": "221d72943a3b0e9ab2217e3f9040a747507a5706cae2d31895f76e6c1bc34217",
+      "bytes": 39995
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-opening-unlit.png",
+      "sha256": "f4f14884a55a712e4d85f984e5476f19c048993ca45c124673ab7a5c0239d09c",
+      "bytes": 342598
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-overview-unlit.png",
+      "sha256": "16698fecf6b278520d969a0e4188cc0b232d310e0bd08f4ed2ebb0a193aa8012",
+      "bytes": 327406
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-overview.png",
+      "sha256": "3695e160f387a8ba1b3c5d30156cf5d7f77a710809a008ab6a06b325a41f6414",
+      "bytes": 563971
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor-start-opening.png",
+      "sha256": "e53a5d1e0f782a4794f9d0a0ac2d5aca8acc38fa0789b4a7242f7b7b898d51da",
+      "bytes": 155497
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/corridor_mcp.py",
+      "sha256": "eb8118d896323f56b55f8dac0f3c4c7a403959a3012d93c5e57d14d62f21e76f",
+      "bytes": 1054
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-before.txt",
+      "sha256": "98638c32851d766008f15ac5e54640b9aaf8585a94db1bc8e5c55f6ca427675e",
+      "bytes": 31103
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-expanded.txt",
+      "sha256": "52c63e8414c7b170a923f87422abf80a59efd73f1a01e8247d52e23da3e40fbc",
+      "bytes": 33108
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-input-focused.txt",
+      "sha256": "3171bec73f8d4195263704673124a57215a745f4c138400964afc62c67d8c986",
+      "bytes": 33108
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-input-open.txt",
+      "sha256": "4b4b9f93608421b03509f49c3f49a96f03b3ff7434dfe4979ebece7cdf6c2128",
+      "bytes": 33108
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-input.txt",
+      "sha256": "5e1042703e8f94b2e68910d6ba7193e94ffdf7443585db18ce370c8cfe62db32",
+      "bytes": 33108
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-screenshot.json",
+      "sha256": "52100b01edde89ba0dff887aa1b30ee77b8f0428ff60ce71e4bcd94c5a6270b2",
+      "bytes": 1894
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/details-validation.json",
+      "sha256": "aa08c0c3d1352d2c33c0fb149e026f10616f2b978836744ee9c7f01b006d8d9b",
+      "bytes": 111903
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/editor-closed.json",
+      "sha256": "c321f9464db1467243da317ff1a42f5c66082a8517860a8aa5b3cba44af830df",
+      "bytes": 61
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/editor-session.json",
+      "sha256": "5245622406861541829aae0b55fbb3075bf024ea936f714ce6cc02f3f5d1a467",
+      "bytes": 118784
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/editor_session.py",
+      "sha256": "d6364cae1d28199453a6447d51d8941c1cb8b481147f617f34125e935f605ada",
+      "bytes": 3186
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/final-editor-readback.json",
+      "sha256": "a2c7c1464708726ebe16b4eb64a77a2e1b0b5d314e80c50af17a725b181b928e",
+      "bytes": 71894
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/git-before.txt",
+      "sha256": "cdc3d79854d1459798120bbd2f92e9513d25d144f9a4d061c03ec81d777088d8",
+      "bytes": 514
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/map-setup.json",
+      "sha256": "7de5651098830a652359841decf4440dd035934d448dc7a39f5c0fd962884785",
+      "bytes": 3177
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/p03c1-editor.log",
+      "sha256": "262a9c266060b22f0a7261603f30a489c87a7e700e8844473897bdb34fcf71a5",
+      "bytes": 553481
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/setup_map.py",
+      "sha256": "2599c6bf6ce24f088ed78f86eac925a9246ccf3f76b856627085b217e2567662",
+      "bytes": 1821
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/stop-editor.json",
+      "sha256": "9d1524b195ff9bb5a91c49cd6bae330d4661240da720f6a35efe8580bf0849a3",
+      "bytes": 837
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/unlit-captures.json",
+      "sha256": "67a37fb5279c8e20a42adf7a97e4e96807bb064d60afb8ce6bd70e0aeb65ce0e",
+      "bytes": 98284
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/validate_corridor.py",
+      "sha256": "6d2751ed4a81232f1fbdc66e42ee0f1e8cbc36a91873e16760056c911a7a0a0f",
+      "bytes": 13129
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/validation.json",
+      "sha256": "42e08491e3fb5536bc8786fa51219d71244eff55d7c81663fa781ec5c10b2d2c",
+      "bytes": 1052920
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/verify_details.py",
+      "sha256": "01eb634fddac723e10cbca8e9a57abdb02c8ca2e0810e2584ae005722b17dc69",
+      "bytes": 4313
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/viewport-controls.txt",
+      "sha256": "5a040c9d52b7fd88c80a8236e8b94f05f5120434faedcd563ce44b300f813d72",
+      "bytes": 33108
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/viewport-view-menu.txt",
+      "sha256": "328aba61704783b103b32f44b1b4c6f1e127b75fba156474d9a3ab889651f784",
+      "bytes": 44964
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/Backups/AGENTS.md",
+      "sha256": "109efa446d04e38e64b1b500c3f2680d12b40613cff6de6d6e0104022eefa3f2",
+      "bytes": 7909
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/Backups/Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+      "sha256": "8429a9a7a819809c7e48f63ab0637edabc6b92ec3b41aa61d399e95362405d30",
+      "bytes": 10338
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/Backups/Docs/06_EXECUTION_STATUS.md",
+      "sha256": "55f6415172ad08d855f9c86d3555631accd65a501bbe2c74c7470d49ca1eaeea",
+      "bytes": 22744
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/Backups/Plugins/RoguelitePrototype/README.md",
+      "sha256": "1bbf420387884c8c5b28b2e1086d056c51c03a98c49589fbf116443d5df23e94",
+      "bytes": 7924
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Development/P03C1/Backups/prompts/P01_TO_P13_TASKS.md",
+      "sha256": "2594b836d646039c2d77bb23046fd26174544e85190f21d0eb804fe3a69e988f",
+      "bytes": 15160
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+      "sha256": "990dc0aed8e7ed56128b9475ec85e8cc88427ec23f4c674175395cf3584e5e1c",
+      "bytes": 16061
+    },
+    {
+      "path": "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+      "sha256": "c9872e59aabbad110d471e3e4df389ca979d89b02dbd267803a214dc9c216022",
+      "bytes": 6942
+    }
+  ],
+  "unexpected_new": [],
+  "git_status": "M Content/Demo/L_CastleDemo.umap\n M testfordemo.uproject\n?? .agents/\n?? .codex/\n?? .ignore\n?? .mcp.json\n?? .vscode/\n?? AGENTS.md\n?? Content/Roguelite/\n?? Docs/00_AI_PCG_FINAL_SPEC_READABLE.pdf\n?? Docs/01_FINAL_DESIGN_SPEC.md\n?? Docs/02_TECHNICAL_ARCHITECTURE.md\n?? Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md\n?? Docs/04_ACCEPTANCE_MATRIX.md\n?? Docs/05_MCP_SETUP_AND_CAPABILITY.md\n?? Docs/06_EXECUTION_STATUS.md\n?? Docs/Backups/\n?? Plugins/\n?? prompts/\n?? templates/\n?? testfordemo.code-workspace",
+  "owned_editor": {
+    "pid": 4460,
+    "returncode": 1,
+    "only_owned_pid_closed": true
+  },
+  "not_tested": [
+    "human interaction/UndoRedo",
+    "Blueprint pure query invocation",
+    "NavMesh",
+    "runtime resizing after BeginPlay",
+    "Room-Corridor-Room assembly/reservation",
+    "fog/loading/encounter",
+    "Game Target/packaging"
+  ],
+  "self_manifest_not_in_new_files": "This manifest is written after inventory; it is itself a new C1-only evidence file."
+}

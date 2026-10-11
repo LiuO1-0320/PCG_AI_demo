@@ -1,0 +1,112 @@
+Log started at 10/11/2026 15:50:40 (2026-10-11T07:50:40Z)
+Resolved project argument E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject to E:\Unreal Projects\PCG_AI_demo_1\testfordemo.uproject
+No config file at C:\ProgramData\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\12854\AppData\Local\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\12854\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Configuration will be read from:
+  C:\Users\12854\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (E:\Unreal Projects\PCG_AI_demo_1\Intermediate\Build\XmlConfigCache.bin): C:\Users\12854\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (E:\Unreal Projects\PCG_AI_demo_1\Intermediate\Build\XmlConfigCache.bin): E:\Unreal Projects\PCG_AI_demo_1\Saved\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from cache (E:\Unreal Projects\PCG_AI_demo_1\Intermediate\Build\XmlConfigCache.bin): C:\Users\12854\AppData\Local\UnrealEngine\Intermediate\Build\UnrealBuildTool.Env.BuildConfiguration.xml
+Log file: E:\Unreal Projects\PCG_AI_demo_1\Plugins\RoguelitePrototype\Development\P005\build-editor-direct.log
+
+Setting temp directory to 'C:\Users\12854\AppData\Local\Temp\UnrealBuildTool\60a5a49b'
+    Registering build platform: UnrealBuildTool.AndroidPlatformFactory
+    Registering build platform: UnrealBuildTool.IOSPlatformFactory
+    Registering build platform: UnrealBuildTool.LinuxPlatformFactory
+    Registering build platform: UnrealBuildTool.MacPlatformFactory
+    Registering build platform: UnrealBuildTool.TVOSPlatformFactory
+    Registering build platform: UnrealBuildTool.WindowsPlatformFactory
+Found Windows 10 SDK root at E:\Windows Kits\10 (1)
+Found Windows 10 SDK root at E:\Windows Kits\10 (2)
+Found Windows 10 SDK version 10.0.22000.0 at E:\Windows Kits\10
+Found Universal CRT version 10.0.22000.0 at E:\Windows Kits\10
+Found Windows 10 SDK version 10.0.22621.0 at E:\Windows Kits\10
+Found Universal CRT version 10.0.22621.0 at E:\Windows Kits\10
+Found Windows 10 SDK version 10.0.26100.0 at E:\Windows Kits\10
+Found Universal CRT version 10.0.26100.0 at E:\Windows Kits\10
+Win64 Installed SDK(s): MinVersion_Sdk=10.0.19041.0, MaxVersion_Sdk=10.9.99999.0, CurrentVersion_Sdk=10.0.22621.0, Version_AutoSdk=10.0.22621.0, CurrentVersion_AutoSdk=
+        Registering build platform: Win64 - buildable: True
+    Registering build platform: UnrealBuildTool.VisionOSPlatformFactory
+Command line: D:\UE_5.8\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll testfordemoEditor Win64 Development "-Project=E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject" -WaitMutex -NoHotReloadFromIDE -NoUBA -MaxParallelActions=1 "-Log=E:/Unreal Projects/PCG_AI_demo_1/Plugins/RoguelitePrototype/Development/P005/build-editor-direct.log"
+Executing up to 1 actions based on MaxProcessorCount override
+Using 'git status' to determine working set for adaptive non-unity build (E:\Unreal Projects\PCG_AI_demo_1).
+UbaSessionServer - Disable remote execution (remote sessions will finish current processes)
+Skipping D:\UE_5.8\Engine\Intermediate\Build\BuildRules\UE5Rules.dll: File is installed
+Skipping D:\UE_5.8\Engine\Intermediate\Build\BuildRules\UE5ProgramRules.dll: File is installed
+Building UnrealEditor - testfordemoEditor - Win64 - Development
+Generated code is up to date.
+Building testfordemoEditor...
+===== Toolchain Information =====
+Using ISPC compiler (D:\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2) 
+Using Visual Studio 14.44.35228 toolchain (E:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.22621.0 SDK (E:\Windows Kits\10).
+[Adaptive Build] Excluded from RoguelitePrototype unity file: RogueliteDevGameMode.cpp, RogueliteDevMapCommandlet.cpp, RoguelitePrototype.cpp
+=================================
+Using Unreal Build Accelerator local executor to run 8 action(s)
+  CPU 6 physical cores, 12 logical cores
+  Memory 15.88 GB physical, 23.04 GB/31.88 GB committed
+  UBA Storage capacity 40 GB
+  UBA RootDir C:\ProgramData\Epic\UnrealBuildAccelerator
+Cache bucket 702997340 used. Action: Compile [x64] Module.RoguelitePrototype.cpp ()
+Cache bucket 416513229 used. Action: Link [x64] UnrealEditor-RoguelitePrototype.lib ()
+Cache bucket 2611342960 used. Action: Compile Resource [x64] Default.rc2 ()
+All processes queued
+[1/8] Compile [x64] Module.RoguelitePrototype.cpp [NoUba]
+[2/8] Compile [x64] RogueliteDevGameMode.cpp [NoUba]
+[3/8] Compile [x64] RogueliteDevMapCommandlet.cpp [NoUba]
+[4/8] Compile [x64] RoguelitePrototype.cpp [NoUba]
+[5/8] Link [x64] UnrealEditor-RoguelitePrototype.lib [NoUba]
+  ￕ�ￔￚﾴﾴﾽﾨ﾿￢ E:/Unreal Projects/PCG_AI_demo_1/Plugins/RoguelitePrototype/Intermediate/Build/Win64/x64/UnrealEditor/Development/RoguelitePrototype/UnrealEditor-RoguelitePrototype.lib ﾺￍﾶￔￏ￳ E:/Unreal Projects/PCG_AI_demo_1/Plugins/RoguelitePrototype/Intermediate/Build/Win64/x64/UnrealEditor/Development/RoguelitePrototype/UnrealEditor-RoguelitePrototype.exp
+[6/8] Compile Resource [x64] Default.rc2 [NoUba]
+[7/8] Link [x64] UnrealEditor-RoguelitePrototype.dll [NoUba]
+[8/8] WriteMetadata testfordemoEditor.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 548.41 seconds
+Output binary: D:\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe
+WriteFileIfChanged() wrote 0 changed files of 1 requested writes.
+
+Timeline:
+[  0.000]  +0.937 Main
+   0.032          [  0.032]  +0.184 Apply XmlConfig
+   0.263          [  0.263]  +0.138 AddTelemetry
+   0.446          [  0.446]  +0.490 RegisterPlatforms
+[  0.995]  +0.127 ParseCommandLine
+[  1.231]  +0.289 LoadMakefile
+   1.292          [  0.061]  +0.077 EngineRulesPlugins
+   1.376          [  0.145]  +0.024 EngineRulesFetchDirs
+   1.412          [  0.181]  +0.022 EngineRulesAssembly
+   1.434          [  0.203]  +0.001 ProgramRulesAssembly
+   1.445          [  0.214]  +0.003 ProjectRulesAssembly
+   1.449          [  0.218]  +0.546 CreateTargetRules
+   1.530             0.299          [  0.081]  +0.000 FindPlugins
+   1.550             0.319          [  0.101]  +0.404 MakefileValid
+[  1.520]  +0.605 <unknown>
+[  2.126]  +0.010 CppDependencyCache
+[  2.166]  +0.211 testfordemoEditor Win64 Development
+[  2.380]  +0.039 UHTWait
+   2.383          [  0.002]  +0.033 UHTManifest
+   2.417          [  0.037]  +0.043 UHTTimestamps
+[  2.485]  +0.005 CppDependencyCache
+[  2.491]  +0.138 Preparing ActionGraph
+   2.519          [  0.027]  +0.014 LinkActions
+   2.533             0.041          [  0.013]  +0.000 DetectActionGraphCycles
+   2.534          [  0.043]  +0.000 GatherPrerequisiteActions
+   2.538          [  0.047]  +0.000 CppDependencyCacheWait
+   2.540          [  0.048]  +0.061 GatherOutdatedActions
+   2.608          [  0.116]  +0.016 LinkActions
+   2.608             0.116          [  0.000]  +0.000 DetectActionGraphCycles
+   2.626          [  0.134]  +0.001 DeleteOutdatedProducedItems
+   2.627          [  0.135]  +0.001 SaveActionHistory
+   2.630          [  0.138]  +0.000 CreateDirectoriesForProducedItems
+[  2.662]  +0.125 GarbageCollect
+[  2.787]+548.283 <unknown>
+[551.070]  +0.000 Deploying targets
+[551.073]  +0.000 DisconnectCache
+[551.089]  +0.001 SaveCasTable
+[551.096]  +0.184 Saving caches
+[551.282]  +0.006 TelemetryService.FlushEvents
+[551.291]
+
+Result: Succeeded
+Total execution time: 551.29 seconds

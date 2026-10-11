@@ -1,0 +1,16 @@
+{
+  "toolset": "editor_toolset.toolsets.object.ObjectTools",
+  "tool": "get_properties",
+  "arguments": {
+    "instance": {
+      "refPath": "/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev.L_Roguelite_DoorSocket_Dev:PersistentLevel.RogueliteParametricRoom_1"
+    },
+    "properties": [
+      "northDoor",
+      "doorSockets"
+    ]
+  },
+  "result": {
+    "returnValue": "{\"northDoor\":{\"bEnabled\":true,\"bAutoCenter\":false,\"manualOffset\":350,\"doorWidth\":200,\"doorHeight\":250},\"doorSockets\":[{\"side\":\"North\",\"bValid\":true,\"localPosition\":{\"x\":1520,\"y\":350,\"z\":0},\"worldPosition\":{\"x\":31520,\"y\":350,\"z\":0},\"localOutwardDirection\":{\"x\":1,\"y\":0,\"z\":0},\"worldOutwardDirection\":{\"x\":1,\"y\":0,\"z\":0},\"doorWidth\":200,\"doorHeight\":250,\"wallThickness\":20,\"appliedOffset\":350,\"validationMessage\":\"\"},{\"side\":\"South\",\"bValid\":true,\"localPosition\":{\"x\":-1520,\"y\":0,\"z\":0},\"worldPosition\":{\"x\":28480,\"y\":0,\"z\":0},\"localOutwardDirection\":{\"x\":-1,\"y\":-0,\"z\":-0},\"worldOutwardDirection\":{\"x\":-1,\"y\":0,\"z\":0},\"doorWidth\":200,\"doorHeight\":250,\"wallThickness\":20,\"appliedOffset\":0,\"validationMessage\":\"\"},{\"side\":\"East\",\"bValid\":true,\"localPosition\":{\"x\":-250,\"y\":1270,\"z\":0},\"worldPosition\":{\"x\":29750,\"y\":1270,\"z\":0},\"localOutwardDirection\":{\"x\":0,\"y\":1,\"z\":0},\"worldOutwardDirection\":{\"x\":0,\"y\":1,\"z\":0},\"doorWidth\":200,\"doorHeight\":250,\"wallThickness\":20,\"appliedOffset\":-250,\"validationMessage\":\"\"},{\"side\":\"West\",\"bValid\":true,\"localPosition\":{\"x\":0,\"y\":-1270,\"z\":0},\"worldPosition\":{\"x\":30000,\"y\":-1270,\"z\":0},\"localOutwardDirection\":{\"x\":-0,\"y\":-1,\"z\":-0},\"worldOutwardDirection\":{\"x\":0,\"y\":-1,\"z\":0},\"doorWidth\":200,\"doorHeight\":250,\"wallThickness\":20,\"appliedOffset\":0,\"validationMessage\":\"\"}]}"
+  }
+}

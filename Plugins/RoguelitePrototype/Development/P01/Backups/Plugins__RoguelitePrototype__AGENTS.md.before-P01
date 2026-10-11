@@ -1,0 +1,10 @@
+# Independent Roguelite development area
+
+- This plugin follows the owner's P00.5 decision: build the new game independently of CastleDemo.
+- Keep Roguelite C++ in this Runtime module and game assets under `/Game/Roguelite`.
+- Do not include or depend on CastleDemo classes, custom PCG nodes, or `/Game/Demo` assets.
+- Preserve the existing project defaults, teammate code, Boss implementation, and all pre-existing changes.
+- Asset changes must use Unreal Editor or verified Editor APIs. Never edit binary assets as text.
+- The development map's GameMode override is local to that map. Do not replace the global default GameMode.
+- P00.5 adds no room system, PCG graph, combat, AI, inventory, or persistence.
+- The map commandlet only creates the initial named development map and refuses to overwrite it.

@@ -1,0 +1,14 @@
+{
+  "targets": [
+    "AGENTS.md",
+    "prompts/P01_TO_P13_TASKS.md",
+    "Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+    "Docs/06_EXECUTION_STATUS.md",
+    "Plugins/RoguelitePrototype/README.md"
+  ],
+  "new_paths": [
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+    "Content/Roguelite/Maps/L_Roguelite_Corridor_Dev.umap"
+  ]
+}

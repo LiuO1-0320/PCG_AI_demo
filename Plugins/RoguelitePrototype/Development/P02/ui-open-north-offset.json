@@ -1,0 +1,18 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Click",
+  "arguments": {
+    "ref": "sl1",
+    "button": "left",
+    "doubleClick": true,
+    "modifiers": {
+      "bShift": false,
+      "bCtrl": false,
+      "bAlt": false,
+      "bCmd": false
+    }
+  },
+  "result": {
+    "returnValue": true
+  }
+}

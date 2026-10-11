@@ -1,0 +1,90 @@
+# Unreal v2.0 任务进度与版本记录
+
+**初始化：2026-10-11｜除下方有真实证据的记录外，其余任务仍为待做。**
+
+状态说明：`TODO` 待做；`PLAN` 已审查；`WIP` 实施中；`BUILT` 实际编译过但 PIE 未过；`AUTO-PIE` 实际编译和自动 PIE 检查通过、人工画面与输入验收未做；`PASS` 编译/编辑器与人工验收真实通过；`BLOCKED` 阻断。
+
+| 任务 | 本轮目标 | 状态 | Git Commit / Seed | 验收证据 | 备注 |
+|---|---|---|---|---|---|
+| P00 | 项目与官方 MCP 只读审查 | TODO | - | - | 不修改资产 |
+| P00.5 | 独立 Roguelite Runtime 插件与测试地图 | AUTO-PIE | 基于 2b36a47；未提交 | `Plugins/RoguelitePrototype/Development/P005` 构建日志、两次 MCP PIE 证据及旧文件校验 | 独立 GameMode；人工画面/输入未验收；既有默认设置不变 |
+| P01 | 可调长宽高参数化房间 | PASS | 基于 2b36a47；未提交 | `Plugins/RoguelitePrototype/Development/P01`：编译成功、107 项 MCP 检查、实际视口截图；用户在 P02 开始前报告人工检查无异常 | P01 原图布局保留；P02 有外壳/POI/碰撞回归证据 |
+| P02 | 可编辑四侧门洞与 Door Socket | AUTO-PIE | 基于 2b36a47；未提交 | `Plugins/RoguelitePrototype/Development/P02`：实际编译、358 项 MCP 检查、Details 偏移输入/射线补验、保存重载及 PIE | 按本次用户指令仅门洞/Socket；不含直接拼接、PCG 或门控；P02 人工体验待验收 |
+| P03 | 主线/分支地牢与多种子回退 | TODO | - | - | Boss 可达 |
+| P04 | PCG_RoomCover | TODO | - | - | 开阔+密集、POI 排除 |
+| P05 | PCG_EnemySpawn | TODO | - | - | 散布+小群组、入口禁刷 |
+| P06 | PCG_RoomProps / Loot Profile | TODO | - | - | 设计师可编辑 |
+| P07 | RoomEncounterDirector / 门控/生成同步 | TODO | - | - | Preparation/Combat/Cleared |
+| P08 | AI 阵营、生命周期与目标锁定 | TODO | - | - | 最近首次锁定 |
+| P09 | 近战 BT 与远程 BT/EQS/武器 | TODO | - | - | EQS 战斗后首次查 |
+| P10 | 感染者转化 + Follow/Defend/Rally | TODO | - | - | 不堵门不友伤 |
+| P11 | Friendly 倒地、救援与遗弃 | TODO | - | - | 无跨局继承 |
+| P12 | Boss 接口/商店/掉落协作 | TODO | - | - | 不改 Boss-owned 资产 |
+| P13 | 100 Seed / 打包 / 压力 / 课程演示 | TODO | - | - | 真实指标 |
+
+## 每轮填写记录
+
+```text
+日期：
+任务 ID：
+使用的工程版本 / Git Commit：
+代码变更：
+UE 资产变更：
+官方 MCP 工具证据：
+实际编译状态：
+人工 PIE 状态：
+测试 Seed/房间 ID：
+成功截图或日志：
+未解决问题：
+用户确认可继续下一任务：是/否
+```
+
+## 2026-10-11 — P00.5 工程隔离
+
+- 工程：`E:/Unreal Projects/PCG_AI_demo_1/testfordemo.uproject`；本机 UE 5.8.3；Git `main` / `2b36a47`。
+- 本次遵循项目负责人新决定：新游戏在 `RoguelitePrototype` Runtime 插件和 `/Game/Roguelite` 中独立开发，不以 CastleDemo 为架构基础。新增两个作用域的 `AGENTS.md` 记录边界；未重写既有全局架构规范。
+- 代码变更：新增插件模块、`RogueliteDevGameMode`、固定路径且拒绝覆盖的初始地图 commandlet。Runtime 依赖 `Core`、`CoreUObject`、`Engine`；Editor 构建额外私有依赖 `UnrealEd`。没有 CastleDemo 代码或旧 PCG 节点依赖，没有具体玩法。
+- UE 资产：仅新增 `/Game/Roguelite/Maps/L_Roguelite_Dev`。地图自己的 GameMode Override 使用 `RogueliteDevGameMode`，玩家为引擎 `SpectatorPawn`。
+- 实际编译：`testfordemoEditor Win64 Development` 增量构建退出码 0，日志 `build-editor-direct.log` 为 `Result: Succeeded`。使用 MSVC 14.44 / Windows SDK 10.0.22621.0；未做清理式全量重编或打包。
+- 官方 MCP：临时 null-RHI 编辑器识别并加载新插件；新地图依赖没有 `/Game/Demo` 或 CastleDemo。用户正常重启后的编辑器也返回插件 `IsEnabled=true`，并实际加载新地图。
+- 实际 PIE：临时实例和用户重启后的编辑器均通过官方 `StartPIE` 进入真正 PIE（非 Simulate），`IsPIERunning=true`。日志均为 `GameMode=/Script/RoguelitePrototype.RogueliteDevGameMode`、`PawnClass=/Script/Engine.SpectatorPawn`、`LegacyActorCount=0`。`StopPIE` 后为 false，新地图 `is_dirty=false`。
+- 人工 PIE：画面、键鼠控制与人工游玩没有验收。按插件 README 的五步进行；不将自动启动检查记为人工通过。
+- 旧文件保护：`Content/Demo`、`Source/CastleDemo`、既有配置、Targets、`.uproject` 共 37 个基线文件 SHA-256 全部不变。开始时已有未提交的 `.uproject` 和旧 Demo 地图修改均保留；无提交、暂存或重置。
+- 共享风险：仍共享 Editor Target、全局插件/配置与构建缓存。既有 GameFeatures 缺少 `GameFeatureData` 扫描规则；地图命令已保存新地图，但命令整体因该旧错误退出码 1，未修全局配置。临时并行编辑器还出现既有 HTTP 服务端口 5353 占用错误；验证用 MCP 仅绑定本机 8001，临时实例已关闭。
+- 证据：`baseline-files.json`、`build-editor-direct.log`、`create-dev-map.log`、`mcp-verification.json`、`primary-editor-verification.json`、`final-verification.json`。日志仅证明上述基础框架检查，不证明参数化房间、PCG、AI、Boss 或打包可用。
+- 恢复：先正常关闭引用新模块的编辑器、核对本轮新增清单并备份；停用时仅将本轮新增插件与内容目录移出项目。进度文档修改前的副本在 `Development/P005/06_EXECUTION_STATUS.before-P005.md`，恢复其本次记录应人工核对后单独处理；不得覆盖旧 `.uproject` 或旧地图，不执行全项目 Reset/Clean。
+- 下一阶段：未执行。等待项目负责人下一条指令。
+
+## 2026-10-11 — P01 独立插件参数化房间
+
+- 范围：仅 `RoguelitePrototype` 的房间类、专属测试地图及本轮说明/证据；未实施 P02 门洞、拼接、PCG、AI 或 Boss。
+- 新增 C++：`RogueliteParametricRoom.h/.cpp`。五个厘米尺寸属性，固定根组件与五个 Cube 外壳组件；`OnConstruction` 和编辑器属性通知更新现有组件，禁用 Tick；Actor Scale 不用于尺寸控制。Runtime/Editor 依赖不变。
+- 地图：在 `/Game/Roguelite/Maps/L_Roguelite_Dev` 增加 `P01_ParametricRoom` 和独立 `P01_ManualPOI`，原始地板/灯光/PlayerStart 保留。最终房间位置 `(10000,0,0)`，尺寸 `3000×2500×500`，墙厚/地板厚度 20，Scale 为 1。
+- 编译：先确认基线增量构建退出码 0，再实际编译 `testfordemoEditor Win64 Development`，退出码 0，`Result: Succeeded`，耗时 400.33 秒。未做清理式全量重编、Game Target 或打包。
+- MCP：真实发现 toolsets/schema；通过官方工具放置 Actor、修改属性、读取组件/Bounds、查询世界碰撞、仅保存测试地图、卸载/重新加载地图并启动/停止 PIE。临时验证实例的 107 项检查全部通过，随后实例关闭。用户正常重启后的编辑器再次读取保存参数/POI 引用/六个组件，`is_dirty=false`、`IsPIERunning=false`，取得实际视口截图。
+- 尺寸与碰撞：2000×2000 时四面墙内部射线命中距离均 1000 cm；3000×2500 时北/南 1500、东/西 1250 cm；两组地板顶面命中距离均 100 cm。实际工具执行 Visibility 复杂射线；另检验外墙/地板底面、单独改变高度和厚度、扩大/缩小后的旧碰撞位置无命中。不是以 SpectatorPawn 穿墙判断碰撞。
+- POI：五次来回改尺寸，房间组件引用不变、仅五个网格组件；手工 POI 的位置、旋转、Scale、Bounds、模型、材质和组件配置均不变。缩小到 2000×2000 时其原点局部 X=900 仍在房内，但 Bounds 最大 X=1079.904，Details 警告数组及实际日志正确指出越界 Actor。恢复大房间后警告消失。
+- PIE：真正 PIE 启动，独立 `RogueliteDevGameMode`，`LegacyActorCount=0`；随后正常停止。人工 Details 点击/画面互动、Undo/Redo、碰撞 Pawn 或 Sweep、Map Check UI、非 90° 房间旋转和打包未验证。仅有自动 PIE 通过，不记人工 PASS。
+- 保护：47 个旧文件 SHA-256 基线全部不变，包括旧 Demo/Boss、CastleDemo 源码、配置、Targets、`.uproject` 和 P00.5 既有源文件。原有 `.uproject` 和旧 Demo 地图未提交修改保留；无提交、暂存、Reset 或 Clean。README、执行状态文档和测试地图的修改前副本已保存在本轮 Backups。
+- 工具问题：首个验证脚本误按 C++ 大写属性名判断 MCP schema，在保存前停止；改用实际 schema 后全套通过。截图的可选 annotations 参数被当前适配器要求显式传入，已用无覆盖层参数在用户编辑器成功补验；原失败记录保留。`WORKFLOW_AGENT.md` 在本工作区未找到，未创建替代文件。
+- 风险：任意斜向旋转的 POI Bounds 检查可能保守报警；手工 POI 移动后需点击 Rebuild Room/修改尺寸重新检查，不应附加到会缩放的外壳组件。共享构建、全局配置及既有 GameFeatures 问题仍存在。
+- 证据：`build-baseline.log`、`build-p01.log`、`validation-canonical.json`、`validation-canonical-editor.log`、`primary-editor-verification.json`、`primary-editor-3000x2500.png`、`final-verification.json`；详细交付和恢复方法见插件 `P01_RESULT.md`。
+- 下一阶段：停止在 P01，等待项目负责人验收；未自动进入 P02。
+
+## 2026-10-11 — P01 人工确认与 P02 可编辑门洞
+
+- 人工前置：用户明确回复 P01 已人工检查、未发现异常；这是用户报告，未将此前未测试的 Undo/Redo、Sweep 或打包补记为通过。
+- 范围：在现有 `ARogueliteParametricRoom` 上最小增加四侧门洞配置与 Socket；本次用户范围取代旧 P02 提示中的两房拼接要求。未执行 P03、PCG、AI、Boss、门体或战斗门控。
+- 实际代码：修改现有 room `.h/.cpp`；新增四侧配置、净宽/高和手动偏移、安全余量、固定左右墙段/横梁及编辑器绿色/红色箭头。13 个固定网格组件、根与 4 个箭头共 18 个编辑器组件；关闭门洞恢复 P01 完整外壳。无新增模块依赖，无 Actor 整体缩放或 Tick。
+- 非法配置：保留 ManualOffset/门尺寸；警告并恢复对应完整墙，Socket `bValid=false`。查询接口 `GetDoorSockets`/`TryGetDoorSocket` 提供墙体外表面、局部 Z=0 的门槛位置及朝外方向；尚无连接占用或门控状态。
+- 资产：仅新增 `/Game/Roguelite/Maps/L_Roguelite_DoorSocket_Dev`；官方 MCP 复制原 P01 图到此专用图后仅保存新路径。原图用户当前房间为 3000×3000×500，布局保留。新图增加 `P02_DoorSocketRoom` 与 `P02_ManualPOI`；最终房间 3000×2500×500、墙/地板厚 20、四门 200×250，北 +300/东 -250、南西居中。
+- 编译：基线 `testfordemoEditor Win64 Development` 成功；最终常规编译 `Result: Succeeded`，退出码 0，49.82 秒。没有 Clean、全量重编、Game Target 或打包。重启续接后源码修改时间仍早于成功构建 DLL，未重复编译。
+- MCP/PIE：`validation-transform.json` 的 358 项检查全部通过，含 20×20 米四门、逐侧启停、偏移、尺寸变化、90/180/270° Socket、非法值/边界、真实碰撞、P01 回归、保存卸载重载、真正 PIE start/stop。独立 GameMode/SpectatorPawn、`LegacyActorCount=0`。临时验证编辑器已退出。
+- 碰撞：门中 Z=1/125/249 cm 射线无命中，两侧墙与 Z=280 cm 横梁命中 200 cm；关闭门洞和非法配置恢复墙体命中。POI 实际 Bounds 越界警告、五次反复修改组件引用及 POI transform/模型/材质/碰撞配置保持通过。不是以 SpectatorPawn 能否穿墙证明碰撞。
+- Details 补验：官方 Slate Inspector 在数字框实际输入北门 350，读取参数/Socket 同步更新；Y=425 开口无命中、Y=225 实体墙命中 200 cm。之后通过同一输入框恢复 300 并仅保存新图，`is_dirty=false`；实际截图保留。
+- 保护：51 个保护文件 SHA256 与本轮前基线一致，含旧 Demo/Boss/配置/`.uproject`、原 P01 地图及 P01 文档脚本。保留已有未提交 `.uproject` 和 Demo 地图。四份既有文件备份在 P02/Backups；无暂存、提交或全仓恢复。
+- 工具/环境问题：沙箱下 UBT trace/DDC 访问失败，常规权限运行后通过；新地图需先保存再加载；MCP 部分 Actor transform 重置未指定位置，已在验证脚本改为传完整 transform 并重新通过。失败证据保留。既有 GameFeatureData Asset Manager 全局错误仍在日志，未扩大范围修改。
+- 未测试：P02 用户本人画面/输入验收、Undo/Redo、碰撞 Pawn/Sweep、实际 Blueprint 调用查询节点、Map Check UI、Game Target/打包。恢复到 300 后没有再重复重载；完整验证已对相同最终配置重载。本次 Codex 续接无 Unreal MCP 原生工具入口，未再连接/启动编辑器，以上 MCP/PIE 来自本轮暂停前真实执行记录。
+- 文档与证据：插件 `P02_DOOR_GUIDE.md`、`P02_RESULT.md`；`Development/P02` 的最终编译/验证 JSON、UI 补验、截图、保护清单、备份与 `final-verification.json`。暂停节点保留为历史记录。
+- 风险与恢复：仍共享主项目 Editor Target/UE 缓存；未来拼接不能依赖包含隐藏组件/箭头的 Actor 视觉 Bounds；POI 保持独立 Actor。仅比较恢复本轮 room 源码并重编，单独归档新 P02 图/文档，不能删除整个插件或 Roguelite 内容。
+- 下一阶段：停止在 P02，等待人工验收与下一条指令；不自动进入 P03。

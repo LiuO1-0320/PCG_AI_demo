@@ -1,0 +1,12 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Snapshot",
+  "arguments": {
+    "ref": "",
+    "maxDepth": 2,
+    "bIncludeSourceLocations": false
+  },
+  "result": {
+    "returnValue": "window \"testfordemo - Unreal Editor\" [pos=0,0 size=1920,1040] [ref=w1]\n  image [pos=0,0 size=1920,1040] [ref=i1]\n  image [pos=0,0 size=1920,1040] [ref=i2]\n  image [pos=2,2 size=1916,1036] [ref=i3]\n"
+  }
+}

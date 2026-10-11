@@ -1,0 +1,15 @@
+{
+  "targets": [
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteRoomAssembly.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteRoomAssembly.cpp",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Public/RogueliteParametricCorridor.h",
+    "Plugins/RoguelitePrototype/Source/RoguelitePrototype/Private/RogueliteParametricCorridor.cpp",
+    "AGENTS.md",
+    "Docs/02_TECHNICAL_ARCHITECTURE.md",
+    "Docs/03_DECISIONS_AND_OPEN_QUESTIONS.md",
+    "Docs/06_EXECUTION_STATUS.md",
+    "prompts/P01_TO_P13_TASKS.md",
+    "Plugins/RoguelitePrototype/README.md"
+  ],
+  "new_map": "Content/Roguelite/Maps/L_Roguelite_CorridorAssembly_Dev.umap"
+}

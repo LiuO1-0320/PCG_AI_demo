@@ -1,0 +1,12 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Type",
+  "arguments": {
+    "ref": "tb2",
+    "text": "Door",
+    "submit": true
+  },
+  "result": {
+    "returnValue": false
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+  "tool": "Windows",
+  "arguments": {},
+  "result": {
+    "returnValue": "[{\"index\": 0, \"title\": \"testfordemo - Unreal Editor\"}]"
+  }
+}
