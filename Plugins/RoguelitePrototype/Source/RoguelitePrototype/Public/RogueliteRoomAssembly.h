@@ -226,6 +226,11 @@ public:
         ARogueliteParametricRoom* TargetRoom, ERogueliteRoomSide TargetSocket,
         FTransform& OutCorridor, FTransform& OutRoomB, FString& OutReason) const;
 
+    /** Shared calculation for spatial plans using the existing P02 socket data. No Actors, reservations or collision claims. */
+    static bool ComputeCorridorSocketTransforms(const FRogueliteDoorSocket& FixedDoor, const FRogueliteDoorSocket& TargetDoor,
+        const FRogueliteDoorSocket& CorridorStart, const FRogueliteDoorSocket& CorridorEnd, float SizeTolerance,
+        FTransform& OutCorridor, FTransform& OutRoomB, FString& OutReason);
+
     UFUNCTION(BlueprintCallable, Category="Roguelite|Assembly")
     FRogueliteAssemblyResult RevalidateConnection(FGuid ConnectionId);
     UFUNCTION(BlueprintPure, Category="Roguelite|Connections")

@@ -1,4 +1,5 @@
 #include "RogueliteRoomAssembly.h"
+#include "RogueliteRoomTemplate.h"
 #include "RoguelitePrototype.h"
 #include "Components/SceneComponent.h"
 #include "Components/ActorComponent.h"
@@ -159,8 +160,20 @@ bool ARogueliteRoomAssembly::ValidateEndpoints(ARogueliteParametricRoom* A, ERog
         B->GetAttachedActors(Attached);
         if (B->ManualPOIActors.Num() > 0 || Attached.Num() > 0)
         {
-            Result.Message = TEXT("目标房间带手工 POI 引用或附加 Actor，拒绝自动移动；完整模板的刚性装配尚未实现。");
+            Result.Message = TEXT("INDEPENDENT_POI_MOVE_REFUSED: target contains ManualPOIActors or attached Actors. These independent Actors remain protected; only components owned by a RoomTemplate instance are assembled.");
             return false;
+        }
+    }
+    for (ARogueliteParametricRoom* Room : {A, B})
+    {
+        if (auto* Template = Cast<ARogueliteRoomTemplate>(Room))
+        {
+            const auto Validation = Template->EvaluateTemplate();
+            if (!Validation.bValid)
+            {
+                Result.Message = FString::Join(Validation.Issues, TEXT(" | "));
+                return false;
+            }
         }
     }
     return true;
@@ -445,6 +458,13 @@ FRogueliteAssemblyResult ARogueliteRoomAssembly::TryAlignRoomToSocket(ARoguelite
     const FQuat Rotation = FRotator(0, FRotator::NormalizeAxis(DesiredYaw), 0).Quaternion();
     Result.ProposedTargetTransform = FTransform(Rotation,
         DoorA.WorldPosition - Rotation.RotateVector(DoorB.LocalPosition), FVector::OneVector);
+    if (TargetRoom->IsA<ARogueliteRoomTemplate>() && GetWorld()->IsGameWorld() && TargetRoom->HasActorBegunPlay()
+        && TargetRoom->GetRootComponent()->Mobility == EComponentMobility::Static
+        && !TargetRoom->GetActorTransform().Equals(Result.ProposedTargetTransform, .0001))
+    {
+        Result.Message = TEXT("P03D_STATIC_TEMPLATE: compute final placement before FinishSpawning; registered Static template cannot be repositioned at runtime.");
+        return Finish();
+    }
     if (!CheckOccupancy(FixedRoom, TargetRoom, Result.ProposedTargetTransform, Result))
     {
         return Finish();

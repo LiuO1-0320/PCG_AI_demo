@@ -7,6 +7,7 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "EngineUtils.h"
+#include "UObject/UnrealType.h"
 
 ARogueliteAssemblyTestRig::ARogueliteAssemblyTestRig()
 {
@@ -20,34 +21,93 @@ bool ARogueliteAssemblyTestRig::IsC2World() const
 void ARogueliteAssemblyTestRig::BuildLocalNavigation()
 {
     NavigationBuildEvidence.Reset();
+    const auto Evidence = [this](const FString& Message, bool bError = false)
+    {
+        NavigationBuildEvidence.Add(Message);
+        if (bError)
+        { UE_LOG(LogRoguelitePrototype, Warning, TEXT("P03C2_NAV_BUILD %s"), *Message); }
+        else
+        { UE_LOG(LogRoguelitePrototype, Display, TEXT("P03C2_NAV_BUILD %s"), *Message); }
+    };
 #if WITH_EDITOR
     if (!IsC2World() || GetWorld()->IsGameWorld())
-    { NavigationBuildEvidence.Add(TEXT("Refused: only the Editor P03-C2 test map is authorized.")); return; }
+    { Evidence(TEXT("Refused: only the Editor P03-C2 test map is authorized."), true); return; }
     auto* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-    if (!Nav) { NavigationBuildEvidence.Add(TEXT("Navigation Unavailable: world has no NavigationSystem.")); return; }
+    if (!Nav || Nav->IsTemplate() || Nav->GetWorld() != GetWorld())
+    { Evidence(TEXT("Navigation Unavailable: no owned world NavigationSystem instance."), true); return; }
     int32 BoundsCount = 0;
     for (TActorIterator<ANavMeshBoundsVolume> It(GetWorld()); It; ++It)
         if (It->ActorHasTag(TEXT("P03C2_LocalNav"))) { Nav->OnNavigationBoundsUpdated(*It); ++BoundsCount; }
-    if (BoundsCount != 1) { NavigationBuildEvidence.Add(TEXT("Refused: expected one tagged local nav bounds.")); return; }
-    auto* Data = Nav->GetDefaultNavDataInstance(FNavigationSystem::Create);
-    if (auto* Mesh = Cast<ARecastNavMesh>(Data))
+    if (BoundsCount != 1)
+    { Evidence(FString::Printf(TEXT("Refused: expected one P03C2_LocalNav bounds, found %d."), BoundsCount), true); return; }
+    if (Nav->IsNavigationBuildingLocked(ENavigationBuildLock::AsyncLoadLock))
+    { Evidence(TEXT("Navigation waiting: map assets are still loading/compiling. Wait for loading to finish, then click Build Local Navigation again; no registrations changed."), true); return; }
+    if (Nav->IsNavigationBuildingLocked(static_cast<uint8>(~ENavigationBuildLock::NoUpdateInEditor)))
+    { Evidence(TEXT("Navigation Unavailable: this world has a navigation build lock. No registrations changed; do not override engine loading/custom locks."), true); return; }
+
+    // UE 5.8 OverrideSupportedAgents only filters the CDO's agents. Changing just
+    // Recast's dimensions leaves its registration key inconsistent with the world.
+    // Edit the existing editable UPROPERTY on this transient world instance only.
+    // Never change a CDO, call SaveConfig, or apply this to another map/PIE world.
+    FArrayProperty* AgentProperty = FindFProperty<FArrayProperty>(Nav->GetClass(), TEXT("SupportedAgents"));
+    const FStructProperty* AgentStruct = AgentProperty ? CastField<FStructProperty>(AgentProperty->Inner) : nullptr;
+    if (!AgentStruct || AgentStruct->Struct != FNavDataConfig::StaticStruct() || Nav->GetSupportedAgents().Num() != 1)
+    { Evidence(TEXT("Refused: this isolated test supports exactly one reflected FNavDataConfig agent."), true); return; }
+    TArray<FNavDataConfig>* WorldAgents = AgentProperty->ContainerPtrToValuePtr<TArray<FNavDataConfig>>(Nav);
+    const TArray<FNavDataConfig> BeforeAgents = *WorldAgents;
+    auto* Mesh = Cast<ARecastNavMesh>(Nav->GetDefaultNavDataInstance(FNavigationSystem::Create));
+    if (!IsValid(Mesh) || Mesh->IsActorBeingDestroyed() || Mesh->GetWorld() != GetWorld())
+    { Evidence(TEXT("Navigation Unavailable: no valid Recast for this test world."), true); return; }
+    for (ANavigationData* Registered : Nav->NavDataSet)
     {
-        // Actor-local test settings only. Never SaveConfig or alter a class default/global agent list.
-        Mesh->Modify();
-        FNavDataConfig Config = Mesh->GetConfig();
-        Config.AgentRadius = 35; Config.AgentHeight = 180;
-        Mesh->SetConfig(Config);
-        Mesh->AgentRadius = 35; Mesh->AgentHeight = 180;
-        Mesh->PostEditChange();
-        NavigationBuildEvidence.Add(FString::Printf(TEXT("Local Recast=%s RequestedAgentRadius=35 Height=180; no global configuration changed."), *Mesh->GetPathName()));
+        if (IsValid(Registered) && !Registered->IsA<ARecastNavMesh>())
+        { Evidence(TEXT("Refused: registered navigation includes another implementation."), true); return; }
     }
-    else NavigationBuildEvidence.Add(TEXT("Navigation Unavailable: default data is not Recast."));
+
+    TSet<ANavigationData*> OldRecast;
+    for (ANavigationData* Registered : Nav->NavDataSet) if (IsValid(Registered)) OldRecast.Add(Registered);
+    for (ANavigationData* Pending : Nav->NavDataRegistrationQueue)
+        if (IsValid(Pending) && Pending->IsA<ARecastNavMesh>()) OldRecast.Add(Pending);
+    OldRecast.Add(Mesh);
+    for (ANavigationData* Old : OldRecast)
+    {
+        // Repair a stale old key from the earlier Mesh-only setter before removing
+        // it. One agent is required above, so the previous world key is unambiguous.
+        Old->SetConfig(BeforeAgents[0]);
+        Nav->UnregisterNavData(Old);
+    }
+
+    FNavDataConfig LocalAgent = BeforeAgents[0];
+    LocalAgent.AgentRadius = 35; LocalAgent.AgentHeight = 180;
+    LocalAgent.SetNavDataClass(Mesh->GetClass());
+    (*WorldAgents)[0] = LocalAgent;
+    Mesh->Modify();
+    Mesh->SetConfig(LocalAgent);
+    Mesh->AgentRadius = LocalAgent.AgentRadius; Mesh->AgentHeight = LocalAgent.AgentHeight;
+    // Register after both sides agree. Do not PostEditChange here: it schedules
+    // another registration while the old key is still being changed.
+    // The synchronous RegisterNavData API is protected in UE 5.8. Queue the
+    // candidate via the public API; Build processes it before rebuilding tiles.
+    Nav->RequestRegistrationDeferred(*Mesh);
     Nav->Build();
-    NavigationBuildEvidence.Add(FString::Printf(TEXT("Build called; async state=%d. Revalidate after completion; this is not a path success claim."),
-        UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(GetWorld())));
-    for (const FString& Line : NavigationBuildEvidence) UE_LOG(LogRoguelitePrototype, Display, TEXT("P03C2_NAV_BUILD %s"), *Line);
+    if (!Mesh->IsRegistered() || !Nav->NavDataSet.Contains(Mesh))
+    {
+        Nav->UnregisterNavData(Mesh);
+        *WorldAgents = BeforeAgents;
+        Mesh->SetConfig(BeforeAgents[0]);
+        Mesh->AgentRadius = BeforeAgents[0].AgentRadius; Mesh->AgentHeight = BeforeAgents[0].AgentHeight;
+        Nav->RequestRegistrationDeferred(*Mesh);
+        Nav->Build();
+        Evidence(FString::Printf(TEXT("Navigation Unavailable: Recast=%s was not registered by Build; previous world agent restored, Registered=%d."),
+            *Mesh->GetPathName(), Mesh->IsRegistered()), true);
+        return;
+    }
+    Evidence(FString::Printf(TEXT("World-only agent %.1fx%.1f -> 35x180; Recast=%s Registered=%d. No CDO/global config changed."),
+        BeforeAgents[0].AgentRadius, BeforeAgents[0].AgentHeight, *Mesh->GetPathName(), Mesh->IsRegistered()));
+    Evidence(FString::Printf(TEXT("Build completed; busy=%d, registered data=%d. Click Revalidate Connections to prove a complete path; build alone is not Navigation Passed."),
+        UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(GetWorld()), Nav->NavDataSet.Num()));
 #else
-    NavigationBuildEvidence.Add(TEXT("Local nav authoring requires Editor."));
+    Evidence(TEXT("Local nav authoring requires Editor."), true);
 #endif
 }
 

@@ -13,6 +13,11 @@
             "Name": "RoguelitePrototype",
             "Type": "Runtime",
             "LoadingPhase": "Default"
+        },
+        {
+            "Name": "RoguelitePrototypeEditor",
+            "Type": "Editor",
+            "LoadingPhase": "Default"
         }
     ]
 }

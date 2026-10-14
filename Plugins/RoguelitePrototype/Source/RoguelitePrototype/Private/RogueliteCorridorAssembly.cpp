@@ -93,11 +93,32 @@ bool ARogueliteRoomAssembly::ComputeCorridorTransforms(ARogueliteParametricRoom*
     TArray<AActor*> Attached;
     C->GetAttachedActors(Attached);
     if (!Attached.IsEmpty()) { OutReason = TEXT("Corridor has attached actors; rigid template assembly is not implemented."); return false; }
-    const float YawC = FMath::RoundToFloat((DA.WorldOutwardDirection.Rotation().Yaw + 180 - CA.DoorSocket.LocalOutwardDirection.Rotation().Yaw) / 90) * 90;
+    return ComputeCorridorSocketTransforms(DA, DB, CA.DoorSocket, CB.DoorSocket, DoorSizeTolerance, OutCorridor, OutRoomB, OutReason);
+}
+
+bool ARogueliteRoomAssembly::ComputeCorridorSocketTransforms(const FRogueliteDoorSocket& DA, const FRogueliteDoorSocket& DB,
+    const FRogueliteDoorSocket& CA, const FRogueliteDoorSocket& CB, float SizeTolerance,
+    FTransform& OutCorridor, FTransform& OutRoomB, FString& OutReason)
+{
+    OutCorridor=FTransform::Identity; OutRoomB=FTransform::Identity;
+    if(!FMath::IsFinite(SizeTolerance) || SizeTolerance<0) { OutReason=TEXT("Invalid socket size tolerance."); return false; }
+    for(const auto* D:{&DA,&DB,&CA,&CB})
+    {
+        if(!D->bValid || D->LocalPosition.ContainsNaN() || D->WorldPosition.ContainsNaN()
+            || D->LocalOutwardDirection.ContainsNaN() || D->WorldOutwardDirection.ContainsNaN()
+            || !FMath::IsFinite(D->DoorWidth) || !FMath::IsFinite(D->DoorHeight)
+            || D->DoorWidth<=0 || D->DoorHeight<=0
+            || FMath::Abs(D->DoorWidth-DA.DoorWidth)>SizeTolerance || FMath::Abs(D->DoorHeight-DA.DoorHeight)>SizeTolerance)
+        { OutReason=TEXT("Socket specifications invalid/incompatible; calculation only, no reservation."); return false; }
+        for(const auto& N:{D->LocalOutwardDirection,D->WorldOutwardDirection})
+            if(FMath::Abs(N.SizeSquared()-1)>.0001 || FMath::Abs(N.Z)>.0001 || FMath::Abs(N.X*N.Y)>.0001)
+            {OutReason=TEXT("Socket direction must be a normalized horizontal quarter-turn normal.");return false;}
+    }
+    const float YawC = FMath::RoundToFloat((DA.WorldOutwardDirection.Rotation().Yaw + 180 - CA.LocalOutwardDirection.Rotation().Yaw) / 90) * 90;
     const FQuat RotationC = FRotator(0, FRotator::NormalizeAxis(YawC), 0).Quaternion();
-    OutCorridor = FTransform(RotationC, DA.WorldPosition - RotationC.RotateVector(CA.DoorSocket.LocalPosition), FVector::OneVector);
-    const FVector EndPosition = OutCorridor.TransformPosition(CB.DoorSocket.LocalPosition);
-    const FVector EndDirection = OutCorridor.TransformVectorNoScale(CB.DoorSocket.LocalOutwardDirection);
+    OutCorridor = FTransform(RotationC, DA.WorldPosition - RotationC.RotateVector(CA.LocalPosition), FVector::OneVector);
+    const FVector EndPosition = OutCorridor.TransformPosition(CB.LocalPosition);
+    const FVector EndDirection = OutCorridor.TransformVectorNoScale(CB.LocalOutwardDirection);
     const float YawB = FMath::RoundToFloat((EndDirection.Rotation().Yaw + 180 - DB.LocalOutwardDirection.Rotation().Yaw) / 90) * 90;
     const FQuat RotationB = FRotator(0, FRotator::NormalizeAxis(YawB), 0).Quaternion();
     OutRoomB = FTransform(RotationB, EndPosition - RotationB.RotateVector(DB.LocalPosition), FVector::OneVector);
