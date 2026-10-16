@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">Boss 行为逻辑树</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">对应 ACastleEnemy::Tick 的 Boss 分支。移动、普通攻击、地面技能可在同帧分别检查</text>
+<rect x="675" y="168" width="570" height="70" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="724.8600006103516" y="210.84" font-family="Microsoft YaHei" font-size="32" font-weight="400" fill="#183444">逻辑循环：Boss（bBoss=true）</text>
+<rect x="315" y="278" width="1280" height="88" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="521.8200073242188" y="318.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">NPC 存活、玩家有效、关卡就绪；Boss 已激活、玩家存活且未通关</text>
+<polyline points="960,238 960,278" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,278 953.8835932041064,264.30366589531536 966.1164067958936,264.30366589531536" fill="#78909C"/>
+<rect x="1625" y="278" width="260" height="110" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="1650.75" y="315.62" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#183444">未激活 / 玩家死亡</text>
+<text x="1651" y="348.64" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#183444">或通关：停止移动</text>
+<polyline points="1595,322 1625,322" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1625,322 1611.3036658953154,328.11640679589357 1611.3036658953154,315.88359320410643" fill="#78909C"/>
+<rect x="470" y="400" width="980" height="104" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="652.010009765625" y="440.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">先结算已到期地面技：范围 400 cm，伤害 ×2.4</text>
+<text x="701.5050048828125" y="477.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">脚底高度差 &lt;160 cm 时命中，关闭预警</text>
+<polyline points="960,366 960,400" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,400 953.8835932041064,386.30366589531536 966.1164067958936,386.30366589531536" fill="#78909C"/>
+<rect x="630" y="547" width="660" height="72" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="726.2949981689453" y="587.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">后续新决策范围：距玩家 ≤3600 cm</text>
+<polyline points="960,504 960,547" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,547 953.8835932041064,533.3036658953154 966.1164067958936,533.3036658953154" fill="#78909C"/>
+<text x="70" y="559.75" font-family="Microsoft YaHei" font-size="25" font-weight="400" fill="#586D7C">范围外跳过新决策；已蓄力技能的到期结算在</text>
+<text x="70" y="591.5" font-family="Microsoft YaHei" font-size="25" font-weight="400" fill="#586D7C">范围检查之前</text>
+<rect x="55" y="692" width="530" height="107" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="185.71499633789062" y="731.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">移动：每 0.45 秒判定</text>
+<text x="140.4199981689453" y="766.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">距离 &gt;650 cm 或视线受阻？</text>
+<polyline points="725,619 725,655.5 320,655.5 320,692" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="320,692 313.88359320410643,678.3036658953154 326.11640679589357,678.3036658953154" fill="#78909C"/>
+<rect x="665" y="692" width="590" height="107" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="778" y="731.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">常规攻击：有视线且冷却到期</text>
+<text x="791.7350006103516" y="766.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">近战 / 扇形弹幕随距离选择</text>
+<polyline points="960,619 960,692" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,692 953.8835932041064,678.3036658953154 966.1164067958936,678.3036658953154" fill="#78909C"/>
+<rect x="1350" y="692" width="525" height="107" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="1470.0050048828125" y="731.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">地面技：每 6 秒可触发</text>
+<text x="1472.5" y="766.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">当前未蓄力，无需视线</text>
+<polyline points="1200,619 1200,655.5 1613,655.5 1613,692" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1613,692 1606.8835932041065,678.3036658953154 1619.1164067958935,678.3036658953154" fill="#78909C"/>
+<rect x="55" y="859" width="255" height="105" rx="12" fill="#FFF2D6" stroke="#78909C" stroke-width="2"/>
+<text x="81.9000015258789" y="894.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#183444">是：MoveToActor</text>
+<text x="101.0250015258789" y="925.36" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#183444">接近至 500 cm</text>
+<polyline points="220,799 220,829 183,829 183,859" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="183,859 176.88359320410643,845.3036658953154 189.11640679589354,845.3036658953154" fill="#78909C"/>
+<rect x="350" y="859" width="235" height="105" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="386.5" y="897.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#183444">否：停止移动</text>
+<polyline points="420,799 420,829 467,829 467,859" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="467,859 460.88359320410643,845.3036658953154 473.11640679589357,845.3036658953154" fill="#78909C"/>
+<rect x="655" y="851" width="285" height="126" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="734.7050018310547" y="890.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">HP ≥50%</text>
+<text x="719.2149963378906" y="925.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">间隔 1.35 秒</text>
+<text x="711.004997253418" y="961.48" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">远程 3 枚弹体</text>
+<polyline points="845,799 845,825 798,825 798,851" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="798,851 791.8835932041064,837.3036658953154 804.1164067958936,837.3036658953154" fill="#78909C"/>
+<rect x="985" y="851" width="290" height="126" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="1015.4499969482422" y="889.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#183444">HP &lt;50%（狂暴）</text>
+<text x="1054.5100021362305" y="923.78" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#183444">间隔 0.85 秒</text>
+<text x="1046.5950012207031" y="958.07" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#183444">远程 5 枚弹体</text>
+<polyline points="1070,799 1070,825 1130,825 1130,851" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1130,851 1123.8835932041065,837.3036658953154 1136.1164067958935,837.3036658953154" fill="#78909C"/>
+<rect x="1350" y="843" width="525" height="132" rx="12" fill="#EEE7FA" stroke="#78909C" stroke-width="2"/>
+<text x="1486.5" y="882.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">射线找玩家脚下表面</text>
+<text x="1528.5" y="917.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">显示红圈预警</text>
+<text x="1500.4250030517578" y="953.48" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">等待 1.4 秒后结算</text>
+<polyline points="1613,799 1613,843" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1613,843 1606.8835932041065,829.3036658953154 1619.1164067958935,829.3036658953154" fill="#78909C"/>
+<text x="675" y="1006.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">距离 &lt;140 cm 用近战；远程弹体速度 1000 cm/s</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">地面技能冷却从触发时计算。Boss 初始未激活，进入竞技场后激活；死亡奖励 80 金币并生成上楼 / 通关门。</text></svg>

@@ -6,6 +6,6 @@ public class CastleDemo : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "InputCore", "AIModule", "NavigationSystem", "PCG", "UMG", "Slate", "SlateCore" });
         if (Target.bBuildEditor)
-            PrivateDependencyModuleNames.AddRange(new[] { "UnrealEd", "AssetRegistry", "BSPUtils" });
+            PrivateDependencyModuleNames.AddRange(new[] { "UnrealEd", "AssetRegistry", "BSPUtils", "BehaviorTreeEditor", "AIGraph" });
     }
 }

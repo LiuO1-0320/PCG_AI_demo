@@ -227,8 +227,10 @@ void ACastleDirector::Tick(float Dt)
             }
         }
     }
-    if (FParse::Param(FCommandLine::Get(),TEXT("CastleSmokeTest"))) TickSmokeTest();
+    if (FParse::Param(FCommandLine::Get(),TEXT("CastleAISmokeTest"))) TickAISmokeTest();
+    else if (FParse::Param(FCommandLine::Get(),TEXT("CastleSmokeTest"))) TickSmokeTest();
     if (FParse::Param(FCommandLine::Get(),TEXT("CastleCapture"))) TickCapture();
+    if (FParse::Param(FCommandLine::Get(),TEXT("CastleAICapture"))) TickAICapture();
 }
 
 void ACastleDirector::RequestFloor(int32 InFloor)

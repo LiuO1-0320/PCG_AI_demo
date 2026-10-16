@@ -1,0 +1,10 @@
+UE renderer capture evidence — 2026-10-14
+[2026.10.14-07.43.55:919][492]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 01_guard_ranged Shield=60.0 Health=100.0
+[2026.10.14-07.43.57:778][657]LogTemp: Display: CASTLE_AI_CAPTURE_MELEE: Guard Shield 60.0 -> 50.0 Damage=10.0
+[2026.10.14-07.43.57:778][657]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 02_guard_melee Shield=50.0 Health=100.0
+[2026.10.14-07.44.03:794][388]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 03_boss_ranged Shield=60.0 Health=100.0
+[2026.10.14-07.44.05:151][528]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 04_boss_enraged_ranged Shield=60.0 Health=100.0
+[2026.10.14-07.44.06:679][686]LogTemp: Display: CASTLE_AI_CAPTURE_MELEE: Boss Shield 60.0 -> 38.0 Damage=22.0
+[2026.10.14-07.44.06:679][686]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 05_boss_melee Shield=38.0 Health=100.0
+[2026.10.14-07.44.10:771][136]LogTemp: Display: CASTLE_AI_TASK_CAPTURE: 06_boss_slam_charge Shield=60.0 Health=100.0
+[2026.10.14-07.44.11:578][208]LogTemp: Display: CASTLE_AI_TASK_CAPTURE_OK: six real rendered task screenshots captured.

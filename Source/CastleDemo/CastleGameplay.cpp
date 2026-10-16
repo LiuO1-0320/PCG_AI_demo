@@ -331,8 +331,6 @@ void ACastleTrap::NotifyActorBeginOverlap(AActor* OtherActor)
     Trigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-ACastleAIController::ACastleAIController() { bWantsPlayerState = false; }
-
 ACastleEnemy::ACastleEnemy()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -369,10 +367,12 @@ void ACastleEnemy::Configure(bool InBoss, int32 InFloor, ACastleDirector* D)
     if (bBoss) { SetActorScale3D(FVector(1.8f)); bActive = false; GetCharacterMovement()->MaxWalkSpeed = 220; }
     Label->SetTextRenderColor(bBoss ? FColor(220, 170, 255) : FColor(255, 150, 120));
     NextBlast = GetWorld()->GetTimeSeconds() + 6;
+    if (auto* AI = Cast<ACastleAIController>(GetController())) AI->StartCastleBehavior();
 }
 
 void ACastleEnemy::ShootAt(ACastlePlayer* P, int32 Count)
 {
+    AILastVolley = Count;
     const FVector Start = GetActorLocation() + FVector(65, 0, 35);
     const FVector Aim = (P->GetActorLocation() + FVector(0, 0, 20) - Start).GetSafeNormal();
     for (int32 I = 0; I < Count; ++I)
@@ -393,9 +393,22 @@ void ACastleEnemy::Tick(float Dt)
     if (!P || bDead || !Director || !Director->bReady) return;
     Label->SetWorldRotation((P->GetActorLocation() - Label->GetComponentLocation()).Rotation());
     Label->SetText(FText::FromString(FString::Printf(TEXT("%s  %.0f"), bBoss ? *Director->BossName() : TEXT("SENTINEL"), Health)));
-    if (!bActive || P->bDead || Director->bWon) { if (auto* AI = Cast<AAIController>(GetController())) AI->StopMovement(); return; }
+}
+
+bool ACastleEnemy::CanRunAI(ACastlePlayer* P) const
+{
+    return P && !bDead && Director && Director->bReady && bActive && !P->bDead && !Director->bWon;
+}
+
+bool ACastleEnemy::IsInDecisionRange(ACastlePlayer* P) const
+{
+    return P && FVector::Dist(P->GetActorLocation(),GetActorLocation()) <= (bBoss ? 3600 : 2100) &&
+        (bBoss || FVector::Dist2D(P->GetActorLocation(),Home) <= 2600);
+}
+
+void ACastleEnemy::ResolvePendingBlast(ACastlePlayer* P)
+{
     const float Now = GetWorld()->GetTimeSeconds();
-    const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
     if (bCharging && Now >= BlastTime)
     {
         bCharging = false; Telegraph->SetVisibility(false);
@@ -403,10 +416,13 @@ void ACastleEnemy::Tick(float Dt)
             UGameplayStatics::ApplyDamage(P, AttackDamage * 2.4f, GetController(), this, nullptr);
         DrawDebugCircle(GetWorld(), BlastCenter + FVector(0,0,10), 400, 48, FColor::Orange, false, .35f, 0, 8, FVector::ForwardVector, FVector::RightVector, false);
     }
-    if (Dist > (bBoss ? 3600 : 2100) || (!bBoss && FVector::Dist2D(P->GetActorLocation(), Home) > 2600)) return;
-    FHitResult Hit; FCollisionQueryParams Q(SCENE_QUERY_STAT(CastleSight), false, this);
-    GetWorld()->LineTraceSingleByChannel(Hit, GetActorLocation() + FVector(0,0,60), P->Camera->GetComponentLocation(), ECC_Visibility, Q);
-    const bool CanSee = !Hit.bBlockingHit || Hit.GetActor() == P;
+}
+
+void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
+{
+    ++AIPursuitTicks;
+    const float Now = GetWorld()->GetTimeSeconds();
+    const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
     if (Now >= NextThink)
     {
         NextThink = Now + .45f;
@@ -417,14 +433,29 @@ void ACastleEnemy::Tick(float Dt)
         }
     }
     FRotator Face = (P->GetActorLocation() - GetActorLocation()).Rotation(); Face.Pitch = Face.Roll = 0; SetActorRotation(Face);
+}
+
+void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
+{
+    ++AIAttackTicks;
+    const float Now = GetWorld()->GetTimeSeconds();
+    const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
     if (CanSee && Now >= NextAttack)
     {
+        ++AIAttackEvents;
         NextAttack = Now + (bBoss ? (Health < MaxHealth * .5f ? .85f : 1.35f) : 1.9f);
         if (Dist < 140) UGameplayStatics::ApplyDamage(P, AttackDamage, GetController(), this, nullptr);
         else ShootAt(P, bBoss ? (Health < MaxHealth * .5f ? 5 : 3) : 1);
     }
+}
+
+void ACastleEnemy::UpdateGroundSlam(ACastlePlayer* P)
+{
+    ++AISlamTicks;
+    const float Now = GetWorld()->GetTimeSeconds();
     if (bBoss && Now >= NextBlast && !bCharging)
     {
+        ++AIBlastEvents;
         NextBlast = Now + 6; BlastTime = Now + 1.4f; bCharging = true;
         FHitResult Ground; FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(CastleSlamGround),false,this); GroundQuery.AddIgnoredActor(P);
         const FVector GroundStart=P->GetActorLocation()+FVector(0,0,60);

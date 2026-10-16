@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">Boss 场地 PCG：随机高台与掩体</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">PCG_BossArena：一个独立竞技场，随机变化来自高台、坡道和掩体组合</text>
+<rect x="76" y="182" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="256.5350036621094" y="223.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">1  使用独立 Boss 随机流，生成半边长 2250 cm 的场地</text>
+<polyline points="626,286 626,314" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,314 619.8835932041064,300.30366589531536 632.1164067958936,300.30366589531536" fill="#78909C"/>
+<rect x="76" y="314" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="288.7550048828125" y="355.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">2  打乱四个角的位置，随机选择 2–4 个角生成高台</text>
+<polyline points="626,418 626,446" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,446 619.8835932041064,432.30366589531536 632.1164067958936,432.30366589531536" fill="#78909C"/>
+<rect x="76" y="446" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="228.135009765625" y="487.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">3  高度选 160 / 240 / 320 cm，为每个高台搭建可步行坡道</text>
+<polyline points="626,550 626,578" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,578 619.8835932041064,564.3036658953154 632.1164067958936,564.3036658953154" fill="#78909C"/>
+<rect x="76" y="578" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="212.92999267578125" y="619.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">4  生成默认 10 组基础掩体（可调 4–18），随机选择三种形状</text>
+<polyline points="626,682 626,710" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,710 619.8835932041064,696.3036658953154 632.1164067958936,696.3036658953154" fill="#78909C"/>
+<rect x="76" y="710" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="239.90499877929688" y="751.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">5  放置未激活 Boss 与补给，保留入口到 Boss 的中央通路</text>
+<polyline points="626,814 626,842" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,842 619.8835932041064,828.3036658953154 632.1164067958936,828.3036658953154" fill="#78909C"/>
+<rect x="76" y="842" width="1100" height="104" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="233.32501220703125" y="883.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">6  输出场地中心、高台和掩体点，三个区域完成后恢复操作</text>
+<text x="1250" y="223.57999999999998" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">掩体形状</text>
+<text x="1250" y="278.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">矮墙：100 cm。</text>
+<text x="1250" y="315.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">立柱：300–440 cm。</text>
+<text x="1250" y="351.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">L 形墙：220 cm。</text>
+<text x="1250" y="485.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">额外资源</text>
+<text x="1250" y="540.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">每个高台还附带一个掩体和灯光。</text>
+<text x="1250" y="577.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">这些不计入基础 10 组掩体。</text>
+<text x="1250" y="613.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">坡道和相接平台有重叠，避免缝隙。</text>
+<text x="1250" y="747.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">区域独立性</text>
+<text x="1250" y="802.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">三个图使用三个 PCG 组件。</text>
+<text x="1250" y="839.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">各图只输出本区域点。</text>
+<text x="1250" y="875.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">重生成探索区不清理洞穴或 Boss。</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">来源：CastleRegions.cpp、CastleGeneration.cpp。场地不是多个随机房间，是一个具有高低变化的战斗空间。</text></svg>

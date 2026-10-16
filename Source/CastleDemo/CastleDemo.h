@@ -130,6 +130,12 @@ class CASTLEDEMO_API ACastleAIController : public AAIController
     GENERATED_BODY()
 public:
     ACastleAIController();
+    virtual void OnPossess(APawn* InPawn) override;
+    virtual void OnUnPossess() override;
+    bool StartCastleBehavior();
+    void UpdateCastleBlackboard();
+    UPROPERTY(EditDefaultsOnly, Category="Castle|AI") TSoftObjectPtr<class UBehaviorTree> GuardBehavior;
+    UPROPERTY(EditDefaultsOnly, Category="Castle|AI") TSoftObjectPtr<class UBehaviorTree> BossBehavior;
 };
 
 UCLASS()
@@ -152,6 +158,16 @@ public:
     bool bActive = true, bDead = false;
     FVector Home, BlastCenter;
     float AttackDamage = 10;
+    // Ability execution is reused by BT tasks; decisions no longer run in Character::Tick.
+    bool CanRunAI(ACastlePlayer* Player) const;
+    bool IsInDecisionRange(ACastlePlayer* Player) const;
+    void ResolvePendingBlast(ACastlePlayer* Player);
+    void UpdatePursuit(ACastlePlayer* Player, bool bCanSee);
+    void UpdateAttack(ACastlePlayer* Player, bool bCanSee);
+    void UpdateGroundSlam(ACastlePlayer* Player);
+    bool IsChargingBlast() const { return bCharging; }
+    int32 AIPursuitTicks = 0, AIAttackTicks = 0, AISlamTicks = 0;
+    int32 AIAttackEvents = 0, AIBlastEvents = 0, AILastVolley = 0;
 private:
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
     bool bCharging = false;
@@ -271,6 +287,8 @@ private:
     float PendingFloorAt = 0;
     int32 PendingFloor = 0;
     void TickSmokeTest();
+    void TickAISmokeTest();
+    void TickAICapture();
     int32 SmokeFloor = 0;
     float SmokeWaitStart = 0;
     float SmokeDamageBeforeTravel = 0;

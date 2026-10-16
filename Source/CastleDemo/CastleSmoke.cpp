@@ -17,6 +17,7 @@
 #include "PCGComponent.h"
 #include "PCGGraph.h"
 #include "PCGNode.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
 
 void ACastleDirector::TickSmokeTest()
 {
@@ -155,7 +156,9 @@ void ACastleDirector::TickSmokeTest()
     };
     for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)
     {
-        if(!It->GetController() || !Cast<ACastleAIController>(It->GetController())) {Fail(TEXT("AI controller missing"));return;}
+        auto* AI=Cast<ACastleAIController>(It->GetController());
+        auto* BT=AI?Cast<UBehaviorTreeComponent>(AI->GetBrainComponent()):nullptr;
+        if(!AI || !BT || !BT->IsRunning() || !AI->GetBlackboardComponent()) {Fail(TEXT("AI controller, running behavior tree or blackboard missing"));return;}
         It->bActive=false;
     }
     if(Floor==1)

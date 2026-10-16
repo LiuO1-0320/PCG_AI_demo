@@ -1,0 +1,1 @@
+Layout: two columns, three rows. Boss on the left; Guard on the right. Boss normal and enraged ranged shots share the top-left cell. All six screenshots are embedded from the original files; screenshot content is not regenerated. PNG 4096x4096; SVG embeds original PNG bytes.

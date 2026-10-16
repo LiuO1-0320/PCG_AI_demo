@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">探索区资源示意</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">示例采用代码中的十二房回退拓扑；支路功能为说明性标注，不代表固定种子结果</text>
+<polyline points="154,864 344,864" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="344,864 534,864" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="534,864 724,864" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="724,864 724,674" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="724,674 724,484" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="724,484 724,294" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="154,864 154,674" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="154,674 344,674" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="344,674 344,864" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="534,864 534,674" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="534,674 534,484" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="534,484 534,294" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<polyline points="534,294 724,294" fill="none" stroke="#7AB5AA" stroke-width="20"/>
+<rect x="75" y="787" width="158" height="154" rx="10" fill="#DCF3EE" stroke="#587882" stroke-width="2"/>
+<text x="123" y="866.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">入口</text>
+<text x="132.35499954223633" y="919.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 0</text>
+<rect x="265" y="787" width="158" height="154" rx="10" fill="#FDE6E6" stroke="#587882" stroke-width="2"/>
+<text x="313" y="866.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">战斗</text>
+<text x="322.3549995422363" y="919.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 1</text>
+<rect x="455" y="787" width="158" height="154" rx="10" fill="#FDE6E6" stroke="#587882" stroke-width="2"/>
+<text x="503" y="866.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">战斗</text>
+<text x="512.3549995422363" y="919.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 2</text>
+<rect x="645" y="787" width="158" height="154" rx="10" fill="#FFF2D6" stroke="#587882" stroke-width="2"/>
+<text x="693" y="866.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">商店</text>
+<text x="702.3549995422363" y="919.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 3</text>
+<rect x="75" y="597" width="158" height="154" rx="10" fill="#E7F2FA" stroke="#587882" stroke-width="2"/>
+<text x="123" y="676.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">宝箱</text>
+<text x="132.35499954223633" y="729.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 4</text>
+<rect x="265" y="597" width="158" height="154" rx="10" fill="#FDE6E6" stroke="#587882" stroke-width="2"/>
+<text x="313" y="676.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">战斗</text>
+<text x="322.3549995422363" y="729.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 5</text>
+<rect x="455" y="597" width="158" height="154" rx="10" fill="#FFF2D6" stroke="#587882" stroke-width="2"/>
+<text x="503" y="676.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">精英</text>
+<text x="512.3549995422363" y="729.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 6</text>
+<rect x="645" y="597" width="158" height="154" rx="10" fill="#FDE6E6" stroke="#587882" stroke-width="2"/>
+<text x="693" y="676.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">战斗</text>
+<text x="702.3549995422363" y="729.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 7</text>
+<rect x="75" y="407" width="158" height="154" rx="10" fill="#EEF1F4" stroke="#C6D0D8" stroke-width="2"/>
+<text x="107.5" y="486.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="132.35499954223633" y="539.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 8</text>
+<rect x="265" y="407" width="158" height="154" rx="10" fill="#EEF1F4" stroke="#C6D0D8" stroke-width="2"/>
+<text x="297.5" y="486.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="322.3549995422363" y="539.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 9</text>
+<rect x="455" y="407" width="158" height="154" rx="10" fill="#EEE7FA" stroke="#587882" stroke-width="2"/>
+<text x="503" y="486.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">机关</text>
+<text x="505.61000061035156" y="539.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 10</text>
+<rect x="645" y="407" width="158" height="154" rx="10" fill="#DCF3EE" stroke="#587882" stroke-width="2"/>
+<text x="693" y="486.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">休息</text>
+<text x="695.6100006103516" y="539.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 11</text>
+<rect x="75" y="217" width="158" height="154" rx="10" fill="#EEF1F4" stroke="#C6D0D8" stroke-width="2"/>
+<text x="107.5" y="296.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="125.61000061035156" y="349.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 12</text>
+<rect x="265" y="217" width="158" height="154" rx="10" fill="#EEF1F4" stroke="#C6D0D8" stroke-width="2"/>
+<text x="297.5" y="296.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="315.61000061035156" y="349.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 13</text>
+<rect x="455" y="217" width="158" height="154" rx="10" fill="#FDE6E6" stroke="#587882" stroke-width="2"/>
+<text x="503" y="296.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">战斗</text>
+<text x="505.61000061035156" y="349.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 14</text>
+<rect x="645" y="217" width="158" height="154" rx="10" fill="#DCF3EE" stroke="#587882" stroke-width="2"/>
+<text x="693" y="296.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">出口</text>
+<text x="695.6100006103516" y="349.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">格 15</text>
+<text x="990" y="225.57999999999998" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">空间构件</text>
+<text x="990" y="280.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">Cube 实例网格组成地板、墙、</text>
+<text x="990" y="317.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">门洞、走廊、柱子和掩体。</text>
+<text x="990" y="353.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">房间半边长 900 cm，格距 2400 cm。</text>
+<text x="990" y="461.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">功能对象</text>
+<text x="990" y="516.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">商店、宝箱、祭坛、休息点、武器拾取。</text>
+<text x="990" y="553.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">普通守卫、精英守卫、机关触发区。</text>
+<text x="990" y="589.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">后两层宝箱房旁设藏宝洞入口。</text>
+<text x="990" y="699.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">区域衔接</text>
+<text x="990" y="754.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">一层出口直接上楼。</text>
+<text x="990" y="791.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">二、三层出口房设 Boss 入口。</text>
+<text x="990" y="827.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">小地图逐步揭示相邻房间类型。</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">符号表示功能对象，非独立美术模型。图中未画事件房，实际可随机生成事件、精英、机关中的 1–2 种。</text></svg>

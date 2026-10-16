@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">普通守卫行为逻辑树</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">对应 ACastleEnemy::Tick；精英使用相同逻辑。当前没有 UE Behavior Tree / Blackboard 资产</text>
+<rect x="665" y="170" width="590" height="74" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="761.6849975585938" y="213.71" font-family="Microsoft YaHei" font-size="33" font-weight="400" fill="#183444">逻辑循环：普通守卫 / 精英</text>
+<rect x="335" y="293" width="1250" height="86" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="550.9599914550781" y="334.97" font-family="Microsoft YaHei" font-size="31" font-weight="400" fill="#183444">运行条件：玩家有效、NPC 存活、导演有效、关卡生成完成</text>
+<polyline points="960,244 960,293" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,293 953.8835932041064,279.30366589531536 966.1164067958936,279.30366589531536" fill="#78909C"/>
+<rect x="55" y="291" width="250" height="104" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="110" y="330.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">条件不满足</text>
+<text x="124" y="365.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">跳过本帧</text>
+<polyline points="335,334 305,334" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="305,334 318.69633410468464,327.88359320410643 318.69633410468464,340.11640679589357" fill="#78909C"/>
+<rect x="1605" y="291" width="270" height="112" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="1636" y="328.62" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#183444">未激活、玩家死亡</text>
+<text x="1623" y="361.64" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#183444">或已通关：停止移动</text>
+<polyline points="1585,334 1605,334" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1605,334 1591.3036658953154,340.11640679589357 1591.3036658953154,327.88359320410643" fill="#78909C"/>
+<rect x="355" y="425" width="1210" height="92" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="505.9949951171875" y="465.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">新决策范围：NPC 距玩家 ≤2100 cm，玩家距 NPC 出生点 ≤2600 cm</text>
+<polyline points="960,379 960,425" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,425 953.8835932041064,411.30366589531536 966.1164067958936,411.30366589531536" fill="#78909C"/>
+<text x="710" y="552.75" font-family="Microsoft YaHei" font-size="25" font-weight="400" fill="#586D7C">范围外仅跳过本帧决策，不含主动返回出生点</text>
+<rect x="510" y="586" width="900" height="76" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="630" y="627.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">同一帧独立检查移动和攻击，两个分支可同时执行</text>
+<polyline points="960,568 960,586" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="960,586 953.8835932041064,572.3036658953154 966.1164067958936,572.3036658953154" fill="#78909C"/>
+<rect x="80" y="713" width="800" height="77" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="276.125" y="754.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">移动分支：每 0.45 秒重新判定</text>
+<polyline points="760,662 760,687.5 480,687.5 480,713" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="480,713 473.88359320410643,699.3036658953154 486.11640679589357,699.3036658953154" fill="#78909C"/>
+<rect x="1000" y="713" width="840" height="77" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="1129.9200134277344" y="753.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">攻击分支：有视线且冷却就绪，每 1.9 秒一次</text>
+<polyline points="1160,662 1160,687.5 1420,687.5 1420,713" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1420,713 1413.8835932041065,699.3036658953154 1426.1164067958935,699.3036658953154" fill="#78909C"/>
+<rect x="65" y="866" width="435" height="112" rx="12" fill="#FFF2D6" stroke="#78909C" stroke-width="2"/>
+<text x="116.91999816894531" y="905.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">距离 &gt;450 cm 或视线受阻</text>
+<text x="84.08000183105469" y="940.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">MoveToActor，接近至 320 cm</text>
+<polyline points="360,790 360,828 282,828 282,866" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="282,866 275.88359320410643,852.3036658953154 288.11640679589357,852.3036658953154" fill="#78909C"/>
+<rect x="535" y="866" width="345" height="112" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="649.5" y="906.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">其余情况</text>
+<text x="600.5899963378906" y="943.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">StopMovement</text>
+<polyline points="640,790 640,828 708,828 708,866" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="708,866 701.8835932041064,852.3036658953154 714.1164067958936,852.3036658953154" fill="#78909C"/>
+<rect x="1000" y="866" width="390" height="112" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="1085.7949981689453" y="906.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">距玩家 &lt;140 cm</text>
+<text x="1108" y="943.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#183444">近战造成伤害</text>
+<polyline points="1290,790 1290,828 1195,828 1195,866" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1195,866 1188.8835932041065,852.3036658953154 1201.1164067958935,852.3036658953154" fill="#78909C"/>
+<rect x="1450" y="866" width="390" height="112" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="1502.5050048828125" y="905.36" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">其余距离：发 1 枚弹体</text>
+<text x="1551.4850006103516" y="940.92" font-family="Microsoft YaHei" font-size="28" font-weight="400" fill="#183444">速度 850 cm/s</text>
+<polyline points="1560,790 1560,828 1645,828 1645,866" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="1645,866 1638.8835932041065,852.3036658953154 1651.1164067958935,852.3036658953154" fill="#78909C"/>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">AIController + 动态 Recast 导航 + 射线视线检测。此图抽象实际 C++ 行为，不声称使用 UE 行为树。</text></svg>
