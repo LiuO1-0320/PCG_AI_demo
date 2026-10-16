@@ -239,7 +239,7 @@ void ARogueliteRoomAssembly::DisconnectCorridorConnection()
     PublishResult(R);
 }
 
-bool ARogueliteRoomAssembly::ValidateCorridorConnection(const FRogueliteRoomConnection& C, FRogueliteAssemblyResult& R) const
+bool ARogueliteRoomAssembly::ValidateCorridorConnection(const FRogueliteRoomConnection& C, FRogueliteAssemblyResult& R, bool bSkipNavigation) const
 {
     FRogueliteDoorSocket DA, DB;
     if (!ValidateEndpoints(C.RoomA, C.SocketA, C.RoomB, C.SocketB, false, DA, DB, R)) return false;
@@ -258,11 +258,11 @@ bool ARogueliteRoomAssembly::ValidateCorridorConnection(const FRogueliteRoomConn
     const double Opposite = -FMath::Cos(FMath::DegreesToRadians(static_cast<double>(AngleToleranceDegrees)));
     if (R.SocketDistance > PositionTolerance || R.SecondSocketDistance > PositionTolerance || R.NormalDot > Opposite || R.SecondNormalDot > Opposite)
     { R.Message = FString::Printf(TEXT("Threshold mismatch: distances %.4f/%.4f cm, normal dots %.6f/%.6f."), R.SocketDistance, R.SecondSocketDistance, R.NormalDot, R.SecondNormalDot); return false; }
-    return CheckCorridorPassage(C, DA, DB, R);
+    return CheckCorridorPassage(C, DA, DB, R, bSkipNavigation);
 }
 
 bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection& C,
-    const FRogueliteDoorSocket& DA, const FRogueliteDoorSocket& DB, FRogueliteAssemblyResult& R) const
+    const FRogueliteDoorSocket& DA, const FRogueliteDoorSocket& DB, FRogueliteAssemblyResult& R, bool bSkipNavigation) const
 {
     const FVector Z = FVector::UpVector;
     FCollisionQueryParams Rays(SCENE_QUERY_STAT(RogueliteCorridorConnectionRay), true);
@@ -367,9 +367,10 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
         if (GetWorld()->OverlapBlockingTestByChannel(Bounds.GetCenter(), FQuat::Identity, ECC_Pawn,
             FCollisionShape::MakeBox(Bounds.GetExtent() - FVector(PositionTolerance)), Occupied))
         { R.Message = TEXT("Moved room/corridor occupancy intersects a blocking world object outside the verified path."); return false; }
-    R.Navigation = bCheckNavigation ? ERogueliteNavigationCheck::Unavailable : ERogueliteNavigationCheck::NotChecked;
-    R.NavigationMessage = bCheckNavigation ? TEXT("Navigation Unavailable: no ready NavMesh covering both rooms for this capsule.") : TEXT("Navigation not requested.");
-    if (bCheckNavigation)
+    const bool EvaluateNavigation = bCheckNavigation && !bSkipNavigation;
+    R.Navigation = EvaluateNavigation ? ERogueliteNavigationCheck::Unavailable : ERogueliteNavigationCheck::NotChecked;
+    R.NavigationMessage = EvaluateNavigation ? TEXT("Navigation Unavailable: no ready NavMesh covering both rooms for this capsule.") : TEXT("Navigation not requested.");
+    if (EvaluateNavigation)
     {
         auto* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
         auto* Data = Nav ? Nav->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) : nullptr;

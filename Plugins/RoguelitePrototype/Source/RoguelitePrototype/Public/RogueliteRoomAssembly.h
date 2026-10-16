@@ -6,6 +6,11 @@
 #include "RogueliteParametricCorridor.h"
 #include "RogueliteRoomAssembly.generated.h"
 
+struct FRogueliteSeedBatch;
+struct FRogueliteCommittedLoopBatch;
+struct FRogueliteFixedLoopCommitRequest;
+struct FRogueliteFixedLoopCommitResult;
+
 /** Direct and StraightCorridor implemented; other modes remain reserved. */
 UENUM(BlueprintType)
 enum class ERogueliteConnectionMode : uint8
@@ -149,6 +154,10 @@ struct ROGUELITEPROTOTYPE_API FRogueliteRoomConnection
     ERogueliteNavigationCheck Navigation = ERogueliteNavigationCheck::NotChecked;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connection")
     FString ValidationMessage;
+    /** Only corridors created by the fixed-loop transaction are owned by this registry. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connection") bool bOwnedFixedLoop = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connection") FGuid LoopSourceBatchId;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connection") FName LoopCandidateId;
 };
 
 /** Explicit authoring tool/connection registry. Never auto-aligns in Tick or OnConstruction. */
@@ -160,6 +169,7 @@ class ROGUELITEPROTOTYPE_API ARogueliteRoomAssembly : public AActor
 public:
     ARogueliteRoomAssembly();
     virtual void PostLoad() override;
+    virtual void Destroyed() override;
 
     UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category="Roguelite|Assembly Setup")
     TObjectPtr<ARogueliteParametricRoom> RoomA;
@@ -240,6 +250,11 @@ public:
     UFUNCTION(BlueprintPure, Category="Roguelite|Connections")
     static FGuid GetCorridorConnectionId(ARogueliteParametricCorridor* Connector);
 
+    /** Editor-controlled transaction only. Never moves either room or bypasses C2 validation.
+     *  Defined in RogueliteLoopCommit.h; original Align subgraph guard remains unchanged. */
+    FRogueliteFixedLoopCommitResult TryCommitFixedEndpointLoop(FRogueliteSeedBatch& BaseTree,
+        FRogueliteCommittedLoopBatch& Overlay, const FRogueliteFixedLoopCommitRequest& Request);
+
 private:
     bool ValidateEndpoints(ARogueliteParametricRoom* A, ERogueliteRoomSide SideA,
         ARogueliteParametricRoom* B, ERogueliteRoomSide SideB, bool bWillMoveB,
@@ -254,9 +269,9 @@ private:
     bool IsCorridorOccupied(ARogueliteParametricCorridor* Connector, const FGuid& ExceptId) const;
     bool CheckCorridorOccupancy(ARogueliteParametricRoom* A, ARogueliteParametricCorridor* C, ARogueliteParametricRoom* B,
         const FTransform& CorridorTransform, const FTransform& TargetTransform, FRogueliteAssemblyResult& Result) const;
-    bool ValidateCorridorConnection(const FRogueliteRoomConnection& Connection, FRogueliteAssemblyResult& Result) const;
+    bool ValidateCorridorConnection(const FRogueliteRoomConnection& Connection, FRogueliteAssemblyResult& Result, bool bSkipNavigation = false) const;
     bool CheckCorridorPassage(const FRogueliteRoomConnection& Connection, const FRogueliteDoorSocket& DoorA,
-        const FRogueliteDoorSocket& DoorB, FRogueliteAssemblyResult& Result) const;
+        const FRogueliteDoorSocket& DoorB, FRogueliteAssemblyResult& Result, bool bSkipNavigation = false) const;
     void RecordValidation(FRogueliteRoomConnection& Connection, const FRogueliteAssemblyResult& Result);
     void PublishResult(const FRogueliteAssemblyResult& Result);
 };

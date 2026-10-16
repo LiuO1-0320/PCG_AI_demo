@@ -134,6 +134,10 @@ public:
     UFUNCTION(BlueprintPure, Category="Roguelite|Door Sockets")
     bool TryGetDoorSocket(ERogueliteRoomSide Side, FRogueliteDoorSocket& OutSocket) const;
 
+    /** Read-only prospective opening. Caller must separately check authored capacity/reservations.
+     *  Never enables a door or changes collision; bRequiresEnable distinguishes a sealed wall. */
+    bool PreviewEnabledDoorSocket(ERogueliteRoomSide Side, FRogueliteDoorSocket& OutSocket, bool& bRequiresEnable) const;
+
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Roguelite|Manual POIs", meta=(ToolTip="手工 Actor 的引用，仅检查实际 Bounds；不附加、不移动、不缩放、不删除。"))
     TArray<TObjectPtr<AActor>> ManualPOIActors;
 
@@ -188,6 +192,7 @@ private:
     FBox CalculateInteriorBounds() const;
     const FRogueliteDoorConfig& GetDoorConfig(ERogueliteRoomSide Side) const;
     FRogueliteDoorSocket CalculateDoorSocket(ERogueliteRoomSide Side) const;
+    FRogueliteDoorSocket CalculateDoorSocketWithConfig(ERogueliteRoomSide Side, const FRogueliteDoorConfig& Config) const;
     void UpdateDoorWall(ERogueliteRoomSide Side, UStaticMeshComponent* FullOrLeft);
     void ValidateManualPOIs();
 };

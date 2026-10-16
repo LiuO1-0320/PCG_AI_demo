@@ -177,7 +177,23 @@ const FRogueliteDoorConfig& ARogueliteParametricRoom::GetDoorConfig(ERogueliteRo
 
 FRogueliteDoorSocket ARogueliteParametricRoom::CalculateDoorSocket(ERogueliteRoomSide Side) const
 {
-    const FRogueliteDoorConfig& Config = GetDoorConfig(Side);
+    return CalculateDoorSocketWithConfig(Side, GetDoorConfig(Side));
+}
+
+bool ARogueliteParametricRoom::PreviewEnabledDoorSocket(ERogueliteRoomSide Side, FRogueliteDoorSocket& OutSocket, bool& bRequiresEnable) const
+{
+    OutSocket = FRogueliteDoorSocket();
+    bRequiresEnable = false;
+    if (static_cast<uint8>(Side) > static_cast<uint8>(ERogueliteRoomSide::West)) return false;
+    auto Config = GetDoorConfig(Side);
+    bRequiresEnable = !Config.bEnabled;
+    Config.bEnabled = true; // Local value copy only; existing wall/Actor remains untouched.
+    OutSocket = CalculateDoorSocketWithConfig(Side, Config);
+    return OutSocket.bValid;
+}
+
+FRogueliteDoorSocket ARogueliteParametricRoom::CalculateDoorSocketWithConfig(ERogueliteRoomSide Side, const FRogueliteDoorConfig& Config) const
+{
     const bool bAlongX = Side == ERogueliteRoomSide::East || Side == ERogueliteRoomSide::West;
     const FVector Tangent = bAlongX ? FVector::ForwardVector : FVector::RightVector;
     FVector Normal;
