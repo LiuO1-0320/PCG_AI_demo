@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">藏宝洞资源示意</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">种子 1337、第二层日志路径：1 → 3 → 2 → 0。图块关系真实，物件位置为示意</text>
+<polyline points="534,810 534,550" fill="none" stroke="#7AB5AA" stroke-width="24"/>
+<polyline points="534,550 234,550" fill="none" stroke="#7AB5AA" stroke-width="24"/>
+<polyline points="234,550 234,810" fill="none" stroke="#7AB5AA" stroke-width="24"/>
+<rect x="121" y="718" width="226" height="184" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="203" y="768.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">出口</text>
+<text x="211.4099998474121" y="818.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 0</text>
+<text x="196.52999877929688" y="870.62" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#946614">宝箱 3</text>
+<rect x="421" y="718" width="226" height="184" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="503" y="768.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">入口</text>
+<text x="511.4099998474121" y="818.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 1</text>
+<rect x="121" y="458" width="226" height="184" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="173.32500076293945" y="508.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">奖励房 2</text>
+<text x="211.4099998474121" y="558.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 2</text>
+<text x="196.52999877929688" y="610.62" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#946614">宝箱 2</text>
+<rect x="421" y="458" width="226" height="184" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="473.32500076293945" y="508.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">奖励房 1</text>
+<text x="511.4099998474121" y="558.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 3</text>
+<text x="496.5299987792969" y="610.62" font-family="Microsoft YaHei" font-size="26" font-weight="400" fill="#946614">宝箱 1</text>
+<rect x="121" y="198" width="226" height="184" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="187.5" y="248.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="211.4099998474121" y="298.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 4</text>
+<rect x="421" y="198" width="226" height="184" rx="12" fill="#EEF1F4" stroke="#78909C" stroke-width="2"/>
+<text x="487.5" y="248.97" font-family="Microsoft YaHei" font-size="31" font-weight="700" fill="#183444">未激活</text>
+<text x="511.4099998474121" y="298.88" font-family="Microsoft YaHei" font-size="24" font-weight="400" fill="#586D7C">格 5</text>
+<text x="940" y="223.57999999999998" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">路径与奖励</text>
+<text x="940" y="278.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">房间 1：进入藏宝洞。</text>
+<text x="940" y="315.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">房间 3 / 2：守卫＋宝箱。</text>
+<text x="940" y="351.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">房间 0：第三个宝箱＋返回出口。</text>
+<text x="940" y="462.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">生成资源</text>
+<text x="940" y="517.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">四个房间壳、三段走廊。</text>
+<text x="940" y="554.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">三个宝箱、一个返回门。</text>
+<text x="940" y="590.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">二层每个中间房两个守卫。</text>
+<text x="940" y="627.72" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">中间房各一组掩体，房间配冷色灯光。</text>
+<text x="940" y="749.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">空间参数</text>
+<text x="940" y="804.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">半边长 800 cm，图块中心距 2100 cm。</text>
+<text x="940" y="841.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">未激活图块不生成实体。</text>
+<text x="940" y="877.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">房间点的 RouteOrder 为 0–3。</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">依据：CastleRegions1337.log 与 CastleRegions.cpp。宝箱与角色是占位几何体，非已经完成的主题美术资产。</text></svg>

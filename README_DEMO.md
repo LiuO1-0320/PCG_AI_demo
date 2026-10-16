@@ -54,7 +54,7 @@ PCG 插件已开启。三个独立图 `PCG_Exploration`、`PCG_TreasureCave`、`
 
 在 PCG 图里选中 Castle Layout 节点，可调整第二、三层 Boss 场地使用的 `ArenaCoverCount`。`ExtraConnections` 是旧版参数，当前统一节点图不使用它。第一层的种子由主界面确定；命令行 `-CastleSeed=12345` 可直接复现。Enter 开始随机新局，K 使用同一颗种子重试。
 
-小怪和 Boss 使用原生 `AAIController`、动态 Recast 导航和 `MoveToActor`，逻辑在 `CastleGameplay.cpp` 中；当前没有依赖行为树、外部 LLM 或在线服务。
+小怪和 Boss 使用 `ACastleAIController`、原生 UE Behavior Tree、Blackboard、动态 Recast 导航和 `MoveToActor`。实际资产位于 `/Game/Demo/AI`：`BT_CastleGuard`、`BT_CastleBoss` 与共享的 `BB_CastleEnemy`。根服务更新目标、视线与状态，黑板条件决定战斗或保持状态；Simple Parallel 同时运行追击与攻击，Boss 另有并行地面技能。精英复用守卫树。攻击、弹体和技能效果仍由 C++ 自定义任务调用原有能力代码执行，不依赖外部 LLM 或在线服务。编辑器展示及实现说明见 [Docs/AI_BEHAVIOR_TREES.md](Docs/AI_BEHAVIOR_TREES.md)。
 
 PCG 组件在运行时执行图的方式符合 [Epic PCG 概述](https://dev.epicgames.com/documentation/en-us/unreal-engine/procedural-content-generation-overview)。本 Demo 的拓扑算法封装在 C++ 节点中，后续可把点输出接到标准 PCG 节点扩展装饰。
 
@@ -64,6 +64,9 @@ PCG 组件在运行时执行图的方式符合 [Epic PCG 概述](https://dev.epi
 | --- | --- |
 | Source/CastleDemo/CastleDemo.h | 玩家、AI、交互物、PCG 设置等可暴露给蓝图的类 |
 | CastleGameplay.cpp | 射击、属性、奖励、AI 和弹体 |
+| CastleAI.cpp / CastleAI.h | AIController、黑板感知服务、行为树任务与条件 |
+| CastleAISetup.cpp | 生成两套可编辑行为树和共享黑板资产 |
+| CastleAISmoke.cpp | 实际关卡中的 AI 并行战斗验证 |
 | CastleNodeLayout.cpp | 三层节点图、替代路线与房间类型生成 |
 | CastleMenu.cpp | 种子输入主界面与校验 |
 | CastleGeneration.cpp | 三个 PCG 图的点输出、探索房间生成、地图揭示与换层 |
@@ -72,13 +75,18 @@ PCG 组件在运行时执行图的方式符合 [Epic PCG 概述](https://dev.epi
 | CastleSetup.cpp | 在编辑器命令行生成地图、材质和 PCG 资产 |
 | Scripts/BuildDemo.ps1 | 使用引擎自带 .NET 编译 |
 | Scripts/ValidateDemo.ps1 | 无界面验证完整运行流程 |
+| Scripts/ValidateAI.ps1 | 验证实际行为树追击、攻击、视线和 Boss 技能 |
 | Docs/Design/build_first_floor_design.py | 生成中文策划 PDF 的源文件 |
 
 地图和 PCG 图可以直接在编辑器修改。`BuildDemo.ps1 -RebuildAssets` 会重建 Demo 地图、PCG 图和材质，因此仅在明确需要重建时使用，先备份编辑过的资产。
 
+行为树资产已经随项目保存，正常编译使用 `BuildDemo.ps1` 即可。`BuildDemo.ps1 -UpdateAIAssets` 会重建三份 AI 资产，覆盖手动编辑的行为树／黑板，因此仅在需要重新生成时使用；它不重建地图、PCG 图或材质。
+
 后续美术可替换 `AddBox` 的实例网格、敌人 Body/Helmet/Visor、玩家 Carbine 和交互物 Pedestal。正式版建议增加骨骼动画、音效、UMG 中文界面、存档、更多武器和 Boss 行为。主菜单、HUD、交互提示和奖励消息支持简体中文与英文，使用引擎自带的中文字体；场景内的立体标牌暂保留英文。
 
 ## 已执行的验证
+
+2026-10-14：AIController + 行为树改造通过 Editor Development 编译、真实关卡 AI 专项检查（`CASTLE_AI_SMOKE_OK`）、种子 1337 完整三层回归（`CASTLE_SMOKE_OK`）和行为树编辑器重开检查（两套 `CASTLE_AI_EDITOR_VERIFY_OK`）。专项检查覆盖并行追击／攻击、视线遮挡、近战伤害、Boss 激活、狂暴、无视线地面技及范围外蓄力结算。地图、材质和 PCG 资产未重新生成。
 
 2026-10-09 在本机 UE 5.8.3 上编译 Editor Development 模块成功。新版节点图以固定种子 4、42、1337、2026、24680 及随机种子运行三层自动验证，均出现 `CASTLE_SMOKE_OK`：
 

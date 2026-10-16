@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">藏宝洞 PCG：四房贯通路径</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">PCG_TreasureCave：2 列×3 行，四个激活房间，三条连接，入口与出口分离</text>
+<rect x="76" y="182" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="263.32501220703125" y="223.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">1  使用独立的藏宝洞随机流（种子＋楼层＋区域标识）</text>
+<polyline points="626,286 626,314" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,314 619.8835932041064,300.30366589531536 632.1164067958936,300.30366589531536" fill="#78909C"/>
+<rect x="76" y="314" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="270.7300109863281" y="355.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">2  枚举 2×3 网格中所有经过四个不同格子的简单路径</text>
+<polyline points="626,418 626,446" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,446 619.8835932041064,432.30366589531536 632.1164067958936,432.30366589531536" fill="#78909C"/>
+<rect x="76" y="446" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="293.32501220703125" y="487.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">3  随机选择一条路径，仅激活四房并连接相邻节点</text>
+<polyline points="626,550 626,578" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,578 619.8835932041064,564.3036658953154 632.1164067958936,564.3036658953154" fill="#78909C"/>
+<rect x="76" y="578" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="248.32501220703125" y="619.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">4  首房为入口、末房为出口，第二至第四房各放一个宝箱</text>
+<polyline points="626,682 626,710" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,710 619.8835932041064,696.3036658953154 632.1164067958936,696.3036658953154" fill="#78909C"/>
+<rect x="76" y="710" width="1100" height="104" rx="12" fill="#E7F2FA" stroke="#78909C" stroke-width="2"/>
+<text x="262.69000244140625" y="751.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">5  两个中间房各生成 Floor 个守卫，末房设返回传送门</text>
+<polyline points="626,814 626,842" fill="none" stroke="#78909C" stroke-width="3"/>
+<polygon points="626,842 619.8835932041064,828.3036658953154 632.1164067958936,828.3036658953154" fill="#78909C"/>
+<rect x="76" y="842" width="1100" height="104" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="233.32501220703125" y="883.1" font-family="Microsoft YaHei" font-size="30" font-weight="400" fill="#183444">6  创建房间与走廊，输出四个房间点，完成后进入导航检查</text>
+<text x="1250" y="225.57999999999998" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">无需回头的结构</text>
+<text x="1250" y="280.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">每个奖励都位于贯通路线。</text>
+<text x="1250" y="317.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">入口、出口各一条连接，</text>
+<text x="1250" y="353.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">中间两房各两条连接。</text>
+<text x="1250" y="487.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">资源配置</text>
+<text x="1250" y="542.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">三个藏品宝箱。</text>
+<text x="1250" y="579.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">二层四个守卫，三层六个守卫。</text>
+<text x="1250" y="615.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">返回门只在最终房间。</text>
+<text x="1250" y="746.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">传送与保留</text>
+<text x="1250" y="801.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">出口返回探索区进入时的位置。</text>
+<text x="1250" y="838.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">已领取奖励、探索状态和属性保留。</text>
+<text x="1250" y="874.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">只在第二、三层生成。</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">来源：CastleRegions.cpp。简单路径不重复格子，没有要求玩家折返领取的支路宝箱。</text></svg>

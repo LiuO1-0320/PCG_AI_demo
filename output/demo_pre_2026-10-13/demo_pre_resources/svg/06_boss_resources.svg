@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect x="0" y="0" width="1920" height="1080" rx="12" fill="#FFFFFF" stroke="none" stroke-width="2"/>
+<text x="64" y="85.75999999999999" font-family="Microsoft YaHei" font-size="48" font-weight="700" fill="#183444">Boss 场地资源示意</text>
+<text x="66" y="137.49" font-family="Microsoft YaHei" font-size="27" font-weight="400" fill="#586D7C">三高台平面示例，用于解释空间构件；不是指定种子的逐物件实测布局</text>
+<rect x="80" y="220" width="760" height="760" rx="0" fill="#F5F8FB" stroke="#69818F" stroke-width="2"/>
+<rect x="274.22222222222223" y="760.4444444444445" width="160.44444444444446" height="101.33333333333334" rx="0" fill="#FFF2D6" stroke="#B59759" stroke-width="2"/>
+<rect x="156" y="739.3333333333333" width="118.22222222222223" height="143.55555555555557" rx="0" fill="#EEE7FA" stroke="#9280AD" stroke-width="2"/>
+<text x="189.11111111111111" y="797.7311111111111" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">高台</text>
+<text x="167.70611233181424" y="830.7511111111111" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">160 cm</text>
+<rect x="274.22222222222223" y="338.22222222222223" width="160.44444444444446" height="101.33333333333334" rx="0" fill="#FFF2D6" stroke="#B59759" stroke-width="2"/>
+<rect x="156" y="317.11111111111114" width="118.22222222222223" height="143.55555555555557" rx="0" fill="#EEE7FA" stroke="#9280AD" stroke-width="2"/>
+<text x="189.11111111111111" y="375.5088888888889" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">高台</text>
+<text x="167.70611233181424" y="408.5288888888889" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">240 cm</text>
+<rect x="485.3333333333333" y="338.22222222222223" width="160.44444444444446" height="101.33333333333334" rx="0" fill="#FFF2D6" stroke="#B59759" stroke-width="2"/>
+<rect x="645.7777777777778" y="317.11111111111114" width="118.22222222222223" height="143.55555555555557" rx="0" fill="#EEE7FA" stroke="#9280AD" stroke-width="2"/>
+<text x="678.8888888888889" y="375.5088888888889" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">高台</text>
+<text x="657.483890109592" y="408.5288888888889" font-family="Microsoft YaHei" font-size="26" font-weight="700" fill="#183444">320 cm</text>
+<rect x="189.66666666666666" y="679.2666666666667" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="291" y="486.73333333333335" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="392.3333333333333" y="679.2666666666667" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="493.6666666666667" y="486.73333333333335" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="595" y="679.2666666666667" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="696.3333333333334" y="486.73333333333335" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="189.66666666666666" y="701.2222222222222" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="291" y="464.77777777777777" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="392.3333333333333" y="701.2222222222222" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<rect x="493.6666666666667" y="464.77777777777777" width="34" height="34" rx="0" fill="#7C8D98" stroke="#52616B" stroke-width="2"/>
+<polyline points="147.55555555555554,600 595.1111111111111,600" fill="none" stroke="#31977E" stroke-width="5" stroke-dasharray="10 8"/>
+<rect x="120.88888888888886" y="574" width="104" height="59" rx="12" fill="#DCF3EE" stroke="#78909C" stroke-width="2"/>
+<text x="147.88888888888886" y="610.75" font-family="Microsoft YaHei" font-size="25" font-weight="400" fill="#183444">进入</text>
+<rect x="470.55555555555554" y="574" width="114" height="59" rx="12" fill="#FDE6E6" stroke="#78909C" stroke-width="2"/>
+<text x="500.195554945204" y="610.75" font-family="Microsoft YaHei" font-size="25" font-weight="400" fill="#183444">Boss</text>
+<text x="960" y="220.57999999999998" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">资源组件</text>
+<text x="960" y="275.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">一个 4500×4500 cm 场地。</text>
+<text x="960" y="312.06" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">高台、坡道、柱形 / 矮墙 / L 形掩体。</text>
+<text x="960" y="348.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">一个 Boss、一个补给点和灯光。</text>
+<text x="960" y="470.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">可走高低空间</text>
+<text x="960" y="525.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">紫色是平台，米黄色是坡道。</text>
+<text x="960" y="562.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">绿色虚线表示预留的中央通路。</text>
+<text x="960" y="598.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">平台最高 320 cm，需导航可达。</text>
+<text x="960" y="721.58" font-family="Microsoft YaHei" font-size="34" font-weight="700" fill="#183444">战斗资源</text>
+<text x="960" y="776.23" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">球形弹体、地面预警圆盘、Boss 血条。</text>
+<text x="960" y="813.0600000000001" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">击败后出现上楼 / 通关传送阵。</text>
+<text x="960" y="849.89" font-family="Microsoft YaHei" font-size="29" font-weight="400" fill="#586D7C">地面技沿玩家所在表面设置高度。</text>
+<text x="64" y="1048.01" font-family="Microsoft YaHei" font-size="23" font-weight="400" fill="#586D7C">来源：CastleRegions.cpp、CastleGameplay.cpp。默认 10 组基础掩体，另加平台上的掩体。</text></svg>

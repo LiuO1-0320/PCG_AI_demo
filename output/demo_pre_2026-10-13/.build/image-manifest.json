@@ -1,0 +1,15 @@
+{
+  "size": "2560x1440",
+  "svgSize": "1920x1080",
+  "font": "Microsoft YaHei",
+  "images": [
+    "01_pcg_exploration_logic.png",
+    "02_pcg_cave_logic.png",
+    "03_pcg_boss_logic.png",
+    "04_exploration_resources.png",
+    "05_cave_resources.png",
+    "06_boss_resources.png",
+    "07_guard_behavior_tree.png",
+    "08_boss_behavior_tree.png"
+  ]
+}
