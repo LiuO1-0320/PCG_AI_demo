@@ -49,7 +49,7 @@ bool Actual(AActor* Owner,const FRogueliteSeedLayoutSettings& S,const FRoguelite
 ARogueliteLoopAwareTestRig::ARogueliteLoopAwareTestRig()
 {PrimaryActorTick.bCanEverTick=false;SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("LoopAwareRoot")));Tags.Add(TEXT("RogueliteLoopAwareTestOnly"));Settings=RogueliteBranchingTestSettings();Planning=Enabled();}
 bool ARogueliteLoopAwareTestRig::OwnMap() const
-{return GetWorld()&&GetWorld()->WorldType==EWorldType::Editor&&GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopAwarePlanning_Dev");}
+{return GetWorld()&&GetWorld()->WorldType==EWorldType::Editor&&(GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopAwarePlanning_Dev")||GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeLoopNavigation_Dev"));}
 void ARogueliteLoopAwareTestRig::AnalyzeSpatialPlan()
 {
     if(!OwnMap()||!Batch.OwnedActors.IsEmpty()){Summary=TEXT("Only independent Editor map with empty owned batch; existing preview protected.");return;}

@@ -46,9 +46,14 @@ public:
     UPROPERTY(VisibleInstanceOnly,BlueprintReadOnly,Transient,Category="Roguelite|B3A Test Only") TArray<FString> EditorRegressionEvidence;
     UPROPERTY(VisibleInstanceOnly,BlueprintReadOnly,Transient,Category="Roguelite|B3A Test Only") bool bEditorRegressionPassed=false;
     UFUNCTION(CallInEditor,Category="Roguelite|B3A Test Only",meta=(DisplayName="Run Editor Regression / 验证编辑器回归")) void RunEditorRegression();
-    UFUNCTION(BlueprintCallable,Category="Roguelite|Runtime Assembly") bool GenerateRuntime();
-    UFUNCTION(BlueprintCallable,Category="Roguelite|Runtime Assembly") bool ClearRuntime();
-    UFUNCTION(BlueprintPure,Category="Roguelite|Runtime Assembly") bool IsDungeonReady() const;
+    UFUNCTION(BlueprintCallable,Category="Roguelite|Runtime Assembly") virtual bool GenerateRuntime();
+    UFUNCTION(BlueprintCallable,Category="Roguelite|Runtime Assembly") virtual bool ClearRuntime();
+    UFUNCTION(BlueprintPure,Category="Roguelite|Runtime Assembly") virtual bool IsDungeonReady() const;
+    // Optional committed physical edges, not a second graph or reservation registry.
+    virtual TArray<FRogueliteSeedEdgeRecord> GetNavigationExtraEdges() const {return {};}
+    virtual FString GetNavigationEpoch() const {return Batch.BatchId.ToString()+Batch.GraphDigest+Batch.LayoutDigest;}
+    virtual bool RevalidateRuntimeGeometry();
+    virtual bool RequiresPhysicalCorridorNavigation() const {return false;}
     void PublishNavigationState(FGuid BatchId,ERogueliteDungeonBuildStage Value,const FString& Reason);
     void RunRuntimeChecks();
 private:

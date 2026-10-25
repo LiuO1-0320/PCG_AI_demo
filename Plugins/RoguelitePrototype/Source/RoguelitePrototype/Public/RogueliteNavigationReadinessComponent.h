@@ -3,6 +3,9 @@
 #include "Components/ActorComponent.h"
 #include "RogueliteNavigationReadinessComponent.generated.h"
 
+class ARogueliteParametricCorridor;
+struct FRogueliteSeedEdgeRecord;
+
 USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteNavigationPathEvidence
 {
@@ -17,6 +20,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteNavigationPathEvidence
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bPartial=false;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 Points=0;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) float Length=0;
+    UPROPERTY() TArray<FVector> Waypoints;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString Reason;
 };
 USTRUCT(BlueprintType)
@@ -33,6 +37,17 @@ struct ROGUELITEPROTOTYPE_API FRogueliteNavigationMoveEvidence
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString Result;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) float Distance2D=0;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) float Duration=0;
+    UPROPERTY() bool bCorridorRoute=false;
+    UPROPERTY() bool bLoopRoute=false;
+    UPROPERTY() int32 EdgeId=-1;
+    UPROPERTY() FTransform CorridorTransform;
+    UPROPERTY() FVector CorridorHalfSize=FVector::ZeroVector;
+    UPROPERTY() TArray<FVector> RequiredCheckpoints;
+    UPROPERTY() TArray<FVector> ActualCheckpoints;
+    UPROPERTY() TArray<int32> LegRequestIds;
+    UPROPERTY() TArray<FVector> InteriorSamples;
+    UPROPERTY() FString CharacterPath;
+    UPROPERTY() bool bTraversedInterior=false;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bSucceeded=false;
 };
 USTRUCT(BlueprintType)
@@ -46,6 +61,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteNavigationReadinessEvidence
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString Reason;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString NavData;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString LayoutDigest;
+    UPROPERTY() FString Epoch;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FVector Agent=FVector::ZeroVector;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FVector NavAgent=FVector::ZeroVector;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FBox Coverage=FBox(ForceInit);
@@ -79,6 +95,7 @@ public:
     UPROPERTY(VisibleInstanceOnly,BlueprintReadOnly,Transient,Category="Roguelite|Navigation") FRogueliteNavigationReadinessEvidence Report;
     UPROPERTY(VisibleInstanceOnly,BlueprintReadOnly,Transient,Category="Roguelite|Navigation") FRogueliteNavigationReadinessEvidence LastFailure;
     bool Start(float GeometrySeconds);
+    bool IsExpectedEpoch(FGuid Batch,const FString& Epoch) const {return Current()&&Batch==ActiveBatch&&Epoch==ActiveEpoch;}
     void Cancel();
     UFUNCTION(BlueprintPure,Category="Roguelite|Navigation") bool IsCurrentBatchReady() const;
     UFUNCTION(BlueprintCallable,Category="Roguelite|Navigation") bool RetryNavigation();
@@ -90,6 +107,10 @@ private:
     bool ValidatePaths();
     bool ChooseAnchor(int32 Node,FVector& Out);
     bool Query(const FString& Name,int32 From,int32 To,int32 Edge=-1);
+    bool QueryLocated(const FString& Name,const FVector& From,const FVector& To,int32 Edge,ARogueliteParametricCorridor* Corridor,bool Interior);
+    bool AppendPhysicalCorridor(const FRogueliteSeedEdgeRecord& Edge,bool Loop,bool AddMovement);
+    void StartMoveLeg();
+    void SampleCorridor();
     void NextMove();
     void CheckMove();
     void Fail(const FString& State,const FString& Reason);
@@ -110,4 +131,6 @@ private:
     uint32 ActiveRequest=0;
     int32 MoveIndex=0;
     bool bActive=false,bWaitingForMove=false,bPathsValidated=false;
+    FString ActiveEpoch;
+    int32 MoveLeg=0;
 };

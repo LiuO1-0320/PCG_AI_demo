@@ -13,7 +13,8 @@ void URogueliteRuntimeNavigationSystem::Configure(const UNavigationSystemConfig&
     const FString MapName=GetWorld()->GetOutermost()->GetName();
     // Keep this configuration map-local; B4 uses the unchanged B3B readiness checks.
     if(!MapName.EndsWith(TEXT("L_Roguelite_RuntimeNavigation_Dev")) &&
-       !MapName.EndsWith(TEXT("L_Roguelite_Branching_Dev")))return;
+       !MapName.EndsWith(TEXT("L_Roguelite_Branching_Dev")) &&
+       !MapName.EndsWith(TEXT("L_Roguelite_RuntimeLoopNavigation_Dev")))return;
     const auto* Capsule=GetDefault<ARogueliteNavigationTestCharacter>()->GetCapsuleComponent();
     FNavDataConfig Agent;
     Agent.Name=TEXT("RogueliteB3BStandingTest");

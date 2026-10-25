@@ -120,7 +120,22 @@ FRogueliteTemplateValidation ARogueliteRoomTemplate::ValidateTemplate()
 void ARogueliteRoomTemplate::RebuildTemplate() { RebuildRoom(); ValidateTemplate(); }
 void ARogueliteRoomTemplate::OnConstruction(const FTransform& Transform) { Super::OnConstruction(Transform); ValidateTemplate(); }
 void ARogueliteRoomTemplate::PostRegisterAllComponents() { Super::PostRegisterAllComponents(); ValidateTemplate(); }
-void ARogueliteRoomTemplate::PostInitializeComponents() { Super::PostInitializeComponents(); ValidateTemplate(); }
+void ARogueliteRoomTemplate::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();ValidateTemplate();
+    if(GetWorld()&&GetWorld()->IsGameWorld())
+    {
+        bRuntimeOwnedRegisteredBeforeBeginPlay=!HasActorBegunPlay();RuntimeOwnedRegistration.Reset();
+        const auto States=GetTemplateMemberStates();int32 StaticCount=0;
+        for(const auto& State:States)if(IsValid(State.Component)&&State.Component->Mobility==EComponentMobility::Static)
+        {
+            ++StaticCount;bRuntimeOwnedRegisteredBeforeBeginPlay&=State.Component->IsRegistered();
+            RuntimeOwnedRegistration.Add(FString::Printf(TEXT("Phase=PostInitializeComponents BeforeBeginPlay=%d Component=%s Registered=%d Local=%s World=%s Mesh=%s"),
+                !HasActorBegunPlay(),*State.Name.ToString(),State.Component->IsRegistered(),*State.ParentLocalTransform.ToString(),*State.WorldTransform.ToString(),*State.StaticMeshPath));
+        }
+        bRuntimeOwnedRegisteredBeforeBeginPlay&=StaticCount>0;
+    }
+}
 ARogueliteRoomTemplate* ARogueliteRoomTemplate::CreateTemplateInstance(UObject* Context, TSubclassOf<ARogueliteRoomTemplate> Class,
     const FTransform& Transform, FString& FailureReason)
 {

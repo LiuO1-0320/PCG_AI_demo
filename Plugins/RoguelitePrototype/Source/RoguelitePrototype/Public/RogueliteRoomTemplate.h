@@ -52,6 +52,8 @@ class ROGUELITEPROTOTYPE_API ARogueliteRoomTemplate : public ARogueliteParametri
     GENERATED_BODY()
 public:
     ARogueliteRoomTemplate();
+    TArray<FString> RuntimeOwnedRegistration;
+    bool bRuntimeOwnedRegisteredBeforeBeginPlay=false;
     virtual void OnConstruction(const FTransform& Transform) override;
     virtual void PostRegisterAllComponents() override;
     virtual void PostInitializeComponents() override;

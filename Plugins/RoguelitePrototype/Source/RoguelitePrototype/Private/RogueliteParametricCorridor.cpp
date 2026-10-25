@@ -261,9 +261,17 @@ void ARogueliteParametricCorridor::OnConstruction(const FTransform& Transform)
     RebuildCorridor();
 }
 
+void ARogueliteParametricCorridor::PreRegisterAllComponents()
+{
+    // UE registers native components during PostSpawnInitialize, even for deferred Blueprint spawns.
+    if(GetWorld()&&GetWorld()->IsGameWorld()){RebuildCorridor();RuntimeRegistrationAudit.Prepared(this);}
+    Super::PreRegisterAllComponents();
+}
+
 void ARogueliteParametricCorridor::PostRegisterAllComponents()
 {
     Super::PostRegisterAllComponents();
+    if(GetWorld()&&GetWorld()->IsGameWorld())RuntimeRegistrationAudit.Registered(this);
     RebuildCorridor();
 }
 

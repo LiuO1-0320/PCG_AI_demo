@@ -1,4 +1,4 @@
-#include "Misc/AutomationTest.h"
+﻿#include "Misc/AutomationTest.h"
 #include "RogueliteDungeonMap.h"
 #if WITH_DEV_AUTOMATION_TESTS
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMapGraphTest,"Roguelite.DungeonMap.LogicAndDeterminism",EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter)
@@ -39,6 +39,22 @@ bool FMapRectangleTest::RunTest(const FString&)
         TestEqual(TEXT("Four corners"),P.Num(),4);TestTrue(TEXT("True transformed corner"),P[0].Equals(FVector2D(T.TransformPosition(FVector(-1520,-1270,0))),.01));
         TestTrue(TEXT("Length retained after rotation"),FMath::IsNearlyEqual(FVector2D::Distance(P[0],P[1]),3040.,.01));TestTrue(TEXT("Width retained after rotation"),FMath::IsNearlyEqual(FVector2D::Distance(P[1],P[2]),2540.,.01));
     }
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMapLoopLocalTest,"Roguelite.DungeonMap.CommittedOneHopAndEvent",EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter)
+bool FMapLoopLocalTest::RunTest(const FString&)
+{
+    FRogueliteDungeonMapSnapshot S;S.bValid=S.bSpatial=true;
+    for(int32 I=0;I<5;++I){auto& R=S.Rooms.AddDefaulted_GetRef();R.NodeId=I;R.bRoomTypeAssigned=true;R.RoomType=ERogueliteSeedRoomType(I);if(I==4)R.EventDefinitionId=TEXT("TreasureCave");}
+    const auto Edge=[&](int32 A,int32 B,bool Committed,bool Loop){auto& E=S.Connections.AddDefaulted_GetRef();E.EdgeId=S.Connections.Num()-1;E.NodeA=A;E.NodeB=B;E.bCommitted=Committed;E.bCommittedLoop=Loop;};
+    Edge(0,1,true,false);Edge(1,2,true,false);Edge(2,3,true,false);Edge(0,4,true,true);Edge(1,4,true,false);Edge(0,3,false,true);
+    const auto V=URogueliteDungeonMapQuery::FilterOneHop(S,0);
+    TestEqual(TEXT("Tree plus actual loop neighbors only"),V.Rooms.Num(),3);TestEqual(TEXT("Only committed incident edges"),V.Connections.Num(),2);
+    for(const auto& R:V.Rooms)if(R.NodeId!=0)TestTrue(TEXT("No neighbor-neighbor topology leakage"),R.Neighbors==TArray<int32>{0});
+    const auto* Event=V.Rooms.FindByPredicate([](const auto& R){return R.NodeId==4;});TestTrue(TEXT("Event retains independent type and definition"),Event&&Event->RoomType==ERogueliteSeedRoomType::Event&&Event->EventDefinitionId==TEXT("TreasureCave"));
+    auto Changed=S;Changed.Rooms[4].EventDefinitionId=TEXT("OtherEvent");TestNotEqual(TEXT("Event definition contributes to stable data"),URogueliteDungeonMapQuery::ComputeStableDigest(S),URogueliteDungeonMapQuery::ComputeStableDigest(Changed));
+    TestFalse(TEXT("Null source never current"),URogueliteDungeonMapQuery::IsSnapshotCurrent(nullptr,S));
     return true;
 }
 #endif

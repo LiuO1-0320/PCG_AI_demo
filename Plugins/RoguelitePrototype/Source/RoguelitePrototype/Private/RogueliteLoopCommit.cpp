@@ -1,6 +1,8 @@
 #include "RogueliteLoopCommit.h"
 #include "RogueliteSeedAssemblyInternal.h"
 #include "RoguelitePrototype.h"
+#include "RogueliteNavigationTestCharacter.h"
+#include "RogueliteNavigationReadinessComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
@@ -46,6 +48,10 @@ FString FRogueliteLoopCommitQueries::GeometryDigest(AActor* Owner,const FRogueli
     TArray<FString> Rows;
     for(TActorIterator<AActor> I(Owner->GetWorld());I;++I)if(!I->IsActorBeingDestroyed())
     {
+        // Only this batch's verifier-owned moving NPC is excluded from the static-geometry fingerprint.
+        // Actual C2 collision tests are not filtered or weakened.
+        if(L.bRuntimePrepared)if(const auto* Test=Cast<ARogueliteNavigationTestCharacter>(*I))
+            if(Test->CreationBatch==B.BatchId&&Test->CreatedByVerifier.IsValid()&&Test->CreatedByVerifier->GetOwner()==Owner)continue;
         const FString* Known=Names.Find(*I);const FString Label=Known?*Known:TEXT("External");
         if(const auto* R=Cast<ARogueliteParametricRoom>(*I))
         {
@@ -185,7 +191,7 @@ FRogueliteLoopTraversalSnapshot FRogueliteLoopCommitQueries::Capture(AActor* Own
     S.Edges.Sort([](const auto& A,const auto& C){return A.EdgeId<C.EdgeId;});S.IndependentCycles=S.Edges.Num()-S.Nodes.Num()+1;
     FString Text=TEXT("TraversalV1|base=")+B.GraphDigest+TEXT("|layout=")+B.LayoutDigest;
     for(const auto& E:S.Edges)Text+=FString::Printf(TEXT("|%d:%d,%d:%d:%s"),E.EdgeId,E.NodeA,E.NodeB,E.bCommittedLoop,*E.CandidateId.ToString());
-    S.StableDigest=G::StableTextDigest(Text);S.bCurrent=S.bGeometryValidated=true;S.Reason=TEXT("BaseTree + actual authoritative CommittedLoopEdges only. NavigationPending; B4-B3 readiness not implemented.");return S;
+    S.StableDigest=G::StableTextDigest(Text);S.bCurrent=S.bGeometryValidated=true;S.Reason=L.bRuntimePrepared?TEXT("Runtime BaseTree + actual authoritative CommittedLoopEdges. Strict navigation verification is separate."):TEXT("BaseTree + actual authoritative CommittedLoopEdges only. NavigationPending; B4-B3 readiness not implemented.");return S;
 }
 
 bool FRogueliteLoopCommitQueries::Clear(AActor* Owner,FRogueliteSeedBatch& B,FRogueliteCommittedLoopBatch& L,FString& Reason)

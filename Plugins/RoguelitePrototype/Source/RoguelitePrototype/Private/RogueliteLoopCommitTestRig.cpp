@@ -36,7 +36,7 @@ ARogueliteFixedLoopFixtureRoom::ARogueliteFixedLoopFixtureRoom()
 }
 ARogueliteLoopCommitTestRig::ARogueliteLoopCommitTestRig(){PrimaryActorTick.bCanEverTick=false;SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("FixedLoopFixtureRoot")));Tags.Add(TEXT("RogueliteLoopCommitTestOnly"));LoopSettings.MinLoops=1;LoopSettings.MaxLoops=1;}
 bool ARogueliteLoopCommitTestRig::OwnMap() const
-{return GetWorld()&&!GetWorld()->IsGameWorld()&&(GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopCommit_Dev")||GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopAwarePlanning_Dev"));}
+{return GetWorld()&&!GetWorld()->IsGameWorld()&&(GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopCommit_Dev")||(GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_LoopAwarePlanning_Dev")||GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeLoopNavigation_Dev")));}
 void ARogueliteLoopCommitTestRig::BuildFixture()
 {
     if(!OwnMap()||!Batch.OwnedActors.IsEmpty()||!CommittedLoops.Edges.IsEmpty()||(FixtureRoomCount!=5&&FixtureRoomCount!=6)){Summary=TEXT("Refused: only empty owned independent fixture (5/6 test rooms), outside PIE.");return;}

@@ -252,6 +252,11 @@ public:
 
     /** Editor-controlled transaction only. Never moves either room or bypasses C2 validation.
      *  Defined in RogueliteLoopCommit.h; original Align subgraph guard remains unchanged. */
+    bool ReleaseRuntimePlacedConnection(FGuid ConnectionId,FGuid SourceBatch);
+    // GameWorld only. Validates final placed geometry and registers C2; never moves/rebuilds Static actors.
+    FRogueliteAssemblyResult TryRegisterRuntimePlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+        ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,
+        FGuid SourceBatch=FGuid(),FName LoopCandidate=NAME_None);
     FRogueliteFixedLoopCommitResult TryCommitFixedEndpointLoop(FRogueliteSeedBatch& BaseTree,
         FRogueliteCommittedLoopBatch& Overlay, const FRogueliteFixedLoopCommitRequest& Request);
 

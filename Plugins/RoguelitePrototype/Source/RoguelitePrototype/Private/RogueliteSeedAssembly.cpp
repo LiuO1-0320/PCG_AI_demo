@@ -1,5 +1,6 @@
 #include "RogueliteSeedAssembly.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RoguelitePreparedTemplates.h"
 #include "RogueliteRoomTypeAssignment.h"
 #include "RoguelitePrototype.h"
 #include "Components/SceneComponent.h"
@@ -114,11 +115,12 @@ namespace RogueliteSeedAssemblyInternal
 
 using namespace RogueliteSeedAssemblyInternal;
 
-bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSeedLayoutSettings& S,FRogueliteSeedBatch& B,Inputs& Input,FString& Reason)
+bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSeedLayoutSettings& S,FRogueliteSeedBatch& B,Inputs& Input,FString& Reason,const FRoguelitePreparedTemplateCatalog* Prepared)
 {
     UWorld* W=IsValid(Owner)?Owner->GetWorld():nullptr;
     const auto Fail=[&](const FString& Why){Reason=Why;return false;};
     if(!W)return Fail(TEXT("Input owner/world unavailable."));
+    if(Prepared&&!Prepared->IsCurrent(S,Reason))return false;
     if(S.TemplateCatalogVersion<1 || S.SolverVersion!=1 || S.MaxCandidatesPerEdge<1 || S.MaxCandidatesPerEdge>256 || S.Templates.IsEmpty()
         || S.Templates.Num()>16 || S.Corridors.IsEmpty() || S.Corridors.Num()>8 || S.Encounters.IsEmpty() || S.Encounters.Num()>32)
         return Fail(TEXT("Invalid catalog/solver version, candidate budget or bounded catalog sizes."));
@@ -174,6 +176,17 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
         if(Default.Dimensions.ContainsNaN() || Default.Dimensions.GetMin()<100 || !FMath::IsFinite(Default.WallThickness)
             || !FMath::IsFinite(Default.FloorThickness) || Default.WallThickness<1 || Default.FloorThickness<1)
             return Fail(TEXT("Invalid authored template dimensions: ")+Option.Id.ToString());
+        if(Prepared)
+        {
+            const auto* Row=Prepared->Rows.FindByPredicate([&](const auto& X){return X.Id==Option.Id;});
+            if(!Row||Row->TemplateClass.Get()!=Class||Row->Descriptor.Dimensions.ContainsNaN()
+                ||!Default.Dimensions.Equals(Row->Descriptor.Dimensions,.001)
+                ||Default.WallThickness!=Row->Descriptor.WallThickness||Default.FloorThickness!=Row->Descriptor.FloorThickness)
+                return Fail(TEXT("Runtime prepared template class/default dimensions changed: ")+Option.Id.ToString());
+            CatalogEntry Entry;Entry.Option=Option;Entry.Class=Class;Entry.Capacity=Row->Sockets.Num();
+            Entry.Signature=Row->Signature;Entry.MemberSignature=Row->MemberSignature;Entry.Descriptor=Row->Descriptor;Entry.Sockets=Row->Sockets;
+            Catalog.Add(Entry);Configuration+=Entry.Signature;continue;
+        }
         const FVector ProbeLocation(1000000+Catalog.Num()*10000,1000000,0);
         const FBox Envelope(FVector(-Default.Dimensions.X*.5-Default.WallThickness,-Default.Dimensions.Y*.5-Default.WallThickness,-Default.FloorThickness)+ProbeLocation,
             FVector(Default.Dimensions.X*.5+Default.WallThickness,Default.Dimensions.Y*.5+Default.WallThickness,Default.Dimensions.Z)+ProbeLocation);

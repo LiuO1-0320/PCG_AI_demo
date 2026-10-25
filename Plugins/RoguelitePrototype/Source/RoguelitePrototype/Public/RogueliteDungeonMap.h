@@ -13,6 +13,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteDungeonMapRoom
 {
     GENERATED_BODY()
     UPROPERTY(BlueprintReadOnly) int32 NodeId=INDEX_NONE;
+    UPROPERTY(BlueprintReadOnly) FGuid BatchId;
     UPROPERTY(BlueprintReadOnly) FString Role;
     UPROPERTY(BlueprintReadOnly) int32 Degree=0;
     UPROPERTY(BlueprintReadOnly) TArray<int32> Neighbors;
@@ -38,6 +39,12 @@ struct ROGUELITEPROTOTYPE_API FRogueliteDungeonMapConnection
     UPROPERTY(BlueprintReadOnly) int32 NodeB=INDEX_NONE;
     UPROPERTY(BlueprintReadOnly) FString Role;
     UPROPERTY(BlueprintReadOnly) FString Mode=TEXT("StraightCorridor");
+    // Only C2-registered edges may be marked committed. Candidates are never captured here.
+    UPROPERTY(BlueprintReadOnly) FString Source=TEXT("BaseTree");
+    UPROPERTY(BlueprintReadOnly) bool bCommitted=false;
+    UPROPERTY(BlueprintReadOnly) bool bCommittedLoop=false;
+    UPROPERTY(BlueprintReadOnly) FString CorridorIdentity;
+    UPROPERTY(BlueprintReadOnly) float Length=0;
     UPROPERTY(BlueprintReadOnly) FGuid ConnectionId;
     // These are copied observations from C2, never a writable occupancy registry.
     UPROPERTY(BlueprintReadOnly) bool bReservationActive=false;
@@ -63,6 +70,9 @@ struct ROGUELITEPROTOTYPE_API FRogueliteDungeonMapSnapshot
     UPROPERTY(BlueprintReadOnly) int32 TemplateCatalogVersion=0;
     UPROPERTY(BlueprintReadOnly) int32 SolverVersion=0;
     UPROPERTY(BlueprintReadOnly) FGuid BatchId;
+    UPROPERTY(BlueprintReadOnly) int32 GraphRevision=0;
+    UPROPERTY(BlueprintReadOnly) int32 GeometryRevision=0;
+    UPROPERTY(BlueprintReadOnly) int32 LoopCount=0;
     UPROPERTY(BlueprintReadOnly) FString WorldIdentity;
     UPROPERTY(BlueprintReadOnly) FString SourceIdentity;
     UPROPERTY(BlueprintReadOnly) FString WorldKind;
@@ -99,6 +109,7 @@ class ROGUELITEPROTOTYPE_API URogueliteDungeonMapQuery : public UBlueprintFuncti
 {
     GENERATED_BODY()
 public:
+    UFUNCTION(BlueprintPure,Category="Roguelite|Map") static bool IsSupportedSource(const AActor* Source);
     // Call on the game thread. Requery instead of retaining an old snapshot as current data.
     UFUNCTION(BlueprintPure,Category="Roguelite|Map") static FRogueliteDungeonMapSnapshot Capture(const AActor* Source);
     UFUNCTION(BlueprintPure,Category="Roguelite|Map") static bool IsSnapshotCurrent(const AActor* Source,const FRogueliteDungeonMapSnapshot& Snapshot);

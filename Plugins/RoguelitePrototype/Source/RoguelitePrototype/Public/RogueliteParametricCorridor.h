@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "RogueliteParametricRoom.h"
+#include "RogueliteStaticRegistrationAudit.h"
 #include "RogueliteParametricCorridor.generated.h"
 
 class USceneComponent;
@@ -46,6 +47,8 @@ class ROGUELITEPROTOTYPE_API ARogueliteParametricCorridor : public AActor
 public:
     ARogueliteParametricCorridor();
     virtual void OnConstruction(const FTransform& Transform) override;
+    virtual void PreRegisterAllComponents() override;
+    FRogueliteStaticRegistrationAudit RuntimeRegistrationAudit;
     virtual void PostRegisterAllComponents() override;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="100", ToolTip="走廊长度沿局部 X，厘米；保留非法输入并警告。1000 是测试默认值，不绑定任何穿行时长。"))

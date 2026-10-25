@@ -25,21 +25,22 @@ ARogueliteRuntimeSeedAssembly* URogueliteNavigationReadinessComponent::Rig() con
 bool URogueliteNavigationReadinessComponent::Current() const
 {
     return bActive && ActiveWorld.IsValid() && GetWorld()==ActiveWorld.Get() && !GetWorld()->bIsTearingDown
-        && IsValid(Rig()) && Rig()->Batch.BatchId==ActiveBatch && Rig()->bGeometryValidated;
+        && IsValid(Rig()) && Rig()->Batch.BatchId==ActiveBatch && Rig()->bGeometryValidated && Rig()->GetNavigationEpoch()==ActiveEpoch;
 }
 bool URogueliteNavigationReadinessComponent::IsCurrentBatchReady() const
 {
     return Report.bReady && IsValid(Rig()) && GetWorld() && !GetWorld()->bIsTearingDown
-        && Rig()->Batch.BatchId==Report.BatchId && Rig()->bGeometryValidated && IsValid(Data)
+        && Rig()->Batch.BatchId==Report.BatchId && Rig()->bGeometryValidated && Rig()->GetNavigationEpoch()==Report.Epoch && IsValid(Data)
         && Data->GetWorld()==GetWorld() && !UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(GetWorld());
 }
 bool URogueliteNavigationReadinessComponent::Start(float GeometrySeconds)
 {
     Cancel();Report={};
     auto* R=Rig();if(!R || !GetWorld() || !GetWorld()->IsGameWorld() || !R->bGeometryValidated)return false;
+    ActiveEpoch=R->GetNavigationEpoch();Report.Epoch=ActiveEpoch;
     bActive=true;bPathsValidated=false;AllMovesStart=0;ActiveWorld=GetWorld();ActiveBatch=R->Batch.BatchId;StartSeconds=FPlatformTime::Seconds();
     Report.BatchId=ActiveBatch;Report.Seed=R->Batch.Seed;Report.World=GetWorld()->GetPathName();Report.State=TEXT("NavigationPending");
-    Report.LayoutDigest=R->Batch.LayoutDigest;Report.Rooms=R->Batch.Rooms.Num();Report.Corridors=R->Batch.Edges.Num();Report.GeometrySeconds=GeometrySeconds;
+    Report.LayoutDigest=R->Batch.LayoutDigest;Report.Rooms=R->Batch.Rooms.Num();Report.Corridors=R->Batch.Edges.Num()+R->GetNavigationExtraEdges().Num();Report.GeometrySeconds=GeometrySeconds;
     const auto Agent=TestAgent();Report.Agent=FVector(Agent.AgentRadius,Agent.AgentHeight,Agent.AgentStepHeight);
     Navigation=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
     if(!IsValid(Navigation) || !Navigation->IsA<URogueliteRuntimeNavigationSystem>())
@@ -49,6 +50,7 @@ bool URogueliteNavigationReadinessComponent::Start(float GeometrySeconds)
     {Fail(TEXT("NavigationFailed"),TEXT("Invalid build/move timeout or acceptance radius (legal 1..100 cm). Original settings retained."));return false;}
     for(const auto& Room:R->Batch.Rooms)Report.Coverage+=Occupancy(Room);
     for(const auto& Edge:R->Batch.Edges)if(IsValid(Edge.Corridor))Report.Coverage+=Edge.Corridor->GetWorldOccupancyBounds();
+    for(const auto& Edge:R->GetNavigationExtraEdges())if(IsValid(Edge.Corridor))Report.Coverage+=Edge.Corridor->GetWorldOccupancyBounds();
     if(!Report.Coverage.IsValid){Fail(TEXT("NavigationFailed"),TEXT("No valid parametric geometry coverage."));return false;}
     Report.Coverage=Report.Coverage.ExpandBy(FVector(150,150,300));
     FActorSpawnParameters P;P.Owner=R;P.ObjectFlags|=RF_Transient;
@@ -73,7 +75,7 @@ void URogueliteNavigationReadinessComponent::NavigationGenerated(ANavigationData
 }
 void URogueliteNavigationReadinessComponent::CheckBuild()
 {
-    if(!Current()){Cancel();return;}
+    if(!Current()){if(bActive&&Rig()&&Rig()->Batch.BatchId==ActiveBatch&&Rig()->bGeometryValidated)Fail(TEXT("NavigationFailed"),TEXT("Current World/GraphRevision/GeometryRevision epoch changed; prior asynchronous result rejected."));else Cancel();return;}
     ++Report.BoundedChecks;
     const double Elapsed=FPlatformTime::Seconds()-StartSeconds;
     if(Elapsed>BuildTimeoutSeconds){Fail(TEXT("NavigationTimedOut"),FString::Printf(TEXT("Bounded NavMesh wait exceeded %.3f seconds: Events=%d Checks=%d BusyOrLocked=%d NavData=%s. No Ready claim."),
@@ -172,6 +174,17 @@ bool URogueliteNavigationReadinessComponent::ValidatePaths()
             {Passed=Query(TEXT("MainToChallenge"),Branch.AttachmentNodeId,Node) && Passed;AddMove(TEXT("MainToChallenge"),Branch.AttachmentNodeId,Node);}
         }
     }
+    if(Rig()->RequiresPhysicalCorridorNavigation())
+    {
+        for(int32 Index=0;Index<Rig()->Batch.Edges.Num();++Index)
+            Passed=AppendPhysicalCorridor(Rig()->Batch.Edges[Index],false,Index==0)&&Passed;
+        for(const auto& Edge:Rig()->GetNavigationExtraEdges())
+        {
+            Passed=Query(TEXT("LoopForward"),Edge.ParentNode,Edge.ChildNode,Edge.EdgeId)&&Passed;
+            Passed=Query(TEXT("LoopReverse"),Edge.ChildNode,Edge.ParentNode,Edge.EdgeId)&&Passed;
+            Passed=AppendPhysicalCorridor(Edge,true,true)&&Passed;
+        }
+    }
     return Passed && !Report.Moves.IsEmpty();
 }
 void URogueliteNavigationReadinessComponent::ReleaseTestObjects()
@@ -213,25 +226,51 @@ void URogueliteNavigationReadinessComponent::NextMove()
     if(!FMath::IsNearlyEqual(Actual.AgentRadius,Report.Agent.X) || !FMath::IsNearlyEqual(Actual.AgentHeight,Report.Agent.Y)
         || Navigation->GetNavDataForProps(Actual,Character->GetActorLocation())!=Data)
     {Fail(TEXT("NavigationUnavailable"),TEXT("Actual possessed Character agent/NavData differs from validated test agent."));return;}
-    FAIMoveRequest Request;Request.SetGoalLocation(E.Goal);Request.SetUsePathfinding(true);Request.SetAllowPartialPath(false);
+    MoveLeg=0;MoveStart=FPlatformTime::Seconds();E.CharacterPath=Character->GetPathName();StartMoveLeg();
+}
+void URogueliteNavigationReadinessComponent::StartMoveLeg()
+{
+    if(!Current()||!IsValid(Character)||!IsValid(Controller))return;
+    auto& E=Report.Moves[MoveIndex];const FVector Goal=E.bCorridorRoute?E.RequiredCheckpoints[MoveLeg]:E.Goal;
+    FAIMoveRequest Request;Request.SetGoalLocation(Goal);Request.SetUsePathfinding(true);Request.SetAllowPartialPath(false);
     Request.SetProjectGoalLocation(false);Request.SetAcceptanceRadius(AcceptanceRadius);Request.SetReachTestIncludesAgentRadius(false);Request.SetReachTestIncludesGoalRadius(false);
-    MoveStart=FPlatformTime::Seconds();FNavPathSharedPtr Path;
+    FNavPathSharedPtr Path;
     const auto Result=Controller->MoveTo(Request,&Path);ActiveRequest=Result.MoveId.GetID();E.RequestId=ActiveRequest;
     if(Result.Code!=EPathFollowingRequestResult::RequestSuccessful || !Path.IsValid() || Path->IsPartial() || Path->GetNavigationDataUsed()!=Data)
     {E.Result=FString::Printf(TEXT("Request rejected Code=%d; issuing a request is not arrival success."),int32(Result.Code));Fail(TEXT("NavigationFailed"),E.Result);return;}
-    bWaitingForMove=true;GetWorld()->GetTimerManager().SetTimer(MoveTimer,this,&URogueliteNavigationReadinessComponent::CheckMove,.25,true);
+    bWaitingForMove=true;GetWorld()->GetTimerManager().SetTimer(MoveTimer,this,&URogueliteNavigationReadinessComponent::CheckMove,E.bCorridorRoute?.1f:.25f,true);
     UE_LOG(LogRoguelitePrototype,Display,TEXT("B3B_MOVETO_BEGIN Batch=%s Test=%s Node=%d->%d Request=%u Start=%s Goal=%s PathPoints=%d"),
         *Report.BatchId.ToString(),*E.Test,E.FromNode,E.ToNode,ActiveRequest,*E.Start.ToString(),*E.Goal.ToString(),Path->GetPathPoints().Num());
+    if(E.bCorridorRoute)E.LegRequestIds.Add(int32(ActiveRequest));
 }
+
 void URogueliteNavigationReadinessComponent::MoveCompleted(ARogueliteNavigationTestController* Source,FGuid Id,uint32 Request,const FPathFollowingResult& Result)
 {
     if(!Current() || !bWaitingForMove || Id!=ActiveBatch || Source!=Controller || Source->GetWorld()!=ActiveWorld.Get() || Request!=ActiveRequest)return;
     bWaitingForMove=false;auto& E=Report.Moves[MoveIndex];E.ActualFeet=Character->GetActorLocation()-FVector(0,0,Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-    E.Distance2D=FVector::Dist2D(E.ActualFeet,E.Goal);E.Duration=FPlatformTime::Seconds()-MoveStart;E.Result=Result.ToString();
-    E.bSucceeded=Result.IsSuccess() && E.Distance2D<=AcceptanceRadius+.5f && FMath::Abs(E.ActualFeet.Z-E.Goal.Z)<50;
+    const FVector Goal=E.bCorridorRoute?E.RequiredCheckpoints[MoveLeg]:E.Goal;
+    SampleCorridor();E.Distance2D=FVector::Dist2D(E.ActualFeet,Goal);E.Duration=FPlatformTime::Seconds()-MoveStart;E.Result=Result.ToString();
+    E.bSucceeded=Result.IsSuccess() && E.Distance2D<=AcceptanceRadius+.5f && FMath::Abs(E.ActualFeet.Z-Goal.Z)<50;
     UE_LOG(LogRoguelitePrototype,Display,TEXT("B3B_MOVETO_END Batch=%s Test=%s Request=%u Result=%s ActualFeet=%s Distance2D=%.3f Acceptance=%.1f Seconds=%.3f Success=%d"),
         *Report.BatchId.ToString(),*E.Test,Request,*E.Result,*E.ActualFeet.ToString(),E.Distance2D,AcceptanceRadius,E.Duration,E.bSucceeded);
     if(!E.bSucceeded){Fail(TEXT("NavigationFailed"),TEXT("Actual MoveTo completion/arrival failed: ")+E.Test+TEXT(" ")+E.Result);return;}
+    if(E.bCorridorRoute)
+    {
+        E.ActualCheckpoints.Add(E.ActualFeet);
+        UE_LOG(LogRoguelitePrototype,Display,TEXT("B4B3_CHECKPOINT Batch=%s Character=%s Test=%s Leg=%d Request=%u ActualFeet=%s Goal=%s"),
+            *ActiveBatch.ToString(),*E.CharacterPath,*E.Test,MoveLeg,Request,*E.ActualFeet.ToString(),*Goal.ToString());
+        if(++MoveLeg<E.RequiredCheckpoints.Num())
+        {
+            E.bSucceeded=false;
+            const auto Epoch=ActiveEpoch;NextMoveTimer=GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this,[this,Epoch](){if(Current()&&Epoch==ActiveEpoch)StartMoveLeg();}));return;
+        }
+        float MinX=MAX_flt,MaxX=-MAX_flt;
+        for(const auto& Point:E.InteriorSamples){const auto Local=E.CorridorTransform.InverseTransformPosition(Point);MinX=FMath::Min(MinX,float(Local.X));MaxX=FMath::Max(MaxX,float(Local.X));}
+        E.bTraversedInterior=E.ActualCheckpoints.Num()==E.RequiredCheckpoints.Num()&&E.InteriorSamples.Num()>2
+            &&MinX<-E.CorridorHalfSize.X*.5&&MaxX>E.CorridorHalfSize.X*.5&&E.CharacterPath==GetPathNameSafe(Character);
+        if(!E.bTraversedInterior){Fail(TEXT("NavigationFailed"),TEXT("Actual single Character did not traverse the corridor interior/checkpoints: ")+E.Test);return;}
+        E.bSucceeded=true;
+    }
     ++MoveIndex;
     const FGuid ExpectedBatch=ActiveBatch;const TWeakObjectPtr<UWorld> ExpectedWorld=ActiveWorld;
     NextMoveTimer=GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this,[this,ExpectedBatch,ExpectedWorld]()
@@ -239,8 +278,9 @@ void URogueliteNavigationReadinessComponent::MoveCompleted(ARogueliteNavigationT
 }
 void URogueliteNavigationReadinessComponent::CheckMove()
 {
-    if(!Current()){Cancel();return;}
+    if(!Current()){if(bActive&&Rig()&&Rig()->Batch.BatchId==ActiveBatch&&Rig()->bGeometryValidated)Fail(TEXT("NavigationFailed"),TEXT("Current World/GraphRevision/GeometryRevision epoch changed; prior asynchronous result rejected."));else Cancel();return;}
     if(!IsValid(Character) || !IsValid(Controller)){Fail(TEXT("NavigationFailed"),TEXT("Test Character/controller disappeared during MoveTo."));return;}
+    SampleCorridor();
     if(bWaitingForMove && FPlatformTime::Seconds()-MoveStart>MoveTimeoutSeconds)
     {
         auto& E=Report.Moves[MoveIndex];E.Duration=FPlatformTime::Seconds()-MoveStart;E.ActualFeet=Character->GetActorLocation()-FVector(0,0,Report.Agent.Y*.5);
@@ -276,7 +316,8 @@ bool URogueliteNavigationReadinessComponent::RetryNavigation()
 {
     if(!Rig() || !GetWorld() || !GetWorld()->IsGameWorld())return false;
     Rig()->PublishNavigationState(Rig()->Batch.BatchId,ERogueliteDungeonBuildStage::NavigationPending,TEXT("Explicit navigation retry revokes prior Ready; geometry rechecked."));
-    if(!FRogueliteSeedLayoutAssembler::Revalidate(Rig(),Rig()->Batch))
+    Cancel();
+    if(!Rig()->RevalidateRuntimeGeometry())
     {Cancel();Rig()->PublishNavigationState(Rig()->Batch.BatchId,ERogueliteDungeonBuildStage::NavigationFailed,TEXT("Navigation retry rejected: geometry revalidation failed: ")+Rig()->Batch.Reason);Rig()->bGeometryValidated=false;return false;}
     return Start(Report.GeometrySeconds);
 }

@@ -166,3 +166,6 @@ void ARogueliteRuntimeSeedAssembly::EndPlay(const EEndPlayReason::Type Reason)
     if(GetWorld() && !GetWorld()->bIsTearingDown)ClearRuntime();
     Super::EndPlay(Reason);
 }
+
+bool ARogueliteRuntimeSeedAssembly::RevalidateRuntimeGeometry()
+{return FRogueliteSeedLayoutAssembler::Revalidate(this,Batch);}

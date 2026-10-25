@@ -402,3 +402,38 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
     R.Message = TEXT("StraightCorridor geometry, occupancy and actual Pawn capsule passed. ") + R.NavigationMessage;
     return true;
 }
+
+FRogueliteAssemblyResult ARogueliteRoomAssembly::TryRegisterRuntimePlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+    ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,FGuid SourceBatch,FName LoopCandidate)
+{
+    FRogueliteAssemblyResult R;
+    const auto Finish=[&](){PublishResult(R);return R;};
+    if(!GetWorld()||!GetWorld()->IsGameWorld()||!SourceBatch.IsValid()||!IsValid(A)||!IsValid(B)||!IsValid(C)
+        ||A->GetWorld()!=GetWorld()||B->GetWorld()!=GetWorld()||C->GetWorld()!=GetWorld())
+    {R.Message=TEXT("Runtime placed registration requires live actors in the same GameWorld; no writes.");return Finish();}
+    if(!ComputeCorridorTransforms(A,SideA,C,ERogueliteCorridorEndpoint::Start,B,SideB,R.ProposedCorridorTransform,R.ProposedTargetTransform,R.Message))return Finish();
+    if(!C->GetActorTransform().Equals(R.ProposedCorridorTransform,.0001)||!B->GetActorTransform().Equals(R.ProposedTargetTransform,.0001))
+    {R.Message=TEXT("Runtime final geometry is not already aligned; moving registered actors is forbidden.");return Finish();}
+    if(IsOccupied(A,SideA,FGuid())||IsOccupied(B,SideB,FGuid())||IsCorridorOccupied(C,FGuid()))
+    {R.Message=TEXT("Runtime socket/corridor already reserved; duplicate publication refused.");return Finish();}
+    if(!LoopCandidate.IsNone()&&(!SourceBatch.IsValid()||C->GetOwner()!=this||!C->ActorHasTag(TEXT("RogueliteFixedLoopOwned"))))
+    {R.Message=TEXT("Runtime loop ownership/source batch missing; no reservation.");return Finish();}
+    FRogueliteRoomConnection Record;Record.RoomA=A;Record.SocketA=SideA;Record.RoomB=B;Record.SocketB=SideB;
+    Record.Corridor=C;Record.EndpointA=ERogueliteCorridorEndpoint::Start;Record.EndpointB=ERogueliteCorridorEndpoint::End;Record.Mode=ERogueliteConnectionMode::StraightCorridor;
+    // The exact existing geometry/occupancy/59-Probe/capsule validator is reused, without a navigation claim.
+    if(!ValidateCorridorConnection(Record,R,true))return Finish();
+    if(R.Probes.Num()!=59||!R.bGeometryPassed||!R.bCapsulePassed)
+    {R.bSucceeded=false;R.Message=TEXT("Original C2 complete geometry/capsule evidence required.");return Finish();}
+    Record.Id=FGuid::NewGuid();Record.bOwnedFixedLoop=!LoopCandidate.IsNone();Record.LoopSourceBatchId=SourceBatch;Record.LoopCandidateId=LoopCandidate;
+    RecordValidation(Record,R);Connections.Add(Record);R.ConnectionId=Record.Id;
+    R.Message=TEXT("Runtime final placed geometry registered by original C2; no Transform/collision/mobility changed. NavigationPending.");return Finish();
+}
+
+bool ARogueliteRoomAssembly::ReleaseRuntimePlacedConnection(FGuid Id,FGuid SourceBatch)
+{
+    if(!GetWorld()||!GetWorld()->IsGameWorld()||!SourceBatch.IsValid())return false;
+    const int32 Index=Connections.IndexOfByPredicate([&](const auto& R){return R.Id==Id;});
+    if(Index==INDEX_NONE)return true;
+    if(Connections[Index].LoopSourceBatchId!=SourceBatch)return false;
+    Connections.RemoveAt(Index);return true; // No Static rebuild; whole owned batch is being discarded.
+}

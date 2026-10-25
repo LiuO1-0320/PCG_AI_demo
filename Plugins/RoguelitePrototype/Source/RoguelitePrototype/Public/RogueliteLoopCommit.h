@@ -30,6 +30,7 @@ USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteCommittedLoopBatch
 {
     GENERATED_BODY()
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bRuntimePrepared=false;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FGuid SourceBatchId;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString BaseGraphDigest;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString BaseLayoutDigest;

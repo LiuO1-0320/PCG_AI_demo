@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "RogueliteLoopCommit.h"
+#include "RoguelitePreparedTemplates.h"
 #include "RogueliteLoopAwarePlanning.generated.h"
 
 /** Separate spatial version. It never changes the RoomGraph algorithm version. */
@@ -110,6 +111,11 @@ public:
     static FRogueliteLoopPlanningSettings LoopSettings(const FRogueliteLoopAwareSettings& Settings);
     static FRogueliteLoopAwareSpatialPlan Plan(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,
         const FRogueliteLoopAwareSettings& Settings,const FTransform& Start);
+    // Separate GameWorld entry. Only consumes sealed prepared data, never the Editor probe path.
+    static FRogueliteLoopAwareSpatialPlan PlanRuntime(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,
+        const FRogueliteLoopAwareSettings& Settings,const FTransform& Start,const FRoguelitePreparedTemplateCatalog& Catalog);
+    static bool IsRuntimeCurrent(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& Settings,
+        const FRogueliteLoopAwareSpatialPlan& Plan,const FRoguelitePreparedTemplateCatalog& Catalog,FString& Reason);
     static bool IsCurrent(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,
         const FRogueliteLoopAwareSettings& Settings,const FRogueliteLoopAwareSpatialPlan& Plan,FString& Reason);
     static bool MaterializeEditor(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,

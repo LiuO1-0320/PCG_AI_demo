@@ -96,7 +96,8 @@ void ARogueliteRuntimeSeedAssembly::RunRuntimeChecks()
 void ARogueliteRuntimeSeedAssembly::RunEditorRegression()
 {
     if(!GetWorld() || GetWorld()->IsGameWorld() || (GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeSeedAssembly_Dev")
-        && GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeNavigation_Dev")))return;
+        && GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeNavigation_Dev")
+        && GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeLoopNavigation_Dev")))return;
     EditorRegressionEvidence.Reset();bool Passed=true;
     const auto Check=[&](const FString& Name,bool OK){Passed&=OK;EditorRegressionEvidence.Add((OK?TEXT("PASS "):TEXT("FAIL "))+Name);};
     auto S=Settings;S.Seed=2;S.bCheckNavigation=false;

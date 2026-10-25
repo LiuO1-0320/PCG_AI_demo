@@ -195,14 +195,14 @@ bool FRogueliteLoopAwarePlanner::ValidateSettings(const FRogueliteLoopAwareSetti
     if(S.MaxTreeCorridorLength<S.MinTreeCorridorLength||S.MaxLoopCorridorLength<S.MinLoopCorridorLength){Reason=TEXT("InvertedLengthLimits");return false;}
     auto L=LoopSettings(S);return FRogueliteLoopPlanner::ValidateSettings(L,Reason);
 }
-FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start)
+static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start,const FRoguelitePreparedTemplateCatalog* Prepared)
 {
-    FRogueliteLoopAwareSpatialPlan P;auto& E=P.Evidence;E.Seed=Source.Seed;E.DerivedSpatialSeed=SpatialSeed(Source.Seed,S.ConfigVersion);E.SpatialPlanningVersion=S.SpatialPlanningVersion;E.MinLoops=S.MinLoops;E.MaxLoops=S.MaxLoops;
+    FRogueliteLoopAwareSpatialPlan P;auto& E=P.Evidence;E.Seed=Source.Seed;E.DerivedSpatialSeed=FRogueliteLoopAwarePlanner::SpatialSeed(Source.Seed,S.ConfigVersion);E.SpatialPlanningVersion=S.SpatialPlanningVersion;E.MinLoops=S.MinLoops;E.MaxLoops=S.MaxLoops;
     P.Start=Start;P.Owner=Owner;P.World=IsValid(Owner)?Owner->GetWorld():nullptr;P.AuthoringOwnerTransform=IsValid(Owner)?Owner->GetActorTransform():FTransform::Identity;P.SourceSettingsDigest=G::StableTextDigest(SettingsText(Source,S));
     const auto Fail=[&](const FString& Stage,const FString& Why){E.Stage=Stage;E.Reason=Why;E.bCleanupComplete=true;P.Tree.bValid=false;return MoveTemp(P);};
-    if(!Editor(Owner)||!Rigid(Start)||Source.AlgorithmVersion!=2||!ValidateSettings(S,E.Reason))return Fail(TEXT("InvalidInputs"),E.Reason.IsEmpty()?TEXT("Editor, rigid Start and normal V2 graph required."):E.Reason);
+    if(!(Prepared?(IsValid(Owner)&&Owner->GetWorld()&&Owner->GetWorld()->IsGameWorld()):Editor(Owner))||!Rigid(Start)||Source.AlgorithmVersion!=2||!FRogueliteLoopAwarePlanner::ValidateSettings(S,E.Reason))return Fail(TEXT("InvalidInputs"),E.Reason.IsEmpty()?TEXT("Editor, rigid Start and normal V2 graph required."):E.Reason);
     P.SourceGeometryDigest=WorldDigest(Owner);P.Tree.Metadata.Seed=Source.Seed;P.Tree.Metadata.BatchId=FGuid::NewGuid();Inputs I;
-    if(!BuildInputs(Owner,Source,P.Tree.Metadata,I,E.Reason)){E.GraphDigest=P.Tree.Metadata.GraphDigest;return Fail(P.Tree.Metadata.GraphDigest.IsEmpty()?TEXT("GraphRejected"):TEXT("CatalogOrRoomTypeRejected"),E.Reason);}
+    if(!BuildInputs(Owner,Source,P.Tree.Metadata,I,E.Reason,Prepared)){E.GraphDigest=P.Tree.Metadata.GraphDigest;return Fail(P.Tree.Metadata.GraphDigest.IsEmpty()?TEXT("GraphRejected"):TEXT("CatalogOrRoomTypeRejected"),E.Reason);}
     P.SourceCatalogDigest=P.Tree.Metadata.ConfigurationDigest;P.Tree.Graph=I.Graph;P.Tree.bGraphGenerated=true;E.GraphDigest=I.Graph.StableDigest;E.RoomCount=I.Graph.Nodes.Num();E.TreeEdgeCount=I.Graph.Edges.Num();
     if(E.RoomCount>32)return Fail(TEXT("InvalidInputs"),TEXT("Bounded planner currently accepts at most32 nodes; no topology changed."));
     FString Types;TArray<int32> Caps;
@@ -211,9 +211,9 @@ FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,co
     TArray<FRogueliteLoopIntent> Intents;
     if(S.MaxLoops>0)
     {
-        auto Query=FRogueliteLoopPlanner::Topology(I.Graph,Caps,LoopSettings(S));
+        auto Query=FRogueliteLoopPlanner::Topology(I.Graph,Caps,FRogueliteLoopAwarePlanner::LoopSettings(S));
         for(const auto& C:Query.Candidates)if(C.bTopologyValid)
-        {FRogueliteLoopIntent Intent;Intent.NodeA=C.NodeA;Intent.NodeB=C.NodeB;Intent.TreeDistance=C.TreeDistance;Intent.TreePath=TreePath(I.Graph,C.NodeA,C.NodeB);Intent.RequiredCapacityA=I.Graph.Nodes[C.NodeA].Degree+1;Intent.RequiredCapacityB=I.Graph.Nodes[C.NodeB].Degree+1;Intent.DerivedSpatialSeed=E.DerivedSpatialSeed;Intent.StableId=FName(*G::StableTextDigest(FString::Printf(TEXT("LoopIntentSpatial2|%s|%d,%d|%d"),*E.GraphDigest,C.NodeA,C.NodeB,S.ConfigVersion)));Intent.Priority=SpatialSeed(Source.Seed,S.ConfigVersion,C.NodeA*256+C.NodeB);Intents.Add(Intent);}
+        {FRogueliteLoopIntent Intent;Intent.NodeA=C.NodeA;Intent.NodeB=C.NodeB;Intent.TreeDistance=C.TreeDistance;Intent.TreePath=TreePath(I.Graph,C.NodeA,C.NodeB);Intent.RequiredCapacityA=I.Graph.Nodes[C.NodeA].Degree+1;Intent.RequiredCapacityB=I.Graph.Nodes[C.NodeB].Degree+1;Intent.DerivedSpatialSeed=E.DerivedSpatialSeed;Intent.StableId=FName(*G::StableTextDigest(FString::Printf(TEXT("LoopIntentSpatial2|%s|%d,%d|%d"),*E.GraphDigest,C.NodeA,C.NodeB,S.ConfigVersion)));Intent.Priority=FRogueliteLoopAwarePlanner::SpatialSeed(Source.Seed,S.ConfigVersion,C.NodeA*256+C.NodeB);Intents.Add(Intent);}
         Intents.Sort([](const auto& A,const auto& B){return A.Priority!=B.Priority?A.Priority<B.Priority:A.StableId.ToString()<B.StableId.ToString();});if(Intents.Num()>S.MaxLoopIntentCandidates)Intents.SetNum(S.MaxLoopIntentCandidates);
         E.Intents=Intents;
         if(Intents.IsEmpty()&&S.MinLoops>0)return Fail(TEXT("LoopIntentUnsatisfied"),TEXT("No legal non-Final topology pair within actual template/graph degree capacity. MinLoops unchanged."));
@@ -222,7 +222,7 @@ FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,co
     const int32 SearchAttempts=S.MinLoops==0&&!Intents.IsEmpty()?S.MaxLayoutAttempts-1:S.MaxLayoutAttempts;
     for(int32 Attempt=0;Attempt<SearchAttempts&&!Solver.Exhausted;++Attempt)
     {
-        ++E.LayoutAttempts;Solver.Random.Initialize(SpatialSeed(Source.Seed,S.ConfigVersion,Attempt));P.Tree.Rooms.Reset();P.Tree.Edges.Reset();
+        ++E.LayoutAttempts;Solver.Random.Initialize(FRogueliteLoopAwarePlanner::SpatialSeed(Source.Seed,S.ConfigVersion,Attempt));P.Tree.Rooms.Reset();P.Tree.Edges.Reset();
         if(!Intents.IsEmpty())
         {auto Intent=Intents[Attempt%Intents.Num()];if(Solver.Cycle(P.Tree,Intent)){E.Intents={Intent};E.FeasibleIntentCount=1;Solved=true;break;}}
         else
@@ -244,6 +244,21 @@ FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,co
     for(const auto& C:P.Tree.Edges)Text+=FString::Printf(TEXT("|tree=%d,%d,%d,%d,%d,%s,%.3f,%s"),C.Record.EdgeId,C.Record.ParentNode,C.Record.ChildNode,uint8(C.Record.ParentSocket),uint8(C.Record.ChildSocket),*C.Profile.Id.ToString(),C.Record.CorridorLength,*Pose(C.Transform));
     for(const auto& L:E.Intents)if(L.bSpatiallyFeasible)Text+=FString::Printf(TEXT("|intent=%s,%d,%d,%d,%d,%s,%.3f,%s"),*L.StableId.ToString(),L.NodeA,L.NodeB,uint8(L.SocketA),uint8(L.SocketB),*L.CorridorProfile.ToString(),L.CorridorLength,*Pose(L.CorridorTransform));
     E.StablePlanText=Text;E.StablePlanDigest=G::StableTextDigest(Text);E.Stage=E.FeasibleIntentCount?TEXT("SpatiallyFeasibleLoop"):TEXT("TreeSpatialPlanValid");E.Reason=TEXT("Joint closure constraints and reserved envelope solved before formal Static registration; not a committed connection.");return P;
+}
+FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start)
+{return PlanWithInputs(Owner,Source,S,Start,nullptr);}
+FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::PlanRuntime(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start,const FRoguelitePreparedTemplateCatalog& Catalog)
+{return PlanWithInputs(Owner,Source,S,Start,&Catalog);}
+bool FRogueliteLoopAwarePlanner::IsRuntimeCurrent(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FRogueliteLoopAwareSpatialPlan& P,const FRoguelitePreparedTemplateCatalog& Catalog,FString& Reason)
+{
+    if(!IsValid(Owner)||!Owner->GetWorld()||!Owner->GetWorld()->IsGameWorld()||!P.Tree.bValid||!P.Unconsumed.IsValid()||!*P.Unconsumed
+        ||P.Owner.Get()!=Owner||P.World.Get()!=Owner->GetWorld()||!Owner->GetActorTransform().Equals(P.AuthoringOwnerTransform,.0001)
+        ||P.SourceSettingsDigest!=G::StableTextDigest(SettingsText(Source,S))||P.SourceGeometryDigest!=WorldDigest(Owner)||!Catalog.IsCurrent(Source,Reason))
+    {Reason=TEXT("Stale runtime plan/World/configuration/catalog/geometry; no formal actor spawned.");return false;}
+    FRogueliteSeedBatch Metadata;Inputs I;
+    if(!BuildInputs(Owner,Source,Metadata,I,Reason,&Catalog)||Metadata.ConfigurationDigest!=P.SourceCatalogDigest)
+    {Reason=TEXT("Prepared runtime descriptors or source inputs changed.");return false;}
+    return true;
 }
 bool FRogueliteLoopAwarePlanner::IsCurrent(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FRogueliteLoopAwareSpatialPlan& P,FString& Reason)
 {

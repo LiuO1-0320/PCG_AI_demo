@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "RogueliteStaticRegistrationAudit.h"
 #include "RogueliteParametricRoom.generated.h"
 
 class USceneComponent;
@@ -88,6 +89,8 @@ class ROGUELITEPROTOTYPE_API ARogueliteParametricRoom : public AActor
 public:
     ARogueliteParametricRoom();
     virtual void OnConstruction(const FTransform& Transform) override;
+    virtual void PreRegisterAllComponents() override;
+    FRogueliteStaticRegistrationAudit RuntimeRegistrationAudit;
     virtual void PostRegisterAllComponents() override;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Room Dimensions", meta=(Units="cm", ClampMin="100", UIMin="100", ToolTip="室内净长度，沿局部 X 轴；请使用尺寸属性，不要缩放整个 Actor。"))

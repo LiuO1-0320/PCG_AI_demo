@@ -113,9 +113,17 @@ void ARogueliteParametricRoom::OnConstruction(const FTransform& Transform)
     RebuildRoom();
 }
 
+void ARogueliteParametricRoom::PreRegisterAllComponents()
+{
+    // UE registers native components during PostSpawnInitialize, even for deferred Blueprint spawns.
+    if(GetWorld()&&GetWorld()->IsGameWorld()){RebuildRoom();RuntimeRegistrationAudit.Prepared(this);}
+    Super::PreRegisterAllComponents();
+}
+
 void ARogueliteParametricRoom::PostRegisterAllComponents()
 {
     Super::PostRegisterAllComponents();
+    if(GetWorld()&&GetWorld()->IsGameWorld())RuntimeRegistrationAudit.Registered(this);
     // Refresh transient socket diagnostics on map load, before play, without Tick.
     RebuildRoom();
 }
