@@ -1,10 +1,10 @@
 ﻿#include "RogueliteCompactCorridorContract.h"
 #include "RogueliteParametricCorridor.h"
-namespace {bool Length(double L){return FMath::IsFinite(L)&&L>=500&&L<=1000;}}
+namespace {bool Length(double L){return FMath::IsFinite(L)&&L>=FRogueliteCompactCorridorContract::MinCm&&L<=FRogueliteCompactCorridorContract::MaxCm;}}
 bool FRogueliteCompactCorridorContract::Configuration(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& P,FString& Why)
 {
     if(P.MinTreeCorridorLength!=MinCm||P.MaxTreeCorridorLength!=MaxCm||P.MinLoopCorridorLength!=MinCm||P.MaxLoopCorridorLength!=MaxCm||S.Corridors.IsEmpty())
-    {Why=TEXT("CompactConfigurationRejected: Tree and Loop must both use500..1000cm.");return false;}
+    {Why=TEXT("CompactConfigurationRejected: Tree and Loop must both use1200..1500cm.");return false;}
     for(const auto& C:S.Corridors){if(C.LengthCandidates.IsEmpty()){Why=TEXT("CompactEmptyLengthCandidates");return false;}for(float L:C.LengthCandidates)if(!Length(L)){Why=TEXT("CompactCandidateLengthOutOfRange");return false;}}
     Why=TEXT("Compact shared limits and candidates verified.");return true;
 }
@@ -13,7 +13,7 @@ bool FRogueliteCompactCorridorContract::Plan(const FRogueliteLoopAwareSpatialPla
     if(!P.Tree.bValid){Why=TEXT("CompactPlanInvalid");return false;}
     for(const auto& E:P.Tree.Edges)if(!Length(E.Record.CorridorLength)){Why=FString::Printf(TEXT("CompactPlannedTreeOutOfRange Edge=%d Length=%.6f"),E.Record.EdgeId,E.Record.CorridorLength);return false;}
     for(const auto& E:P.Evidence.Intents)if(E.bSpatiallyFeasible&&!Length(E.CorridorLength)){Why=TEXT("CompactPlannedLoopOutOfRange");return false;}
-    Why=TEXT("All planned Tree/Loop lengths within500..1000cm.");return true;
+    Why=TEXT("All planned Tree/Loop lengths within1200..1500cm.");return true;
 }
 bool FRogueliteCompactCorridorContract::Actual(const FRogueliteSeedBatch& B,const FRogueliteCommittedLoopBatch& L,TArray<FRogueliteCompactCorridorMeasurement>& Out,FString& Why)
 {
@@ -32,5 +32,5 @@ bool FRogueliteCompactCorridorContract::Actual(const FRogueliteSeedBatch& B,cons
     };
     for(const auto& E:B.Edges)Inspect(E.EdgeId,false,E.ParentNode,E.ParentSocket,E.ChildNode,E.ChildSocket,E.Corridor);
     for(const auto& E:L.Edges)Inspect(E.EdgeId,true,E.NodeA,E.SocketA,E.NodeB,E.SocketB,E.Corridor);
-    Why=Good?TEXT("All actual Tree/CommittedLoop corridors within500..1000cm."):TEXT("CompactActualLengthRejected");for(const auto& M:Out)if(!M.bPassed)Why+=TEXT(" | ")+M.Reason;return Good;
+    Why=Good?TEXT("All actual Tree/CommittedLoop corridors within1200..1500cm."):TEXT("CompactActualLengthRejected");for(const auto& M:Out)if(!M.bPassed)Why+=TEXT(" | ")+M.Reason;return Good;
 }

@@ -1,5 +1,6 @@
 #include "RogueliteRuntimeSeedAssembly.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "RoguelitePrototype.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
@@ -42,6 +43,7 @@ FRogueliteSeedBatch FRogueliteRuntimeSeedAssembler::SpawnPlannedActors(AActor* O
             auto* Room=CastChecked<ARogueliteRoomTemplate>(Actor);
             Room->RoomLength=R.Record.Dimensions.X;Room->RoomWidth=R.Record.Dimensions.Y;Room->RoomHeight=R.Record.Dimensions.Z;
             Room->WallThickness=R.Record.WallThickness;Room->FloorThickness=R.Record.FloorThickness;
+            RogueliteGenerationGeometry::ApplyPlannedDoors(Room,R.Record);
             Room->NorthDoor.bEnabled=OpenSide(R,ERogueliteRoomSide::North);Room->SouthDoor.bEnabled=OpenSide(R,ERogueliteRoomSide::South);
             Room->EastDoor.bEnabled=OpenSide(R,ERogueliteRoomSide::East);Room->WestDoor.bEnabled=OpenSide(R,ERogueliteRoomSide::West);
         });
@@ -65,6 +67,7 @@ FRogueliteSeedBatch FRogueliteRuntimeSeedAssembler::SpawnPlannedActors(AActor* O
             auto* Corridor=CastChecked<ARogueliteParametricCorridor>(Actor);Corridor->CorridorLength=E.Record.CorridorLength;
             Corridor->CorridorWidth=E.Profile.Width;Corridor->CorridorHeight=E.Profile.Height;Corridor->WallThickness=E.Profile.WallThickness;
             Corridor->FloorThickness=E.Profile.FloorThickness;Corridor->DoorWidth=E.Profile.DoorWidth;Corridor->DoorHeight=E.Profile.DoorHeight;
+            Corridor->bGenerateCeiling=E.Profile.bGenerateCeiling;
         });
         if(!C)return Failed(Owner,B,TEXT("Planned corridor deferred spawn failed."));
         B.OwnedActors.Add(C);const auto Initial=C->GetActorTransform();C->FinishSpawning(E.Transform);

@@ -6,17 +6,27 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Components/ArrowComponent.h"
 #endif
 #if WITH_EDITOR
+#include "Editor.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #endif
 
 namespace
 {
+    bool IsCeilingPIEEdit()
+    {
+#if WITH_EDITOR
+        return GEditor && GEditor->PlayWorld;
+#else
+        return false;
+#endif
+    }
     void UpdateCorridorMesh(UStaticMeshComponent* Component, const FVector& Center, const FVector& Size, bool bActive = true)
     {
         if (!Component) return;
@@ -213,6 +223,13 @@ void ARogueliteParametricCorridor::UpdateEndFrame(int32 Index, bool bOpeningVali
 
 void ARogueliteParametricCorridor::RebuildCorridor()
 {
+    if (bHasBuiltCeiling && bGenerateCeiling != bLastBuiltCeiling
+        && (IsCeilingPIEEdit() || (GetWorld() && GetWorld()->IsGameWorld() && CorridorRoot->IsRegistered())))
+    {
+        bGenerateCeiling = bLastBuiltCeiling;
+        UE_LOG(LogRoguelitePrototype, Warning, TEXT("HF03B_CEILING_EDIT_REJECTED Corridor=%s: stop PIE before changing the ceiling; geometry unchanged."), *GetPathName());
+        return;
+    }
     ValidationWarnings.Reset();
     bHasPassageTestResult = false;
     bPassageTestPassed = false;
@@ -229,12 +246,14 @@ void ARogueliteParametricCorridor::RebuildCorridor()
         UpdateCorridorMesh(ShellMeshes[0], FVector(0, 0, -FloorThickness * 0.5f), FVector(CorridorLength, CorridorWidth + 2 * WallThickness, FloorThickness));
         UpdateCorridorMesh(ShellMeshes[1], FVector(0, -(CorridorWidth + WallThickness) * 0.5f, CorridorHeight * 0.5f), FVector(CorridorLength, WallThickness, CorridorHeight));
         UpdateCorridorMesh(ShellMeshes[2], FVector(0, (CorridorWidth + WallThickness) * 0.5f, CorridorHeight * 0.5f), FVector(CorridorLength, WallThickness, CorridorHeight));
-        UpdateCorridorMesh(ShellMeshes[3], FVector(0, 0, CorridorHeight + WallThickness * 0.5f), FVector(CorridorLength, CorridorWidth + 2 * WallThickness, WallThickness));
+        UpdateCorridorMesh(ShellMeshes[3], FVector(0, 0, CorridorHeight + WallThickness * 0.5f), FVector(CorridorLength, CorridorWidth + 2 * WallThickness, WallThickness), bGenerateCeiling);
         const bool bOpeningValid = ValidateOpening(Reason);
         if (!bOpeningValid) ValidationWarnings.Add(Reason);
         UpdateEndFrame(0, bOpeningValid);
         UpdateEndFrame(1, bOpeningValid);
     }
+    bLastBuiltCeiling = bGenerateCeiling;
+    bHasBuiltCeiling = true;
     StartSocket = CalculateSocket(ERogueliteCorridorEndpoint::Start);
     EndSocket = CalculateSocket(ERogueliteCorridorEndpoint::End);
 #if WITH_EDITORONLY_DATA
@@ -315,14 +334,27 @@ void ARogueliteParametricCorridor::CheckPassage()
 }
 
 #if WITH_EDITOR
+bool ARogueliteParametricCorridor::CanEditChange(const FProperty* InProperty) const
+{
+    if (InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ARogueliteParametricCorridor, bGenerateCeiling)
+        && (IsCeilingPIEEdit() || (GetWorld() && GetWorld()->IsGameWorld()))) return false;
+    return Super::CanEditChange(InProperty);
+}
+
 void ARogueliteParametricCorridor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+    if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ARogueliteParametricCorridor, bGenerateCeiling)
+        && !CanEditChange(PropertyChangedEvent.Property))
+    { bGenerateCeiling = bLastBuiltCeiling; return; }
     Super::PostEditChangeProperty(PropertyChangedEvent);
     RebuildCorridor();
 }
 
 void ARogueliteParametricCorridor::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+    if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ARogueliteParametricCorridor, bGenerateCeiling)
+        && !CanEditChange(PropertyChangedEvent.Property))
+    { bGenerateCeiling = bLastBuiltCeiling; return; }
     Super::PostEditChangeChainProperty(PropertyChangedEvent);
     RebuildCorridor();
 }

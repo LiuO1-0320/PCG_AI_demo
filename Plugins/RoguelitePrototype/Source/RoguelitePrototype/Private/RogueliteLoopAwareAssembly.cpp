@@ -1,5 +1,6 @@
 #include "RogueliteLoopAwarePlanning.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "RoguelitePrototype.h"
 #include "Engine/World.h"
 
@@ -48,6 +49,7 @@ bool FRogueliteLoopAwarePlanner::MaterializeEditor(AActor* Owner,const FRoguelit
         auto* A=Deferred<ARogueliteRoomTemplate>(Owner,R.Record.TemplateClass.Get(),R.Record.PlacedTransform,B.BatchId,[R](AActor* Actor)
         {
             auto* Room=CastChecked<ARogueliteRoomTemplate>(Actor);Room->RoomLength=R.Record.Dimensions.X;Room->RoomWidth=R.Record.Dimensions.Y;Room->RoomHeight=R.Record.Dimensions.Z;Room->WallThickness=R.Record.WallThickness;Room->FloorThickness=R.Record.FloorThickness;
+            RogueliteGenerationGeometry::ApplyPlannedDoors(Room,R.Record);
             Room->NorthDoor.bEnabled=R.UsedSockets.Contains(ERogueliteRoomSide::North);Room->SouthDoor.bEnabled=R.UsedSockets.Contains(ERogueliteRoomSide::South);Room->EastDoor.bEnabled=R.UsedSockets.Contains(ERogueliteRoomSide::East);Room->WestDoor.bEnabled=R.UsedSockets.Contains(ERogueliteRoomSide::West);
         });
         if(!A)return Fail(TEXT("TreeEntitySpawnFailed"),FString::Printf(TEXT("Node=%d deferred room allocation failed."),R.Record.NodeId));
@@ -59,7 +61,7 @@ bool FRogueliteLoopAwarePlanner::MaterializeEditor(AActor* Owner,const FRoguelit
     for(const auto& R:P.Tree.Edges)
     {
         auto* C=Deferred<ARogueliteParametricCorridor>(Owner,ARogueliteParametricCorridor::StaticClass(),R.Transform,B.BatchId,[R](AActor* Actor)
-        {auto* C=CastChecked<ARogueliteParametricCorridor>(Actor);C->CorridorLength=R.Record.CorridorLength;C->CorridorWidth=R.Profile.Width;C->CorridorHeight=R.Profile.Height;C->WallThickness=R.Profile.WallThickness;C->FloorThickness=R.Profile.FloorThickness;C->DoorWidth=R.Profile.DoorWidth;C->DoorHeight=R.Profile.DoorHeight;});
+        {auto* C=CastChecked<ARogueliteParametricCorridor>(Actor);C->CorridorLength=R.Record.CorridorLength;C->CorridorWidth=R.Profile.Width;C->CorridorHeight=R.Profile.Height;C->WallThickness=R.Profile.WallThickness;C->FloorThickness=R.Profile.FloorThickness;C->DoorWidth=R.Profile.DoorWidth;C->DoorHeight=R.Profile.DoorHeight;C->bGenerateCeiling=R.Profile.bGenerateCeiling;});
         if(!C)return Fail(TEXT("TreeEntitySpawnFailed"),TEXT("Corridor deferred allocation failed."));B.OwnedActors.Add(C);const auto Initial=C->GetActorTransform();C->FinishSpawning(R.Transform);
         if(!Initial.Equals(R.Transform,.0001)||!C->GetActorTransform().Equals(R.Transform,.0001)||!SameBox(C->GetWorldOccupancyBounds(),R.Occupancy))return Fail(TEXT("CorridorPlanMismatch"),TEXT("Actual C1 corridor bounds/pose differ from planned descriptor."));
         auto Row=R.Record;Row.Corridor=C;B.Edges.Add(Row);
@@ -70,8 +72,8 @@ bool FRogueliteLoopAwarePlanner::MaterializeEditor(AActor* Owner,const FRoguelit
         auto* A=B.Rooms.FindByPredicate([&](const auto& R){return R.NodeId==Edge.ParentNode;});auto* Target=B.Rooms.FindByPredicate([&](const auto& R){return R.NodeId==Edge.ChildNode;});
         if(!A||!Target)return Fail(TEXT("TreeC2Failed"),TEXT("Missing real node mapping."));
         const auto BeforeA=A->Room->GetActorTransform(),BeforeB=Target->Room->GetActorTransform(),BeforeC=Edge.Corridor->GetActorTransform();
-        Edge.Validation=Registry->TryAlignCorridorConnection(A->Room,Edge.ParentSocket,Edge.Corridor,ERogueliteCorridorEndpoint::Start,Target->Room,Edge.ChildSocket);Edge.ConnectionId=Edge.Validation.ConnectionId;
-        if(!Edge.Validation.bSucceeded||!Edge.Validation.bGeometryPassed||!Edge.Validation.bCapsulePassed||Edge.Validation.Probes.Num()!=59||!A->Room->GetActorTransform().Equals(BeforeA,.0001)||!Target->Room->GetActorTransform().Equals(BeforeB,.0001)||!Edge.Corridor->GetActorTransform().Equals(BeforeC,.0001))
+        Edge.Validation=RogueliteGenerationGeometry::IsLegacyDefaults(Source)?Registry->TryAlignCorridorConnection(A->Room,Edge.ParentSocket,Edge.Corridor,ERogueliteCorridorEndpoint::Start,Target->Room,Edge.ChildSocket):Registry->TryRegisterConfiguredPlacedConnection(A->Room,Edge.ParentSocket,Edge.Corridor,Target->Room,Edge.ChildSocket,B.BatchId);Edge.ConnectionId=Edge.Validation.ConnectionId;
+        if(!Registry->HasCompleteCorridorEvidence(A->Room,Edge.ParentSocket,Edge.Corridor,Target->Room,Edge.ChildSocket,Edge.Validation)||!A->Room->GetActorTransform().Equals(BeforeA,.0001)||!Target->Room->GetActorTransform().Equals(BeforeB,.0001)||!Edge.Corridor->GetActorTransform().Equals(BeforeC,.0001))
         {B.FailedEdge=Edge.EdgeId;B.FailureValidation=Edge.Validation;return Fail(TEXT("TreeC2Failed"),Edge.Validation.Message);}
     }
     if(!FRogueliteSeedLayoutAssembler::Revalidate(Owner,B))return Fail(TEXT("TreeC2Failed"),B.Reason);
@@ -100,6 +102,10 @@ bool FRogueliteLoopAwarePlanner::MaterializeEditor(AActor* Owner,const FRoguelit
         if(!E.CommitResult.bSucceeded)return Fail(TEXT("FixedLoopC2CommitFailed"),E.CommitResult.Reason);
         E.CommittedLoops=L.Edges.Num();E.bC2Validated=E.CommitResult.bC2Validated;
         if(Fault==ERogueliteLoopAwareTestFault::CancelAfterLoop)return Fail(TEXT("CancelledAfterLoop"),TEXT("Controlled cancellation after actual C2 Loop publication; loops-first owned rollback required."));
+        // Opening a loop changes which perimeter walls are closed. Refresh every
+        // configured connection's actual probes; do not reuse pre-loop Open evidence.
+        if(!RogueliteGenerationGeometry::IsLegacyDefaults(Source))
+        {FString Fresh;if(!FRogueliteLoopCommitQueries::Revalidate(Owner,B,L,Fresh))return Fail(TEXT("PostLoopPhysicalRevalidationFailed"),Fresh);}
         const auto Snapshot=FRogueliteLoopCommitQueries::Capture(Owner,B,Source,L);E.IndependentCycles=Snapshot.IndependentCycles;E.TraversalDigest=Snapshot.StableDigest;
         if(!Snapshot.bCurrent||!Snapshot.bGeometryValidated||Snapshot.bNavigationReady||E.IndependentCycles!=1||Snapshot.Edges.Num()!=B.Rooms.Num())return Fail(TEXT("TraversalMismatch"),Snapshot.Reason);
     }

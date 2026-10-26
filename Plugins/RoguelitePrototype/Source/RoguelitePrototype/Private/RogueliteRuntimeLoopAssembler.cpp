@@ -1,5 +1,6 @@
 #include "RogueliteRuntimeLoopAssembly.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "RogueliteBranchingTestSettings.h"
 #include "RoguelitePrototype.h"
 #include "Engine/World.h"
@@ -102,6 +103,21 @@ bool FRogueliteRuntimeLoopAssembler::Revalidate(AActor* Owner,FRogueliteSeedBatc
     Good=Good&&Current(Owner,B,S,L);Reason=Good?TEXT("Actual Runtime Tree+Loop C2 revalidated; strict navigation must run again."):TEXT("Runtime actual geometry/C2/ports no longer valid.");return Good;
 }
 
+bool FRogueliteRuntimeLoopAssembler::RevalidateConfigured(AActor* Owner,FRogueliteSeedBatch& B,const FRogueliteSeedLayoutSettings& S,
+    FRogueliteCommittedLoopBatch& L,FString& Reason)
+{
+    if(!Game(Owner)||!L.bRuntimePrepared||L.SourceBatchId!=B.BatchId||!IsValid(B.Registry))
+    {Reason=TEXT("Configured runtime World/batch/registry unavailable; no geometry changed.");return false;}
+    bool Good=true;
+    for(auto& E:B.Edges){E.Validation=B.Registry->RevalidateConfiguredConnection(E.ConnectionId);Good&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
+    for(auto& E:L.Edges){E.Validation=B.Registry->RevalidateConfiguredConnection(E.ConnectionId);Good&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
+    B.bGeometryValid=Good;B.Navigation=ERogueliteNavigationCheck::NotChecked;++L.GeometryRevision;
+    L.GeometryDigest=Good?FRogueliteLoopCommitQueries::GeometryDigest(Owner,B,L):FString();
+    Good=Good&&Current(Owner,B,S,L);
+    Reason=Good?TEXT("Configured Runtime Tree+Loop actual C2 probes revalidated without rebuilding registered Static geometry; strict navigation must run again."):TEXT("Configured runtime C2/geometry/registration audit failed; no Static geometry rebuilt.");
+    B.Reason=Reason;return Good;
+}
+
 bool FRogueliteRuntimeLoopAssembler::Generate(AActor* Owner,const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& Planning,
     const FRoguelitePreparedTemplateCatalog& Catalog,FRogueliteSeedBatch& B,FRogueliteCommittedLoopBatch& L,
     FRogueliteRuntimeLoopResult& R,ERogueliteRuntimeLoopFault Fault)
@@ -145,7 +161,7 @@ bool FRogueliteRuntimeLoopAssembler::Generate(AActor* Owner,const FRogueliteSeed
     R.Stage=TEXT("GeometryPending");
     for(auto& E:B.Edges)
     {
-        E.Validation=B.Registry->TryRegisterRuntimePlacedConnection(Room(B,E.ParentNode),E.ParentSocket,E.Corridor,Room(B,E.ChildNode),E.ChildSocket,B.BatchId);
+        E.Validation=RogueliteGenerationGeometry::IsLegacyDefaults(S)?B.Registry->TryRegisterRuntimePlacedConnection(Room(B,E.ParentNode),E.ParentSocket,E.Corridor,Room(B,E.ChildNode),E.ChildSocket,B.BatchId):B.Registry->TryRegisterConfiguredPlacedConnection(Room(B,E.ParentNode),E.ParentSocket,E.Corridor,Room(B,E.ChildNode),E.ChildSocket,B.BatchId);
         E.ConnectionId=E.Validation.ConnectionId;R.Connections.Add(E.Validation);
         if(!E.Validation.bSucceeded)return Fail(TEXT("TreeC2Rejected"),E.Validation.Message);
     }
@@ -156,7 +172,7 @@ bool FRogueliteRuntimeLoopAssembler::Generate(AActor* Owner,const FRogueliteSeed
         FActorSpawnParameters Args;Args.Owner=B.Registry;Args.bDeferConstruction=true;Args.ObjectFlags|=RF_Transient;
         Args.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;Args.TransformScaleMethod=ESpawnActorScaleMethod::OverrideRootScale;
         const auto Values=*Profile;const float Length=I.CorridorLength;
-        Args.CustomPreSpawnInitialization=[Values,Length](AActor* A){auto* C=CastChecked<ARogueliteParametricCorridor>(A);C->CorridorLength=Length;C->CorridorWidth=Values.Width;C->CorridorHeight=Values.Height;C->WallThickness=Values.WallThickness;C->FloorThickness=Values.FloorThickness;C->DoorWidth=Values.DoorWidth;C->DoorHeight=Values.DoorHeight;};
+        Args.CustomPreSpawnInitialization=[Values,Length](AActor* A){auto* C=CastChecked<ARogueliteParametricCorridor>(A);C->CorridorLength=Length;C->CorridorWidth=Values.Width;C->CorridorHeight=Values.Height;C->WallThickness=Values.WallThickness;C->FloorThickness=Values.FloorThickness;C->DoorWidth=Values.DoorWidth;C->DoorHeight=Values.DoorHeight;C->bGenerateCeiling=Values.bGenerateCeiling;};
         PendingLoop=Owner->GetWorld()->SpawnActor<ARogueliteParametricCorridor>(ARogueliteParametricCorridor::StaticClass(),I.CorridorTransform,Args);
         if(!PendingLoop)return Fail(TEXT("LoopSpawnFailed"),TEXT("Actual runtime loop allocation failed."));
         PendingLoop->Tags.Add(TEXT("RogueliteFixedLoopOwned"));PendingLoop->Tags.Add(BatchTag(B.BatchId));PendingLoop->FinishSpawning(I.CorridorTransform);
@@ -172,7 +188,7 @@ bool FRogueliteRuntimeLoopAssembler::Generate(AActor* Owner,const FRogueliteSeed
             Obstacle->SetActorLocation(I.CorridorTransform.GetLocation()+FVector(0,0,150));Box->RegisterComponent();
             R.TestObstacle=Obstacle;
         }
-        const auto Validation=B.Registry->TryRegisterRuntimePlacedConnection(Room(B,I.NodeA),I.SocketA,PendingLoop,Room(B,I.NodeB),I.SocketB,B.BatchId,I.StableId);
+        const auto Validation=RogueliteGenerationGeometry::IsLegacyDefaults(S)?B.Registry->TryRegisterRuntimePlacedConnection(Room(B,I.NodeA),I.SocketA,PendingLoop,Room(B,I.NodeB),I.SocketB,B.BatchId,I.StableId):B.Registry->TryRegisterConfiguredPlacedConnection(Room(B,I.NodeA),I.SocketA,PendingLoop,Room(B,I.NodeB),I.SocketB,B.BatchId,I.StableId);
         R.Connections.Add(Validation);if(!Validation.bSucceeded)return Fail(TEXT("LoopC2Rejected"),Validation.Message);
         auto& Edge=L.Edges.AddDefaulted_GetRef();Edge.CandidateId=I.StableId;Edge.EdgeId=B.Edges.Num();Edge.NodeA=I.NodeA;Edge.NodeB=I.NodeB;Edge.SocketA=I.SocketA;Edge.SocketB=I.SocketB;
         Edge.ConnectionId=Validation.ConnectionId;Edge.ProfileId=I.CorridorProfile;Edge.Corridor=PendingLoop;Edge.PlanDigest=P.Evidence.StablePlanDigest;Edge.Validation=Validation;

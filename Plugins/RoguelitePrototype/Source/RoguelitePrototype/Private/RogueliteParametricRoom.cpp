@@ -200,6 +200,11 @@ bool ARogueliteParametricRoom::PreviewEnabledDoorSocket(ERogueliteRoomSide Side,
     return OutSocket.bValid;
 }
 
+ERogueliteOpeningMode ARogueliteParametricRoom::GetDoorOpeningMode(ERogueliteRoomSide Side) const
+{
+    return GetDoorConfig(Side).OpeningMode;
+}
+
 FRogueliteDoorSocket ARogueliteParametricRoom::CalculateDoorSocketWithConfig(ERogueliteRoomSide Side, const FRogueliteDoorConfig& Config) const
 {
     const bool bAlongX = Side == ERogueliteRoomSide::East || Side == ERogueliteRoomSide::West;
@@ -229,7 +234,11 @@ FRogueliteDoorSocket ARogueliteParametricRoom::CalculateDoorSocketWithConfig(ERo
 
     FString Reason;
     const float Span = bAlongX ? RoomLength : RoomWidth;
-    if (!FMath::IsFinite(Config.DoorWidth) || Config.DoorWidth < 1.0f
+    if (Config.OpeningMode != ERogueliteOpeningMode::Legacy && Config.OpeningMode != ERogueliteOpeningMode::OpenPassage)
+    {
+        Reason = TEXT("未知OpeningMode；不自动回退或修改设计数据");
+    }
+    else if (!FMath::IsFinite(Config.DoorWidth) || Config.DoorWidth < 1.0f
         || !FMath::IsFinite(Config.DoorHeight) || Config.DoorHeight < 1.0f)
     {
         Reason = TEXT("DoorWidth / DoorHeight 必须是有限且至少 1 cm 的尺寸");
@@ -243,9 +252,13 @@ FRogueliteDoorSocket ARogueliteParametricRoom::CalculateDoorSocketWithConfig(ERo
     {
         Reason = FString::Printf(TEXT("DoorWidth=%.1f 太大：墙长 %.1f，需保留两端各 %.1f cm"), Config.DoorWidth, Span, MinDoorSideWall);
     }
-    else if (Config.DoorHeight > RoomHeight - MinDoorLintelHeight)
+    else if (Config.OpeningMode == ERogueliteOpeningMode::Legacy && Config.DoorHeight > RoomHeight - MinDoorLintelHeight)
     {
         Reason = FString::Printf(TEXT("DoorHeight=%.1f 太高：墙高 %.1f，顶部需保留 %.1f cm"), Config.DoorHeight, RoomHeight, MinDoorLintelHeight);
+    }
+    else if (Config.OpeningMode == ERogueliteOpeningMode::OpenPassage && Config.DoorHeight != RoomHeight)
+    {
+        Reason = FString::Printf(TEXT("OpenPassage要求DoorHeight=RoomHeight以形成真实通顶缺口：当前 %.3f / %.3f cm；不自动改写参数"), Config.DoorHeight, RoomHeight);
     }
     else if (!Config.bAutoCenter && !FMath::IsFinite(Config.ManualOffset))
     {
@@ -331,7 +344,7 @@ void ARogueliteParametricRoom::UpdateDoorWall(ERogueliteRoomSide Side, UStaticMe
         UpdateShell(DoorRightSegments[Index], WallCenter + Tangent * ((OpeningMax + HalfSpan) * 0.5) + FVector(0, 0, RoomHeight * 0.5),
             Size(HalfSpan - OpeningMax, RoomHeight));
         UpdateShell(DoorLintelSegments[Index], WallCenter + Tangent * Socket.AppliedOffset + FVector(0, 0, (RoomHeight + Config.DoorHeight) * 0.5),
-            Size(Config.DoorWidth, RoomHeight - Config.DoorHeight));
+            Size(Config.DoorWidth, RoomHeight - Config.DoorHeight), Config.OpeningMode != ERogueliteOpeningMode::OpenPassage);
     }
 #if WITH_EDITORONLY_DATA
     if (DoorSocketMarkers.IsValidIndex(Index) && DoorSocketMarkers[Index])

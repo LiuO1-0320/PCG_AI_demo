@@ -46,8 +46,11 @@ struct ROGUELITEPROTOTYPE_API FRogueliteFloorDefinition
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Loops",meta=(ClampMin="0",ClampMax="1")) int32 MaxLoops=0;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Room Types") FRogueliteRoomTypeAssignmentSettings RoomTypes;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Templates") TArray<FRogueliteSeedTemplateOption> AllowedTemplates;
-    UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm")) float MinCorridorLength=500;
-    UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm")) float MaxCorridorLength=1000;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(DisplayName="Opening Mode")) ERogueliteOpeningMode OpeningMode=ERogueliteOpeningMode::Legacy;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(DisplayName="Generate Corridor Ceiling")) bool bGenerateCorridorCeiling=true;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm",ToolTip="Open Passage only: generated room shells and corridor clear height use 500 cm; source templates and owned POIs are unchanged.")) float OpenPassageRoomHeight=500;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm")) float MinCorridorLength=1200;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm")) float MaxCorridorLength=1500;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(Units="cm")) float CorridorWidth=500;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(Units="cm")) float CorridorHeight=350;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(Units="cm")) float WallThickness=20;

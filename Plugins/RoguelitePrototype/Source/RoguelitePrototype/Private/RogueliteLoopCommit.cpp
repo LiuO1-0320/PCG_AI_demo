@@ -1,5 +1,6 @@
 #include "RogueliteLoopCommit.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "RoguelitePrototype.h"
 #include "RogueliteNavigationTestCharacter.h"
 #include "RogueliteNavigationReadinessComponent.h"
@@ -149,7 +150,7 @@ FRogueliteFixedLoopCommitResult ARogueliteRoomAssembly::TryCommitFixedEndpointLo
     if(Q.TestFault==ERogueliteLoopCommitTestFault::Spawn)return Fail(TEXT("Injected CorridorSpawnFailed before allocation; engine-natural spawn-null outcome not claimed."));
     FActorSpawnParameters Args;Args.Owner=this;Args.ObjectFlags|=RF_Transactional;Args.bDeferConstruction=true;Args.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     const auto Settings=*Profile;Args.CustomPreSpawnInitialization=[Settings,C](AActor* Actor)
-    {auto* X=CastChecked<ARogueliteParametricCorridor>(Actor);X->CorridorLength=C.CorridorLength;X->CorridorWidth=Settings.Width;X->CorridorHeight=Settings.Height;X->WallThickness=Settings.WallThickness;X->FloorThickness=Settings.FloorThickness;X->DoorWidth=Settings.DoorWidth;X->DoorHeight=Settings.DoorHeight;};
+    {auto* X=CastChecked<ARogueliteParametricCorridor>(Actor);X->CorridorLength=C.CorridorLength;X->CorridorWidth=Settings.Width;X->CorridorHeight=Settings.Height;X->WallThickness=Settings.WallThickness;X->FloorThickness=Settings.FloorThickness;X->DoorWidth=Settings.DoorWidth;X->DoorHeight=Settings.DoorHeight;X->bGenerateCeiling=Settings.bGenerateCeiling;};
     Connector=GetWorld()->SpawnActor<ARogueliteParametricCorridor>(ARogueliteParametricCorridor::StaticClass(),C.CorridorTransform,Args);
     if(!Connector)return Fail(TEXT("CorridorSpawnFailed: engine returned null."));
     Connector->Tags.Add(OwnedLoopTag);Connector->Tags.Add(RogueliteSeedAssemblyInternal::BatchTag(B.BatchId));Connector->FinishSpawning(C.CorridorTransform);
@@ -158,11 +159,12 @@ FRogueliteFixedLoopCommitResult ARogueliteRoomAssembly::TryCommitFixedEndpointLo
     if(Q.TestFault==ERogueliteLoopCommitTestFault::Collision)Connector->SetActorEnableCollision(false);
     FRogueliteRoomConnection Record;Record.RoomA=A;Record.RoomB=Target;Record.SocketA=C.SocketA;Record.SocketB=C.SocketB;Record.Corridor=Connector;Record.EndpointA=ERogueliteCorridorEndpoint::Start;Record.EndpointB=ERogueliteCorridorEndpoint::End;Record.Mode=ERogueliteConnectionMode::StraightCorridor;
     if(!ValidateCorridorConnection(Record,R.Assembly,true))return Fail(TEXT("Actual C2 validation failed: ")+R.Assembly.Message);
+    if(!HasCompleteCorridorEvidence(A,C.SocketA,Connector,Target,C.SocketB,R.Assembly))return Fail(TEXT("Actual C2 physical coverage incomplete; no reservation published."));
     R.bC2Validated=true;R.Stage=ERogueliteLoopCommitStage::C2Validated;
     if(!TreeUnchanged())return Fail(TEXT("Original Tree changed during the fixed endpoint transaction; no publication."));
     if(Q.TestFault==ERogueliteLoopCommitTestFault::CancelAfterValidation)return Fail(TEXT("Cancelled after actual C2 validation before reservation."));
     Record.Id=FGuid::NewGuid();Record.bOwnedFixedLoop=true;Record.LoopSourceBatchId=B.BatchId;Record.LoopCandidateId=C.CandidateId;RecordValidation(Record,R.Assembly);
-    AddedId=Record.Id;Connections.Add(Record);R.Assembly.ConnectionId=AddedId;Connector->RebuildCorridor();R.bConnectionCommitted=true;
+    AddedId=Record.Id;Connections.Add(Record);R.Assembly.ConnectionId=AddedId;if(RogueliteGenerationGeometry::IsLegacyDefaults(*Q.SourceSettings))Connector->RebuildCorridor();R.bConnectionCommitted=true;
     if(Q.TestFault==ERogueliteLoopCommitTestFault::CancelAfterReservation)return Fail(TEXT("Cancelled after C2 reservation before LoopEdge publication."));
     auto& Edge=L.Edges.AddDefaulted_GetRef();Edge.CandidateId=C.CandidateId;Edge.EdgeId=B.Edges.Num();Edge.NodeA=C.NodeA;Edge.NodeB=C.NodeB;Edge.SocketA=C.SocketA;Edge.SocketB=C.SocketB;Edge.ConnectionId=AddedId;Edge.ProfileId=C.CorridorProfile;Edge.Corridor=Connector;Edge.BeforeDoorA=OriginalA;Edge.BeforeDoorB=OriginalB;Edge.PlanDigest=Fresh.StableDigest;Edge.Validation=R.Assembly;
     ++L.GraphRevision;L.GeometryDigest=FRogueliteLoopCommitQueries::GeometryDigest(Q.Owner,B,L);
@@ -225,8 +227,9 @@ bool FRogueliteLoopCommitQueries::Revalidate(AActor* Owner,FRogueliteSeedBatch& 
         int32 Ports=0;if(IsValid(R.Room))for(int32 I=0;I<4;++I){FRogueliteDoorSocket D;Ports+=R.Room->TryGetDoorSocket(ERogueliteRoomSide(I),D);}
         TreeGood&=IsValid(R.Room)&&R.Room->GetWorld()==Owner->GetWorld()&&R.Room->GetActorTransform().Equals(R.PlacedTransform,.0001)&&R.Room->EvaluateTemplate().bValid&&FVector(R.Room->RoomLength,R.Room->RoomWidth,R.Room->RoomHeight).Equals(R.Dimensions,.0001)&&R.Room->WallThickness==R.WallThickness&&R.Room->FloorThickness==R.FloorThickness&&RogueliteSeedAssemblyInternal::MembersText(R.Room)==R.MemberSignature&&Ports==R.LogicalDegree+Extra;
     }
-    for(auto& E:B.Edges){E.Validation=B.Registry->RevalidateConnection(E.ConnectionId);TreeGood&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
+    const bool Configured=B.Rooms.ContainsByPredicate([](const auto& R){return R.EffectiveDoors.Num()==4;});
+    for(auto& E:B.Edges){E.Validation=Configured?B.Registry->RevalidateConfiguredConnection(E.ConnectionId):B.Registry->RevalidateConnection(E.ConnectionId);TreeGood&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
     B.bGeometryValid=TreeGood;bool Good=TreeGood;
-    for(auto& E:L.Edges){E.Validation=B.Registry->RevalidateConnection(E.ConnectionId);Good&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
+    for(auto& E:L.Edges){E.Validation=Configured?B.Registry->RevalidateConfiguredConnection(E.ConnectionId):B.Registry->RevalidateConnection(E.ConnectionId);Good&=E.Validation.bSucceeded&&E.Validation.bGeometryPassed&&E.Validation.bCapsulePassed;}
     B.Navigation=ERogueliteNavigationCheck::NotChecked;++L.GeometryRevision;L.GeometryDigest=Good?GeometryDigest(Owner,B,L):TEXT("");Reason=Good?TEXT("Actual C2 revalidation complete; still NavigationPending for the whole loop layout."):TEXT("C2 revalidation failed; inspect probes. No fresh traversal/Ready.");return Good;
 }

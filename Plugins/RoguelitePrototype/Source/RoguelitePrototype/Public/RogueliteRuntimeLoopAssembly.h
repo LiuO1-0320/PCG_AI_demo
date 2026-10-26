@@ -7,6 +7,8 @@
 #include "RogueliteLoopCommitTestRig.h"
 #include "RogueliteRuntimeLoopAssembly.generated.h"
 
+class URogueliteFloorProfile;
+
 UENUM()
 enum class ERogueliteLoopTestPreset : uint8 { EightRoomSingleLoop, FourRoomTree };
 
@@ -42,6 +44,9 @@ public:
     static bool Clear(AActor* Owner,FRogueliteSeedBatch& Batch,FRogueliteCommittedLoopBatch& Loops,FString& Reason);
     static bool Revalidate(AActor* Owner,FRogueliteSeedBatch& Batch,const FRogueliteSeedLayoutSettings& Settings,
         FRogueliteCommittedLoopBatch& Loops,FString& Reason);
+    // HF03-C profile path only; original Revalidate remains a legacy entry point.
+    static bool RevalidateConfigured(AActor* Owner,FRogueliteSeedBatch& Batch,const FRogueliteSeedLayoutSettings& Settings,
+        FRogueliteCommittedLoopBatch& Loops,FString& Reason);
     static bool Current(AActor* Owner,const FRogueliteSeedBatch& Batch,const FRogueliteSeedLayoutSettings& Settings,
         const FRogueliteCommittedLoopBatch& Loops);
     static FRogueliteSeedLayoutSettings SourcePreset(int32 Seed,bool Small=false);
@@ -76,6 +81,7 @@ public:
     virtual bool RevalidateRuntimeGeometry() override;
     virtual bool RequiresPhysicalCorridorNavigation() const override {return true;}
     UPROPERTY(EditAnywhere,Category="Dungeon",meta=(ToolTip="本轮测试Seed；不是正式楼层或玩法配置。")) int32 Seed=0;
+    UPROPERTY(EditAnywhere,Category="Dungeon",meta=(ToolTip="Optional HF03-C shared FloorProfile. Null preserves the original test preset and all legacy behavior.")) TObjectPtr<URogueliteFloorProfile> FloorProfile;
     UPROPERTY(EditAnywhere,Category="Dungeon") ERogueliteLoopTestPreset Preset=ERogueliteLoopTestPreset::EightRoomSingleLoop;
     UPROPERTY(EditAnywhere,Category="Dungeon") bool bAutoGenerate=true;
     UPROPERTY(EditAnywhere,Category="Dungeon") bool bNavigationEnabled=true;

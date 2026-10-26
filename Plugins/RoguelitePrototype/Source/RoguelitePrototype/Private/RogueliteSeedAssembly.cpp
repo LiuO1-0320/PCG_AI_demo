@@ -1,5 +1,6 @@
 #include "RogueliteSeedAssembly.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "RoguelitePreparedTemplates.h"
 #include "RogueliteRoomTypeAssignment.h"
 #include "RoguelitePrototype.h"
@@ -120,6 +121,7 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
     UWorld* W=IsValid(Owner)?Owner->GetWorld():nullptr;
     const auto Fail=[&](const FString& Why){Reason=Why;return false;};
     if(!W)return Fail(TEXT("Input owner/world unavailable."));
+    if(!RogueliteGenerationGeometry::Validate(S,Reason))return false;
     if(Prepared&&!Prepared->IsCurrent(S,Reason))return false;
     if(S.TemplateCatalogVersion<1 || S.SolverVersion!=1 || S.MaxCandidatesPerEdge<1 || S.MaxCandidatesPerEdge>256 || S.Templates.IsEmpty()
         || S.Templates.Num()>16 || S.Corridors.IsEmpty() || S.Corridors.Num()>8 || S.Encounters.IsEmpty() || S.Encounters.Num()>32)
@@ -163,6 +165,7 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
         Profiles.Add(P);
     }
     if(Profiles.IsEmpty()) return Fail(TEXT("No enabled straight corridor profiles."));
+    if(!RogueliteGenerationGeometry::IsLegacyDefaults(S))Configuration+=TEXT("|generationGeometry=")+RogueliteGenerationGeometry::GeometryDigest(S);
     auto& Catalog=Input.Catalog; TSet<FName> TemplateIds;
     TArray<FRogueliteSeedTemplateOption> Options=S.Templates;
     Options.Sort([](const auto& A,const auto& C){return A.Id.ToString()<C.Id.ToString();});
@@ -179,9 +182,10 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
         if(Prepared)
         {
             const auto* Row=Prepared->Rows.FindByPredicate([&](const auto& X){return X.Id==Option.Id;});
-            if(!Row||Row->TemplateClass.Get()!=Class||Row->Descriptor.Dimensions.ContainsNaN()
-                ||!Default.Dimensions.Equals(Row->Descriptor.Dimensions,.001)
-                ||Default.WallThickness!=Row->Descriptor.WallThickness||Default.FloorThickness!=Row->Descriptor.FloorThickness)
+            const auto* Source=Row?(Prepared->Version==1?&Row->Descriptor:&Row->SourceDescriptor):nullptr;
+            if(!Row||Row->TemplateClass.Get()!=Class||Row->Descriptor.Dimensions.ContainsNaN()||!Source
+                ||!Default.Dimensions.Equals(Source->Dimensions,.001)
+                ||Default.WallThickness!=Source->WallThickness||Default.FloorThickness!=Source->FloorThickness)
                 return Fail(TEXT("Runtime prepared template class/default dimensions changed: ")+Option.Id.ToString());
             CatalogEntry Entry;Entry.Option=Option;Entry.Class=Class;Entry.Capacity=Row->Sockets.Num();
             Entry.Signature=Row->Signature;Entry.MemberSignature=Row->MemberSignature;Entry.Descriptor=Row->Descriptor;Entry.Sockets=Row->Sockets;
@@ -189,12 +193,15 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
         }
         const FVector ProbeLocation(1000000+Catalog.Num()*10000,1000000,0);
         const FBox Envelope(FVector(-Default.Dimensions.X*.5-Default.WallThickness,-Default.Dimensions.Y*.5-Default.WallThickness,-Default.FloorThickness)+ProbeLocation,
-            FVector(Default.Dimensions.X*.5+Default.WallThickness,Default.Dimensions.Y*.5+Default.WallThickness,Default.Dimensions.Z)+ProbeLocation);
+            FVector(Default.Dimensions.X*.5+Default.WallThickness,Default.Dimensions.Y*.5+Default.WallThickness,S.GenerationGeometry.OpeningMode==ERogueliteOpeningMode::OpenPassage?S.GenerationGeometry.OpenPassageRoomHeight:Default.Dimensions.Z)+ProbeLocation);
         FCollisionQueryParams ProbeQuery;ProbeQuery.AddIgnoredActor(Owner);
         if(W->OverlapBlockingTestByChannel(Envelope.GetCenter(),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeBox(Envelope.GetExtent()),ProbeQuery))
             return Fail(TEXT("Fixed metadata probe space blocked; existing actors protected."));
         auto* Probe=SpawnOwned<ARogueliteRoomTemplate>(W,Class,Owner,B.BatchId,FTransform(ProbeLocation));
         if(!Probe) return Fail(TEXT("Template probe spawn failed."));
+        const FString OriginalMembers=MembersText(Probe);
+        if(!RogueliteGenerationGeometry::ConfigureTemplate(Probe,S,Reason)){DestroyNew(Probe);return false;}
+        if(OriginalMembers!=MembersText(Probe)){DestroyNew(Probe);return Fail(TEXT("Instance adaptation changed authored POI members; no template accepted."));}
         const auto Validation=Probe->ValidateTemplate(); const auto D=Probe->GetTemplateDescriptor();
         FString Signature=FString::Printf(TEXT("|template=%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%d"),*Option.Id.ToString(),*Class->GetPathName(),
             D.Dimensions.X,D.Dimensions.Y,D.Dimensions.Z,D.WallThickness,D.FloorThickness,Option.Weight);
@@ -369,7 +376,7 @@ bool FRogueliteSeedLayoutAssembler::Revalidate(AActor* Owner,FRogueliteSeedBatch
     if(B.Registry->GetConnectionRecords().Num()!=B.Edges.Num()){B.Reason=TEXT("Registry record count mismatch.");return false;}
     for(auto& E:B.Edges)
     {
-        E.Validation=B.Registry->RevalidateConnection(E.ConnectionId);
+        E.Validation=B.Rooms.ContainsByPredicate([](const auto& R){return R.EffectiveDoors.Num()==4;})?B.Registry->RevalidateConfiguredConnection(E.ConnectionId):B.Registry->RevalidateConnection(E.ConnectionId);
         if(!E.Validation.bSucceeded || !E.Validation.bGeometryPassed || !E.Validation.bCapsulePassed)
         { B.Navigation=E.Validation.Navigation; B.Reason=E.Validation.Message; return false; }
         PassedNav+=E.Validation.Navigation==ERogueliteNavigationCheck::Passed;

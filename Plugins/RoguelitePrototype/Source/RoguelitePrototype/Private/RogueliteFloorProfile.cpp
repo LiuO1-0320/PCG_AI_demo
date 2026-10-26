@@ -1,11 +1,13 @@
 ﻿#include "RogueliteFloorProfile.h"
 #include "RogueliteCompactCorridorContract.h"
 #include "RogueliteRoomTypeAssignment.h"
+#include "RogueliteGenerationGeometry.h"
 #include "Engine/World.h"
 
 FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
 {
-    FRogueliteFloorDefinition D;D.FloorIndex=Floor;D.ProfileVersion=2;
+    FRogueliteFloorDefinition D;D.FloorIndex=Floor;D.ProfileVersion=3;
+    D.OpeningMode=ERogueliteOpeningMode::OpenPassage;D.bGenerateCorridorCeiling=true;
     D.ProfileId=Floor==1?TEXT("Floor1.Intro"):Floor==2?TEXT("Floor2.Expansion"):TEXT("Floor3.Final");
     D.DisplayName=FText::FromString(Floor==1?TEXT("Floor 1 — Intro / 入门"):Floor==2?TEXT("Floor 2 — Expansion / 扩编"):TEXT("Floor 3 — Final / 最终层"));
     if(Floor>1){D.MinRoomCount=Floor==2?6:8;D.MaxRoomCount=Floor==2?8:10;D.MinBranches=Floor==2?2:3;D.MaxBranches=Floor==2?3:4;D.MaxBranchDepth=2;D.MinDecisionNodes=Floor==2?2:3;D.MaxDecisionNodes=Floor==2?3:4;D.MinNestedDecisionNodes=1;D.MaxBranchGenerationDepth=3;D.MaxLoops=1;}
@@ -24,12 +26,12 @@ FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
 FString FRogueliteFloorProfileResolver::Digest(const FRogueliteFloorDefinition& D)
 {FString Text;FRogueliteFloorDefinition::StaticStruct()->ExportText(Text,&D,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(TEXT("FloorProfile1|")+Text);}
 FString FRogueliteFloorProfileResolver::SettingsDigest(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& P)
-{FString A,B;FRogueliteSeedLayoutSettings::StaticStruct()->ExportText(A,&S,nullptr,nullptr,PPF_None,nullptr);FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&P,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(A+TEXT("|")+B);}
+{const FString A=RogueliteGenerationGeometry::SettingsText(S);FString B;FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&P,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(A+TEXT("|")+B);}
 int32 FRogueliteFloorProfileResolver::DeriveFloorSeed(int32 Seed,int32 Floor,int32 Version)
 {return FRogueliteRoomGraphGenerator::DeriveSeed(Seed,static_cast<ERogueliteGraphSeedPurpose>(0x6e2f0121u),1,Version,Floor,0);}
 FString FRogueliteFloorProfileResolver::FriendlyFailure(const FString& Raw)
 {
-    if(Raw.Contains(TEXT("Compact"))||Raw.Contains(TEXT("Closure"))||Raw.Contains(TEXT("TreeBranchSpatial"))||Raw.Contains(TEXT("SpatialCheckBudget")))return TEXT("当前房间排列无法在5–10米走廊内完成合法连接，请重新生成或调整房间模板；未延长走廊或降低回环要求。");
+    if(Raw.Contains(TEXT("Compact"))||Raw.Contains(TEXT("Closure"))||Raw.Contains(TEXT("TreeBranchSpatial"))||Raw.Contains(TEXT("SpatialCheckBudget")))return TEXT("当前房间排列无法在12–15米走廊内完成合法连接，请重新生成或调整房间模板；未延长走廊或降低回环要求。");
     if(Raw.Contains(TEXT("Template"))||Raw.Contains(TEXT("Capacity"))||Raw.Contains(TEXT("Catalog")))return TEXT("当前模板不存在、门洞或房型支持不足，请检查可用模板和连接预算。");
     if(Raw.Contains(TEXT("Loop"))||Raw.Contains(TEXT("Closure")))return TEXT("无法在允许空间内形成要求的回环，请调整模板、走廊范围或回环预算。");
     if(Raw.Contains(TEXT("Budget"))||Raw.Contains(TEXT("Exhausted")))return TEXT("当前空间或搜索预算不足，未生成合法布局；请调整规则或检查场景障碍。");
@@ -49,7 +51,7 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     if(D.bLastFloor!=(D.FinalRolePolicy==ERogueliteFloorFinalPolicy::BossFinal))return Fail(TEXT("FinalPolicyMismatch"),TEXT("仅最后一层使用BossFinal；普通楼层终点是FloorExit。两者Gameplay均未实现。"));
     if(D.AllowedTemplates.IsEmpty()||D.AllowedTemplates.Num()>16)return Fail(TEXT("TemplateCatalogInvalid"),TEXT("请选择1至16个现有房间模板。"));
     TSet<FName> Names;for(const auto& T:D.AllowedTemplates){if(T.Id.IsNone()||T.TemplateClass.IsNull()||T.Weight<1||T.AllowedTypes.IsEmpty()||Names.Contains(T.Id))return Fail(TEXT("TemplateOptionInvalid"),TEXT("模板标识、资源、权重或允许房型无效/重复。"));Names.Add(T.Id);}
-    if(D.MinCorridorLength!=500||D.MaxCorridorLength!=1000)return Fail(TEXT("CompactProfileRangeRequired"),TEXT("本轮所有楼层走廊固定5–10米；请更新Profile，不能使用旧长走廊范围。"));
+    if(D.MinCorridorLength!=1200||D.MaxCorridorLength!=1500)return Fail(TEXT("CompactProfileRangeRequired"),TEXT("本轮所有楼层走廊固定12–15米；请更新Profile，不能使用旧长走廊范围。"));
     for(float V:{D.MinCorridorLength,D.MaxCorridorLength,D.CorridorWidth,D.CorridorHeight,D.WallThickness,D.FloorThickness,D.DoorWidth,D.DoorHeight})if(!FMath::IsFinite(V)||V<=0)return Fail(TEXT("CorridorDimensionInvalid"),TEXT("走廊尺寸必须是有限正数，单位厘米。"));
     if(D.MinCorridorLength<100||D.MaxCorridorLength<D.MinCorridorLength||D.MaxCorridorLength>100000||D.MinCorridorLength<=2*D.WallThickness||D.CorridorWidth<D.DoorWidth||D.CorridorHeight<D.DoorHeight)return Fail(TEXT("CorridorRangeInvalid"),TEXT("走廊长度范围或门洞净宽高不兼容。"));
     auto& S=R.Source;S.Seed=R.UsedSeed;S.AlgorithmVersion=2;S.ConfigVersion=2;S.TemplateCatalogVersion=2;
@@ -57,9 +59,13 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     S.MinBranches=D.MinBranches;S.MaxBranches=D.MaxBranches;S.MinBranchDepth=D.MinBranchDepth;S.MaxBranchDepth=D.MaxBranchDepth;
     S.MinDecisionNodes=D.MinDecisionNodes;S.MaxDecisionNodes=D.MaxDecisionNodes;S.MinNestedDecisionNodes=D.MinNestedDecisionNodes;S.MaxBranchGenerationDepth=D.MaxBranchGenerationDepth;S.MaxDegree=D.MaxDegree;
     S.GraphAttempts=D.SearchBudget.GraphAttempts;S.MaxCandidatesPerEdge=D.SearchBudget.MaxCandidatesPerEdge;S.TypeAssignment=D.RoomTypes;S.Templates=D.AllowedTemplates;S.bCheckNavigation=false;
+    S.GenerationGeometry.OpeningMode=D.OpeningMode;S.GenerationGeometry.OpenPassageRoomHeight=D.OpenPassageRoomHeight;
     FRogueliteSeedEncounterOption E;E.ProfileId=TEXT("NoEncounter_Reserved");E.AllowedTypes={ERogueliteSeedRoomType::Combat,ERogueliteSeedRoomType::Challenge,ERogueliteSeedRoomType::SupplyShop,ERogueliteSeedRoomType::Final,ERogueliteSeedRoomType::Event};S.Encounters={E};
     FRogueliteSeedCorridorProfile C;C.LengthCandidates.Reset();C.Width=D.CorridorWidth;C.Height=D.CorridorHeight;C.WallThickness=D.WallThickness;C.FloorThickness=D.FloorThickness;C.DoorWidth=D.DoorWidth;C.DoorHeight=D.DoorHeight;
-    for(float L:{D.MinCorridorLength,750.f,D.MaxCorridorLength})if(L>=D.MinCorridorLength&&L<=D.MaxCorridorLength)C.LengthCandidates.AddUnique(L);C.LengthCandidates.Sort();S.Corridors={C};
+    C.bGenerateCeiling=D.bGenerateCorridorCeiling;
+    if(D.OpeningMode==ERogueliteOpeningMode::OpenPassage){C.Height=D.OpenPassageRoomHeight;C.DoorWidth=C.Width;C.DoorHeight=C.Height;}
+    for(float L:{D.MinCorridorLength,1400.f,1450.f,1475.f,D.MaxCorridorLength})if(L>=D.MinCorridorLength&&L<=D.MaxCorridorLength)C.LengthCandidates.AddUnique(L);C.LengthCandidates.Sort();S.Corridors={C};
+    FString GeometryReason;if(!RogueliteGenerationGeometry::Validate(S,GeometryReason))return Fail(TEXT("GenerationGeometryInvalid"),GeometryReason);
     auto& P=R.Planning;P.bEnableLoopAwarePlanning=true;P.SpatialPlanningVersion=D.SpatialPlanningVersion;P.MinLoops=D.MinLoops;P.MaxLoops=D.MaxLoops;
     P.MinTreeCorridorLength=P.MinLoopCorridorLength=D.MinCorridorLength;P.MaxTreeCorridorLength=P.MaxLoopCorridorLength=D.MaxCorridorLength;
     P.MaxLayoutAttempts=D.SearchBudget.MaxLayoutAttempts;P.MaxBacktrackStates=D.SearchBudget.MaxBacktrackStates;P.MaxSpatialChecks=D.SearchBudget.MaxSpatialChecks;

@@ -52,6 +52,14 @@ struct ROGUELITEPROTOTYPE_API FRogueliteSeedEncounterOption
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="1")) int32 Weight = 1;
 };
 USTRUCT(BlueprintType)
+struct ROGUELITEPROTOTYPE_API FRogueliteGenerationGeometrySettings
+{
+    GENERATED_BODY()
+    // Legacy is the serialization default for old maps, profiles and prepared catalogs.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) ERogueliteOpeningMode OpeningMode = ERogueliteOpeningMode::Legacy;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(Units="cm")) float OpenPassageRoomHeight = 500;
+};
+USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteSeedCorridorProfile
 {
     GENERATED_BODY()
@@ -64,6 +72,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteSeedCorridorProfile
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float FloorThickness = 20;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float DoorWidth = 200;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float DoorHeight = 250;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bGenerateCeiling = true;
 };
 USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteSeedLayoutSettings
@@ -99,6 +108,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteSeedLayoutSettings
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> MainTypeWeights = {1, 0, 0};
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<int32> BranchTypeWeights = {1, 1, 1};
     UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bCheckNavigation = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FRogueliteGenerationGeometrySettings GenerationGeometry;
     FRogueliteGraphGenerationSettings GraphSettings() const;
 };
 
@@ -120,6 +130,9 @@ struct ROGUELITEPROTOTYPE_API FRogueliteSeedRoomRecord
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) FString MemberSignature;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 LogicalDegree = 0;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 TemplateCapacity = 0;
+    // Complete instance values prepared before native Static components register.
+    UPROPERTY() FRogueliteGenerationGeometrySettings GenerationGeometry;
+    UPROPERTY() TArray<FRogueliteDoorConfig> EffectiveDoors;
 };
 USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteSeedEdgeRecord

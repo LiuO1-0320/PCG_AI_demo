@@ -18,6 +18,14 @@ enum class ERogueliteRoomSide : uint8
     West
 };
 
+/** Zero preserves every existing asset's opening behavior. */
+UENUM(BlueprintType)
+enum class ERogueliteOpeningMode : uint8
+{
+    Legacy = 0,
+    OpenPassage = 1
+};
+
 /** Authoring values are retained even when an opening is invalid. */
 USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteDoorConfig
@@ -38,6 +46,9 @@ struct ROGUELITEPROTOTYPE_API FRogueliteDoorConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Door", meta=(Units="cm", UIMin="1", ToolTip="从地面 Z=0 起的门洞净高。250 cm 是可调测试默认值。"))
     float DoorHeight = 250.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Door", meta=(ToolTip="Legacy保留原门洞及顶部余量；OpenPassage要求DoorHeight等于RoomHeight，形成真实通顶缺口，不自动改写尺寸或偏移。"))
+    ERogueliteOpeningMode OpeningMode = ERogueliteOpeningMode::Legacy;
 };
 
 /** Door/sealing modules can use the same side ID, outer threshold and clear dimensions. */
@@ -140,6 +151,9 @@ public:
     /** Read-only prospective opening. Caller must separately check authored capacity/reservations.
      *  Never enables a door or changes collision; bRequiresEnable distinguishes a sealed wall. */
     bool PreviewEnabledDoorSocket(ERogueliteRoomSide Side, FRogueliteDoorSocket& OutSocket, bool& bRequiresEnable) const;
+
+    UFUNCTION(BlueprintPure, Category="Roguelite|Door Sockets")
+    ERogueliteOpeningMode GetDoorOpeningMode(ERogueliteRoomSide Side) const;
 
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Roguelite|Manual POIs", meta=(ToolTip="手工 Actor 的引用，仅检查实际 Bounds；不附加、不移动、不缩放、不删除。"))
     TArray<TObjectPtr<AActor>> ManualPOIActors;

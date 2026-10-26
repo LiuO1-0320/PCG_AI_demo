@@ -264,6 +264,15 @@ bool ARogueliteRoomAssembly::ValidateCorridorConnection(const FRogueliteRoomConn
 bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection& C,
     const FRogueliteDoorSocket& DA, const FRogueliteDoorSocket& DB, FRogueliteAssemblyResult& R, bool bSkipNavigation) const
 {
+    const bool OpenA = C.RoomA->GetDoorOpeningMode(C.SocketA) == ERogueliteOpeningMode::OpenPassage;
+    const bool OpenB = C.RoomB->GetDoorOpeningMode(C.SocketB) == ERogueliteOpeningMode::OpenPassage;
+    if (OpenA != OpenB)
+    { R.Message = TEXT("HF03 prototype requires matching Legacy/OpenPassage modes at both ends; mixed transitions are not implemented."); return false; }
+    const bool OpenPassage = OpenA && OpenB;
+    if (OpenPassage && (DA.DoorWidth != C.Corridor->CorridorWidth || DB.DoorWidth != C.Corridor->CorridorWidth
+        || DA.DoorHeight != C.RoomA->RoomHeight || DB.DoorHeight != C.RoomB->RoomHeight
+        || DA.DoorHeight != C.Corridor->CorridorHeight || DB.DoorHeight != C.Corridor->CorridorHeight))
+    { R.Message = TEXT("HF03 OpenPassage requires full corridor width and equal finished-floor-to-wall/ceiling heights. Unequal-height adaptation is not implemented; original configuration retained."); return false; }
     const FVector Z = FVector::UpVector;
     FCollisionQueryParams Rays(SCENE_QUERY_STAT(RogueliteCorridorConnectionRay), true);
     Rays.AddIgnoredActor(this);
@@ -329,10 +338,29 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
                 Ray(Label + FString::Printf(TEXT(" entity%d side%.0f"), Which, Sign), Center + Out * (Thick + 25) + Shift,
                     Center - Out * (Thick + 25) + Shift, Entity, Ignore);
             }
-            const float LintelHeight = Height > Door.DoorHeight ? Door.DoorHeight + (Height - Door.DoorHeight) * .5f : Height + Thick * .5f;
-            const FVector Shift = Z * LintelHeight;
-            Ray(Label + FString::Printf(TEXT(" entity%d lintel"), Which), Center + Out * (Thick + 25) + Shift,
-                Center - Out * (Thick + 25) + Shift, Entity, Ignore);
+            if (OpenPassage && Which == 0)
+            {
+                // This opening reaches the wall top; prove the aperture is clear and
+                // independently prove the adjacent wall ends remain solid to the top.
+                const FVector Shift = Z * (Door.DoorHeight - 1);
+                Ray(Label + TEXT(" OpenPassage upper aperture clear"), Center + Out * (Thick + 25) + Shift,
+                    Center - Out * (Thick + 25) + Shift, nullptr);
+                for (float Sign : {-1.0f, 1.0f})
+                {
+                    const FVector Bound = T * (Sign * SideOffset) + Shift;
+                    Ray(Label + FString::Printf(TEXT(" OpenPassage upper wall boundary %.0f"), Sign),
+                        Center + Out * (Thick + 25) + Bound, Center - Out * (Thick + 25) + Bound, Room, C.Corridor);
+                }
+            }
+            else
+            {
+                // Legacy names, positions, expectations and count stay unchanged.
+                const float LintelHeight = Height > Door.DoorHeight ? Door.DoorHeight + (Height - Door.DoorHeight) * .5f : Height + Thick * .5f;
+                const FVector Shift = Z * LintelHeight;
+                const bool AbsentRoofEdge = Which == 1 && !C.Corridor->bGenerateCeiling && Height <= Door.DoorHeight;
+                Ray(Label + (AbsentRoofEdge ? FString(TEXT(" open roof edge clear")) : OpenPassage ? FString(TEXT(" corridor roof edge")) : FString::Printf(TEXT(" entity%d lintel"), Which)),
+                    Center + Out * (Thick + 25) + Shift, Center - Out * (Thick + 25) + Shift, AbsentRoofEdge ? nullptr : Entity, Ignore);
+            }
             const FVector Floor = Which == 0 ? InsideRooms[Pair] : InsideCorridor[Pair];
             Ray(Label + FString::Printf(TEXT(" entity%d floor"), Which), Floor + Z * 20, Floor - Z * 20, Entity);
         }
@@ -344,6 +372,35 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
                 Center + Shift + Z * (TestCapsuleHalfHeight - CapsuleClearance), true, Room, C.Corridor);
         }
         Sweep(Label + TEXT(" PawnCapsule reverse"), InsideCorridor[Pair] + CapsuleZ, InsideRooms[Pair] + CapsuleZ);
+        if (OpenPassage)
+        {
+            const FVector UpperCapsuleZ = Z * (Door.DoorHeight - TestCapsuleHalfHeight - CapsuleClearance);
+            for (float Offset : {-Edge, 0.0f, Edge})
+                Sweep(Label + FString::Printf(TEXT(" OpenPassage upper capsule clear %.1f"), Offset),
+                    InsideRooms[Pair] + T * Offset + UpperCapsuleZ, InsideCorridor[Pair] + T * Offset + UpperCapsuleZ);
+            for (int32 SideIndex = 0; SideIndex < 4; ++SideIndex)
+            {
+                const auto Side = static_cast<ERogueliteRoomSide>(SideIndex);
+                if (Side == Door.Side) continue;
+                FRogueliteDoorSocket OtherDoor;
+                if (Room->TryGetDoorSocket(Side, OtherDoor)) continue;
+                const bool AlongY = Side == ERogueliteRoomSide::East || Side == ERogueliteRoomSide::West;
+                const float Sign = Side == ERogueliteRoomSide::South || Side == ERogueliteRoomSide::West ? -1.0f : 1.0f;
+                const FVector LocalN = AlongY ? FVector(0, Sign, 0) : FVector(Sign, 0, 0);
+                const FVector NWall = Room->GetActorTransform().TransformVectorNoScale(LocalN);
+                const FVector Wall = Room->GetActorTransform().TransformPosition(LocalN * ((AlongY ? Room->RoomWidth : Room->RoomLength) * .5f + Room->WallThickness * .5f));
+                const FVector Distance = NWall * (Room->WallThickness + 2 * TestCapsuleRadius + 20);
+                FRogueliteAssemblyProbe P;
+                P.Name = Label + FString::Printf(TEXT(" OpenPassage closed perimeter PawnCapsule side%d"), SideIndex);
+                P.Start = Wall - Distance + CapsuleZ; P.End = Wall + Distance + CapsuleZ; P.bExpectedBlocking = true;
+                FHitResult Hit;
+                const bool StartOverlap = GetWorld()->OverlapBlockingTestByChannel(P.Start, FQuat::Identity, ECC_Pawn, Capsule, Sweeps);
+                const bool Blocked = GetWorld()->SweepSingleByChannel(Hit, P.Start, P.End, FQuat::Identity, ECC_Pawn, Capsule, Sweeps);
+                P.bBlockingHit = Blocked; P.HitDistance = Hit.Distance; P.HitObject = GetPathNameSafe(Hit.GetComponent());
+                P.bPassed = Blocked && !StartOverlap && !Hit.bStartPenetrating && Hit.GetActor() == Room && FMath::Abs(Hit.ImpactNormal.Z) < .01f;
+                Capsules &= P.bPassed; R.Probes.Add(P);
+            }
+        }
     }
     const FVector T = FVector::CrossProduct(Z, DA.WorldOutwardDirection).GetSafeNormal();
     for (float Offset : {-Edge, 0.0f, Edge})
@@ -354,9 +411,23 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
     const FTransform CT = C.Corridor->GetActorTransform();
     const FVector Middle = CT.TransformPosition(FVector(0, 0, 100));
     Ray(TEXT("Corridor floor"), CT.GetLocation() + Z * 20, CT.GetLocation() - Z * 20, C.Corridor);
-    Ray(TEXT("Corridor ceiling"), Middle, Middle + Z * C.Corridor->CorridorHeight, C.Corridor);
+    Ray(C.Corridor->bGenerateCeiling ? TEXT("Corridor ceiling") : TEXT("Corridor open top center"), Middle,
+        Middle + Z * C.Corridor->CorridorHeight, C.Corridor->bGenerateCeiling ? C.Corridor.Get() : nullptr);
     for (float Sign : {-1.0f, 1.0f})
         Ray(TEXT("Corridor side"), Middle, CT.TransformPosition(FVector(0, Sign * (C.Corridor->CorridorWidth * .5f + C.Corridor->WallThickness + 20), 100)), C.Corridor);
+    if (!C.Corridor->bGenerateCeiling)
+    {
+        // Interior only: keep an entire capsule away from both Legacy end headers.
+        const float SafeX = C.Corridor->CorridorLength * .5f - C.Corridor->WallThickness - TestCapsuleRadius - CapsuleClearance;
+        if (SafeX <= 0)
+        { R.Message = TEXT("Ceiling OFF: corridor interior is too short to verify an upward Pawn capsule clear of the end headers."); return false; }
+        const float SafeY = C.Corridor->CorridorWidth * .5f - TestCapsuleRadius - CapsuleClearance;
+        for (float X : {-SafeX * .5f, 0.0f, SafeX * .5f})
+            for (float Y : {-SafeY, 0.0f, SafeY})
+                Sweep(FString::Printf(TEXT("Corridor open top PawnCapsule x%.1f y%.1f"), X, Y),
+                    CT.TransformPosition(FVector(X, Y, C.Corridor->CorridorHeight - TestCapsuleHalfHeight - CapsuleClearance)),
+                    CT.TransformPosition(FVector(X, Y, C.Corridor->CorridorHeight + C.Corridor->WallThickness + TestCapsuleHalfHeight + CapsuleClearance)));
+    }
     R.bGeometryPassed = Geometry; R.bCapsulePassed = Capsules;
     if (!Geometry || !Capsules)
     { R.Message = TEXT("Collision validation failed: see seam/internal/whole-path Probes and blocking component."); return false; }
@@ -405,10 +476,18 @@ bool ARogueliteRoomAssembly::CheckCorridorPassage(const FRogueliteRoomConnection
 
 FRogueliteAssemblyResult ARogueliteRoomAssembly::TryRegisterRuntimePlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
     ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,FGuid SourceBatch,FName LoopCandidate)
+{return RegisterPlacedConnection(A,SideA,C,B,SideB,SourceBatch,LoopCandidate,false);}
+
+FRogueliteAssemblyResult ARogueliteRoomAssembly::TryRegisterConfiguredPlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+    ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,FGuid SourceBatch,FName LoopCandidate)
+{return RegisterPlacedConnection(A,SideA,C,B,SideB,SourceBatch,LoopCandidate,true);}
+
+FRogueliteAssemblyResult ARogueliteRoomAssembly::RegisterPlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+    ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,FGuid SourceBatch,FName LoopCandidate,bool bConfigured)
 {
     FRogueliteAssemblyResult R;
     const auto Finish=[&](){PublishResult(R);return R;};
-    if(!GetWorld()||!GetWorld()->IsGameWorld()||!SourceBatch.IsValid()||!IsValid(A)||!IsValid(B)||!IsValid(C)
+    if(!GetWorld()||(!GetWorld()->IsGameWorld()&&!(bConfigured&&GetWorld()->WorldType==EWorldType::Editor))||!SourceBatch.IsValid()||!IsValid(A)||!IsValid(B)||!IsValid(C)
         ||A->GetWorld()!=GetWorld()||B->GetWorld()!=GetWorld()||C->GetWorld()!=GetWorld())
     {R.Message=TEXT("Runtime placed registration requires live actors in the same GameWorld; no writes.");return Finish();}
     if(!ComputeCorridorTransforms(A,SideA,C,ERogueliteCorridorEndpoint::Start,B,SideB,R.ProposedCorridorTransform,R.ProposedTargetTransform,R.Message))return Finish();
@@ -422,7 +501,7 @@ FRogueliteAssemblyResult ARogueliteRoomAssembly::TryRegisterRuntimePlacedConnect
     Record.Corridor=C;Record.EndpointA=ERogueliteCorridorEndpoint::Start;Record.EndpointB=ERogueliteCorridorEndpoint::End;Record.Mode=ERogueliteConnectionMode::StraightCorridor;
     // The exact existing geometry/occupancy/59-Probe/capsule validator is reused, without a navigation claim.
     if(!ValidateCorridorConnection(Record,R,true))return Finish();
-    if(R.Probes.Num()!=59||!R.bGeometryPassed||!R.bCapsulePassed)
+    if(bConfigured?!HasCompleteCorridorEvidence(A,SideA,C,B,SideB,R):(R.Probes.Num()!=59||!R.bGeometryPassed||!R.bCapsulePassed))
     {R.bSucceeded=false;R.Message=TEXT("Original C2 complete geometry/capsule evidence required.");return Finish();}
     Record.Id=FGuid::NewGuid();Record.bOwnedFixedLoop=!LoopCandidate.IsNone();Record.LoopSourceBatchId=SourceBatch;Record.LoopCandidateId=LoopCandidate;
     RecordValidation(Record,R);Connections.Add(Record);R.ConnectionId=Record.Id;
@@ -436,4 +515,62 @@ bool ARogueliteRoomAssembly::ReleaseRuntimePlacedConnection(FGuid Id,FGuid Sourc
     if(Index==INDEX_NONE)return true;
     if(Connections[Index].LoopSourceBatchId!=SourceBatch)return false;
     Connections.RemoveAt(Index);return true; // No Static rebuild; whole owned batch is being discarded.
+}
+
+bool ARogueliteRoomAssembly::HasCompleteCorridorEvidence(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+    ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,const FRogueliteAssemblyResult& R)
+{
+    if(!IsValid(A)||!IsValid(B)||!IsValid(C)||!R.bSucceeded||!R.bGeometryPassed||!R.bCapsulePassed)return false;
+    const bool Open=A->GetDoorOpeningMode(SideA)==ERogueliteOpeningMode::OpenPassage;
+    if(Open!=(B->GetDoorOpeningMode(SideB)==ERogueliteOpeningMode::OpenPassage))return false;
+    for(const auto& P:R.Probes)if(!P.bPassed||P.Start.ContainsNaN()||P.End.ContainsNaN())return false;
+    const auto Count=[&](const FString& Name,bool Prefix=false)
+    {int32 N=0;for(const auto& P:R.Probes)N+=Prefix?P.Name.StartsWith(Name):P.Name==Name;return N;};
+    bool Good=true;int32 Closed=0;
+    ARogueliteParametricRoom* Rooms[]={A,B};const ERogueliteRoomSide Sides[]={SideA,SideB};
+    for(int32 Pair=0;Pair<2;++Pair)
+    {
+        const FString L=Pair?TEXT("C-B"):TEXT("A-C");FRogueliteDoorSocket Door;
+        if(!Rooms[Pair]->TryGetDoorSocket(Sides[Pair],Door))return false;
+        Good&=Count(L+TEXT(" opening "),true)==9;
+        for(int32 Which=0;Which<2;++Which)
+        {
+            Good&=Count(L+FString::Printf(TEXT(" entity%d side"),Which),true)==2;
+            Good&=Count(L+FString::Printf(TEXT(" entity%d floor"),Which))==1;
+            if(Open&&Which==0)
+            {Good&=Count(L+TEXT(" OpenPassage upper aperture clear"))==1;Good&=Count(L+TEXT(" OpenPassage upper wall boundary "),true)==2;}
+            else
+            {
+                const bool Absent=Which==1&&!C->bGenerateCeiling&&C->CorridorHeight<=Door.DoorHeight;
+                const FString Name=Absent?TEXT(" open roof edge clear"):Open?TEXT(" corridor roof edge"):FString::Printf(TEXT(" entity%d lintel"),Which);
+                Good&=Count(L+Name)==1;
+            }
+        }
+        Good&=Count(L+TEXT(" PawnCapsule forward "),true)==3&&Count(L+TEXT(" PawnCapsule ground "),true)==3&&Count(L+TEXT(" PawnCapsule reverse"))==1;
+        if(Open)
+        {
+            Good&=Count(L+TEXT(" OpenPassage upper capsule clear "),true)==3;
+            for(int32 I=0;I<4;++I)if(static_cast<ERogueliteRoomSide>(I)!=Sides[Pair])
+            {
+                FRogueliteDoorSocket Other;if(Rooms[Pair]->TryGetDoorSocket(static_cast<ERogueliteRoomSide>(I),Other))continue;
+                ++Closed;Good&=Count(L+FString::Printf(TEXT(" OpenPassage closed perimeter PawnCapsule side%d"),I))==1;
+            }
+        }
+    }
+    Good&=Count(TEXT("A-C-B PawnCapsule entire "),true)==3&&Count(TEXT("A-C-B PawnCapsule reverse entire"))==1;
+    Good&=Count(TEXT("Corridor internal PawnCapsule "),true)==3&&Count(TEXT("Corridor floor"))==1&&Count(TEXT("Corridor side"))==2;
+    Good&=Count(C->bGenerateCeiling?TEXT("Corridor ceiling"):TEXT("Corridor open top center"))==1;
+    Good&=Count(TEXT("Corridor open top PawnCapsule "),true)==(C->bGenerateCeiling?0:9);
+    const int32 Expected=59+(Open?10+Closed:0)+(C->bGenerateCeiling?0:9);
+    return Good&&R.Probes.Num()==Expected;
+}
+
+FRogueliteAssemblyResult ARogueliteRoomAssembly::RevalidateConfiguredConnection(FGuid Id)
+{
+    FRogueliteAssemblyResult R;R.ConnectionId=Id;
+    auto* C=Connections.FindByPredicate([&](const auto& X){return X.Id==Id&&X.bActive&&X.Mode==ERogueliteConnectionMode::StraightCorridor;});
+    if(!C){R.Message=TEXT("Configured ConnectionId absent/inactive; no geometry or lease changed.");PublishResult(R);return R;}
+    const bool Passed=ValidateCorridorConnection(*C,R,true)&&HasCompleteCorridorEvidence(C->RoomA,C->SocketA,C->Corridor,C->RoomB,C->SocketB,R);
+    if(!Passed){R.bSucceeded=false;R.Message=TEXT("Configured physical revalidation failed: ")+R.Message;}
+    RecordValidation(*C,R);PublishResult(R);return R; // Intentionally no Rebuild, Transform, mobility or parameter writes.
 }

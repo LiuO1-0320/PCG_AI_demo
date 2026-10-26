@@ -57,7 +57,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="100", ToolTip="走廊内部净宽，独立于端部开口宽度。"))
     float CorridorWidth = 400.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="100", ToolTip="Z=0 到天花板底面的内部净高。"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="100", ToolTip="Z=0 到天花板底面的内部净高；关闭顶板时仍定义侧墙高度及Socket合法高度。"))
     float CorridorHeight = 300.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="1", ToolTip="侧墙向外扩展的厚度；天花板和端框使用同一厚度。两端框须有非重叠长度。"))
@@ -65,6 +65,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Dimensions", meta=(Units="cm", UIMin="1", ToolTip="地板在完成面 Z=0 下方延伸。"))
     float FloorThickness = 20.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|Corridor Geometry", meta=(DisplayName="Generate Corridor Ceiling", ToolTip="默认生成有碰撞的走廊顶板。取消后仅停用顶板显示和碰撞；地板、侧墙、门口横梁及Socket不变。仅停止PIE后编辑。"))
+    bool bGenerateCeiling = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Roguelite|End Openings", meta=(Units="cm", UIMin="1", ToolTip="两端统一净开口宽；可小于走廊净宽，差额由端框封住。200 cm 为测试默认值。"))
     float DoorWidth = 200.0f;
@@ -124,6 +127,7 @@ public:
     void CheckPassage();
 
 #if WITH_EDITOR
+    virtual bool CanEditChange(const FProperty* InProperty) const override;
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
     virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
     virtual void PostEditMove(bool bFinished) override;
@@ -131,6 +135,9 @@ public:
 #endif
 
 private:
+    // Native transient state: reject only new ceiling changes on live registered geometry.
+    bool bHasBuiltCeiling = false;
+    bool bLastBuiltCeiling = true;
     UPROPERTY(VisibleAnywhere, Category="Roguelite|Shell")
     TObjectPtr<USceneComponent> CorridorRoot;
 

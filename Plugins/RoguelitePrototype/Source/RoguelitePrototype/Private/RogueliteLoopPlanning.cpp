@@ -1,5 +1,6 @@
 #include "RogueliteLoopPlanning.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -25,7 +26,7 @@ const FRogueliteDoorConfig& Config(const ARogueliteParametricRoom* R,ERogueliteR
 FBox RoomBox(const ARogueliteParametricRoom* R)
 {return FBox(FVector(-R->RoomLength*.5-R->WallThickness,-R->RoomWidth*.5-R->WallThickness,-R->FloorThickness),FVector(R->RoomLength*.5+R->WallThickness,R->RoomWidth*.5+R->WallThickness,R->RoomHeight)).TransformBy(R->GetActorTransform());}
 FString SeedSettings(const FRogueliteSeedLayoutSettings& S)
-{FString Text;FRogueliteSeedLayoutSettings::StaticStruct()->ExportText(Text,&S,nullptr,nullptr,PPF_None,nullptr);return G::StableTextDigest(Text);}
+{return G::StableTextDigest(RogueliteGenerationGeometry::SettingsText(S));}
 bool Tree(const FRogueliteRoomGraph& Graph,FString& Reason)
 {
     const int32 N=Graph.Nodes.Num();if(N<2||N>256||Graph.Edges.Num()!=N-1||!Graph.FindNode(Graph.StartNodeId)||!Graph.FindNode(Graph.FinalNodeId)){Reason=TEXT("Invalid source Tree counts/references.");return false;}

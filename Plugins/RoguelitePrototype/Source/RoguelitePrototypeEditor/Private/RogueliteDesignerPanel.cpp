@@ -9,6 +9,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -54,6 +55,13 @@ void SDesignerWorkbenchPanel::Construct(const FArguments&,TSharedRef<FDesignerWo
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).Text(FText::FromString(TEXT("Dungeon Generator / 地牢生成工作台\n这是策划开发预览。正式玩家开局不需要输入 Seed。")))]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SComboBox<TSharedPtr<FString>>).OptionsSource(&Options).InitiallySelectedItem(Options[Initial]).OnGenerateWidget_Lambda([](TSharedPtr<FString> V){return SNew(STextBlock).Text(FText::FromString(*V));}).OnSelectionChanged_Lambda([this](TSharedPtr<FString> V,ESelectInfo::Type){Select(Options.IndexOfByKey(V));})[SNew(STextBlock).Text_Lambda([this](){return Session->Profile.IsValid()?Session->Profile->Rules.DisplayName:FText::FromString(TEXT("请选择已安装预设"));})]]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SHorizontalBox)
+        +SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(STextBlock).Text(FText::FromString(TEXT("Opening Mode： ")))]
+        +SHorizontalBox::Slot().AutoWidth()[SNew(SComboButton).ButtonContent()[SNew(STextBlock).Text_Lambda([this](){return FText::FromString(Session->Profile.IsValid()&&Session->Profile->Rules.OpeningMode==ERogueliteOpeningMode::OpenPassage?TEXT("Open Passage"):TEXT("Legacy"));})].MenuContent()[SNew(SVerticalBox)
+          +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Legacy"))).OnClicked_Lambda([this](){if(auto* P=Session->Profile.Get()){P->Modify();P->Rules.OpeningMode=ERogueliteOpeningMode::Legacy;Status=TEXT("配置已修改，请保存Profile；现有批次需Clear后重新生成。");}return FReply::Handled();})]
+          +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Open Passage"))).OnClicked_Lambda([this](){if(auto* P=Session->Profile.Get()){P->Modify();P->Rules.OpeningMode=ERogueliteOpeningMode::OpenPassage;Status=TEXT("配置已修改，请保存Profile；仅新生成实例采用500cm有效高度。");}return FReply::Handled();})]]]
+        +SHorizontalBox::Slot().AutoWidth().Padding(12,0)[SNew(SCheckBox).IsChecked_Lambda([this](){return Session->Profile.IsValid()&&Session->Profile->Rules.bGenerateCorridorCeiling?ECheckBoxState::Checked:ECheckBoxState::Unchecked;}).OnCheckStateChanged_Lambda([this](ECheckBoxState S){if(auto* P=Session->Profile.Get()){P->Modify();P->Rules.bGenerateCorridorCeiling=S==ECheckBoxState::Checked;Status=TEXT("配置已修改，请保存Profile；不会自动改动现有走廊。");}})[SNew(STextBlock).Text(FText::FromString(TEXT("Generate Corridor Ceiling")))]]]
+      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("生成后可在走廊Details覆盖顶板；Validate保留覆盖。Clear/Regenerate重新应用Profile；不跨Seed迁移。修改预设后请在Advanced保存Profile。")))]
+      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SHorizontalBox)
         +SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(STextBlock).Text(FText::FromString(TEXT("下次预览 Seed： ")))]
         +SHorizontalBox::Slot().AutoWidth()[SNew(SNumericEntryBox<int32>).AllowSpin(false).Value_Lambda([this](){return TOptional<int32>(Session->PreviewSeed);}).OnValueChanged_Lambda([this](int32 V){Session->PreviewSeed=V;})]
         +SHorizontalBox::Slot().AutoWidth().Padding(8,0)[SNew(SButton).Text(FText::FromString(TEXT("Randomize Seed"))).OnClicked_Lambda([this](){Session->PreviewSeed=FMath::Rand();return FReply::Handled();})]]
@@ -63,7 +71,7 @@ void SDesignerWorkbenchPanel::Construct(const FArguments&,TSharedRef<FDesignerWo
         +SHorizontalBox::Slot().AutoWidth()[SNew(SButton).Text(FText::FromString(TEXT("Validate Dungeon"))).OnClicked_Lambda([this](){return Execute(2);})]]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){return FText::FromString(CurrentSummary());})]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){FString Why;if(Status.Contains(TEXT("Geometry Validated"))){if(!LastSource.IsValid()||LastSource->GetWorld()!=EditorWorld()||GEditor->PlayWorld)return FText::FromString(TEXT("Generation Status：旧批次已失效；请读取当前World或重新生成。"));if(!LastSource->IsProfileCurrent(Why))return FText::FromString(TEXT("Generation Status：配置已改变，需重新生成。\n")+Why);}return FText::FromString(TEXT("Generation Status：")+Status+TEXT("\n")+Message);})]
-      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("走廊长度：5–10米（所有楼层，Tree与回环均受硬限制）。\nFloor 1：4房3廊0环。Floor 2/3为待平衡范围；当前最多1环。\n安全屋、最远Boss、正式快速Ready及楼层Gameplay尚未实现。")))]
+      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("走廊长度：12–15米（所有楼层，Tree与回环均受硬限制）。\nFloor 1：4房3廊0环。Floor 2/3为待平衡范围；当前最多1环。\n安全屋、最远Boss、正式快速Ready及楼层Gameplay尚未实现。")))]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SExpandableArea).InitiallyCollapsed(true).HeaderContent()[SNew(STextBlock).Text(FText::FromString(TEXT("Advanced / 楼层规则与模板（修改后需保存）")))].BodyContent()[SNew(SVerticalBox)
         +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Save Floor Profile"))).OnClicked_Lambda([this](){FDesignerWorkbench::SaveProfile(Session->Profile.Get(),Session->PreviewSeed,Message);return FReply::Handled();})]
         +SVerticalBox::Slot().AutoHeight()[RulesView.ToSharedRef()]

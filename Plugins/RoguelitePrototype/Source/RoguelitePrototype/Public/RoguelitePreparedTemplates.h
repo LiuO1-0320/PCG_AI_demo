@@ -15,6 +15,8 @@ struct ROGUELITEPROTOTYPE_API FRoguelitePreparedTemplateRow
     UPROPERTY() TArray<FRogueliteDoorSocket> Sockets;
     UPROPERTY() FString Signature;
     UPROPERTY() FString MemberSignature;
+    UPROPERTY() FRogueliteTemplateDescriptor SourceDescriptor;
+    UPROPERTY() TArray<FRogueliteDoorConfig> EffectiveDoors;
 };
 
 USTRUCT(BlueprintType)
@@ -25,6 +27,7 @@ struct ROGUELITEPROTOTYPE_API FRoguelitePreparedTemplateCatalog
     UPROPERTY() int32 TemplateCatalogVersion=0;
     UPROPERTY() FString Digest;
     UPROPERTY() TArray<FRoguelitePreparedTemplateRow> Rows;
+    UPROPERTY() FString GeometrySettingsDigest;
     FString ComputeDigest() const;
     bool IsCurrent(const FRogueliteSeedLayoutSettings& Settings,FString& Reason) const;
     static FString OptionDigest(const FRogueliteSeedTemplateOption& Option);

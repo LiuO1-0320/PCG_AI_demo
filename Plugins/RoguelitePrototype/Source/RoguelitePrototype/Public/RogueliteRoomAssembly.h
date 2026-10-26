@@ -257,6 +257,13 @@ public:
     FRogueliteAssemblyResult TryRegisterRuntimePlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
         ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,
         FGuid SourceBatch=FGuid(),FName LoopCandidate=NAME_None);
+    // HF03-C opt-in. Same C2 authority and physical probes, with mode-aware coverage.
+    FRogueliteAssemblyResult TryRegisterConfiguredPlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+        ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,
+        FGuid SourceBatch,FName LoopCandidate=NAME_None);
+    FRogueliteAssemblyResult RevalidateConfiguredConnection(FGuid ConnectionId);
+    static bool HasCompleteCorridorEvidence(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+        ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,const FRogueliteAssemblyResult& Result);
     FRogueliteFixedLoopCommitResult TryCommitFixedEndpointLoop(FRogueliteSeedBatch& BaseTree,
         FRogueliteCommittedLoopBatch& Overlay, const FRogueliteFixedLoopCommitRequest& Request);
 
@@ -275,6 +282,9 @@ private:
     bool CheckCorridorOccupancy(ARogueliteParametricRoom* A, ARogueliteParametricCorridor* C, ARogueliteParametricRoom* B,
         const FTransform& CorridorTransform, const FTransform& TargetTransform, FRogueliteAssemblyResult& Result) const;
     bool ValidateCorridorConnection(const FRogueliteRoomConnection& Connection, FRogueliteAssemblyResult& Result, bool bSkipNavigation = false) const;
+    FRogueliteAssemblyResult RegisterPlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
+        ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,
+        FGuid SourceBatch,FName LoopCandidate,bool bConfigured);
     bool CheckCorridorPassage(const FRogueliteRoomConnection& Connection, const FRogueliteDoorSocket& DoorA,
         const FRogueliteDoorSocket& DoorB, FRogueliteAssemblyResult& Result, bool bSkipNavigation = false) const;
     void RecordValidation(FRogueliteRoomConnection& Connection, const FRogueliteAssemblyResult& Result);

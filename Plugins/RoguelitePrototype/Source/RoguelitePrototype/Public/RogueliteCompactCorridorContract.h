@@ -9,8 +9,8 @@ struct ROGUELITEPROTOTYPE_API FRogueliteCompactCorridorMeasurement
 class ROGUELITEPROTOTYPE_API FRogueliteCompactCorridorContract
 {
 public:
-    static constexpr float MinCm=500;
-    static constexpr float MaxCm=1000;
+    static constexpr float MinCm=1200;
+    static constexpr float MaxCm=1500;
     static bool Configuration(const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& Planning,FString& Why);
     static bool Plan(const FRogueliteLoopAwareSpatialPlan& Plan,FString& Why);
     static bool Actual(const FRogueliteSeedBatch& Batch,const FRogueliteCommittedLoopBatch& Loops,TArray<FRogueliteCompactCorridorMeasurement>& Measurements,FString& Why);

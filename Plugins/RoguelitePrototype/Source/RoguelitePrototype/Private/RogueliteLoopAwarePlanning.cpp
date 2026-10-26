@@ -1,5 +1,6 @@
 #include "RogueliteLoopAwarePlanning.h"
 #include "RogueliteSeedAssemblyInternal.h"
+#include "RogueliteGenerationGeometry.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Math/RandomStream.h"
@@ -11,7 +12,7 @@ using namespace RogueliteSeedAssemblyInternal;
 constexpr auto SpatialPurpose=static_cast<ERogueliteGraphSeedPurpose>(0x63b29a15u);
 bool Editor(AActor* A){return IsValid(A)&&A->GetWorld()&&A->GetWorld()->WorldType==EWorldType::Editor;}
 FString SettingsText(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& V)
-{FString A,B;FRogueliteSeedLayoutSettings::StaticStruct()->ExportText(A,&S,nullptr,nullptr,PPF_None,nullptr);FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&V,nullptr,nullptr,PPF_None,nullptr);return A+TEXT("|SpatialDomain=63b29a15|")+B;}
+{const FString A=RogueliteGenerationGeometry::SettingsText(S);FString B;FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&V,nullptr,nullptr,PPF_None,nullptr);return A+TEXT("|SpatialDomain=63b29a15|")+B;}
 FBox RoomBox(const FRogueliteTemplateDescriptor& D)
 {return FBox(FVector(-D.Dimensions.X*.5-D.WallThickness,-D.Dimensions.Y*.5-D.WallThickness,-D.FloorThickness),FVector(D.Dimensions.X*.5+D.WallThickness,D.Dimensions.Y*.5+D.WallThickness,D.Dimensions.Z));}
 bool Intersects(const FBox& A,const FBox& B)
@@ -41,11 +42,13 @@ TArray<int32> TreePath(const FRogueliteRoomGraph& Gph,int32 A,int32 B)
     for(int32 H=0;H<Queue.Num()&&Parent[B]<0;++H)for(int32 N:Gph.GetNeighborIds(Queue[H]))if(Parent[N]<0){Parent[N]=Queue[H];Queue.Add(N);}
     TArray<int32> Path;if(Parent[B]<0)return Path;for(int32 N=B;N!=A;N=Parent[N])Path.Insert(N,0);Path.Insert(A,0);return Path;
 }
-FRogueliteSeedPlannedRoom MakeRoom(const Inputs& I,int32 Node,const CatalogEntry& T,const FTransform& Pose)
+FRogueliteSeedPlannedRoom MakeRoom(const Inputs& I,int32 Node,const CatalogEntry& T,const FTransform& Pose,const FRogueliteSeedLayoutSettings& Source)
 {
     FRogueliteSeedPlannedRoom R;R.Record.NodeId=Node;R.Record.RoomType=I.Types[Node];R.Record.TemplateId=T.Option.Id;R.Record.TemplateClass=T.Class;
     R.Record.EncounterProfile=I.Encounters[Node];R.Record.EventDefinitionId=I.EventDefinitions[Node];R.Record.PlacedTransform=Pose;R.Record.Dimensions=T.Descriptor.Dimensions;
     R.Record.WallThickness=T.Descriptor.WallThickness;R.Record.FloorThickness=T.Descriptor.FloorThickness;R.Record.MemberSignature=T.MemberSignature;
+    if(!RogueliteGenerationGeometry::IsLegacyDefaults(Source))
+    {R.Record.GenerationGeometry=Source.GenerationGeometry;R.Record.EffectiveDoors=RogueliteGenerationGeometry::EffectiveDoors(T.Class->GetDefaultObject<ARogueliteRoomTemplate>(),Source);}
     R.Record.LogicalDegree=I.Graph.Nodes[Node].Degree;R.Record.TemplateCapacity=T.Capacity;R.Sockets=T.Sockets;R.Occupancy=RoomBox(T.Descriptor).TransformBy(Pose);return R;
 }
 struct Solver
@@ -114,7 +117,7 @@ struct Solver
             if(E.BacktrackStates>=S.MaxBacktrackStates){Exhausted=true;Why=TEXT("BacktrackStateBudgetExhausted");return false;}++E.BacktrackStates;
             const auto& C=Choices[I];const auto Desc=Corridor(C.Profile,C.Length);FTransform CT,BT;
             if(!ARogueliteRoomAssembly::ComputeCorridorSocketTransforms(Placed(C.A,ParentRoom.Record.PlacedTransform),C.B,Desc.Start,Desc.End,.1f,CT,BT,Why))continue;
-            auto Room=MakeRoom(Input,Child,Input.Catalog[C.Template],BT);const auto Box=Desc.Bounds.TransformBy(CT);const auto Reserved=Intent?Intent->ReservedOccupancy:FBox(ForceInit);
+            auto Room=MakeRoom(Input,Child,Input.Catalog[C.Template],BT,Source);const auto Box=Desc.Bounds.TransformBy(CT);const auto Reserved=Intent?Intent->ReservedOccupancy:FBox(ForceInit);
             if(Intersects(Box,Room.Occupancy)||!Free(Room.Occupancy,P,Reserved)||!Free(Box,P,Reserved))continue;
             auto* PR=P.Rooms.FindByPredicate([&](const auto& R){return R.Record.NodeId==Parent;});PR->UsedSockets.Add(C.A.Side);Room.UsedSockets.Add(C.B.Side);P.Rooms.Add(Room);
             const auto* A=P.Rooms.FindByPredicate([&](const auto& R){return R.Record.NodeId==Next->NodeA;});const auto* B=P.Rooms.FindByPredicate([&](const auto& R){return R.Record.NodeId==Next->NodeB;});
@@ -161,7 +164,7 @@ struct Solver
         FVector Position=FVector::ZeroVector;
         for(int32 I=0;I<K;++I)
         {
-            auto R=MakeRoom(Input,Intent.TreePath[I],Input.Catalog[Selected[I].Template],FTransform(Selected[I].Rotation,Position));
+            auto R=MakeRoom(Input,Intent.TreePath[I],Input.Catalog[Selected[I].Template],FTransform(Selected[I].Rotation,Position),Source);
             if(!Free(R.Occupancy,P,FBox(ForceInit)))return false;
             if(I>0)R.UsedSockets.Add(Selected[I].In.Side);if(I<K-1)R.UsedSockets.Add(Selected[I].Out.Side);P.Rooms.Add(R);
             if(I<K-1)Position+=Selected[I].Rotation.RotateVector(Selected[I].Out.LocalPosition)+Dirs[I]*Lengths[I]-Selected[I+1].Rotation.RotateVector(Selected[I+1].In.LocalPosition);
@@ -228,14 +231,14 @@ static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRoguel
         else
         {
             const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source);if(!Order.IsEmpty())
-            {const int32 T=Order[Attempt%Order.Num()];P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[T],FTransform::Identity));if(Solver.Branches(P.Tree,nullptr)){Solved=true;break;}}
+            {const int32 T=Order[Attempt%Order.Num()];P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[T],FTransform::Identity,Source));if(Solver.Branches(P.Tree,nullptr)){Solved=true;break;}}
         }
         E.Attempts.Add(FString::Printf(TEXT("Attempt=%d Intent=%s States=%d Checks=%d Failure=%s"),Attempt,!Intents.IsEmpty()?*Intents[Attempt%Intents.Num()].StableId.ToString():TEXT("None"),E.BacktrackStates,E.SpatialChecks,*Solver.Why));
     }
     if(!Solved&&S.MinLoops==0&&!Intents.IsEmpty()&&!Solver.Exhausted)
     {
         ++E.LayoutAttempts;E.bUsedOptionalTreeFallback=true;P.Tree.Rooms.Reset();P.Tree.Edges.Reset();const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source);
-        if(!Order.IsEmpty()){P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[Order[0]],FTransform::Identity));Solved=Solver.Branches(P.Tree,nullptr);if(Solved){E.Intents.Reset();E.FeasibleIntentCount=0;}}
+        if(!Order.IsEmpty()){P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[Order[0]],FTransform::Identity,Source));Solved=Solver.Branches(P.Tree,nullptr);if(Solved){E.Intents.Reset();E.FeasibleIntentCount=0;}}
     }
     if(!Solved)return Fail(Solver.Exhausted?TEXT("SearchBudgetExhausted"):TEXT("TreeOrLoopSpatialUnsatisfied"),Solver.Why+TEXT("; no formal Actors/leases spawned; original V2 topology preserved."));
     E.bTreePlanned=true;P.Tree.bValid=true;P.Tree.Reason=TEXT("Complete joint data plan. Actual C2/Loop commit still pending.");

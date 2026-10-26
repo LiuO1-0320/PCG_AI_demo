@@ -1,6 +1,7 @@
 ﻿#include "RogueliteRuntimeLoopAssembly.h"
 #include "RogueliteSeedAssemblyInternal.h"
 #include "RoguelitePrototype.h"
+#include "RogueliteFloorProfile.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -12,6 +13,13 @@ ARogueliteRuntimeLoopAssembly::ARogueliteRuntimeLoopAssembly()
 }
 void ARogueliteRuntimeLoopAssembly::ConfigureSource()
 {
+    if(IsValid(FloorProfile))
+    {
+        const auto C=FloorProfile->ResolvePreview(Seed);
+        if(C.bValid){Settings=C.Source;Planning=C.Planning;}
+        else {RuntimeStatus=TEXT("ProfileRejected");LastFailureReason=C.ErrorCode+TEXT(": ")+C.Message;}
+        return;
+    }
     Settings=FRogueliteRuntimeLoopAssembler::SourcePreset(Seed,Preset==ERogueliteLoopTestPreset::FourRoomTree);
     Planning.bEnableLoopAwarePlanning=true;
     Planning.MinLoops=Planning.MaxLoops=Preset==ERogueliteLoopTestPreset::FourRoomTree?0:1;
@@ -19,7 +27,9 @@ void ARogueliteRuntimeLoopAssembly::ConfigureSource()
 void ARogueliteRuntimeLoopAssembly::PrepareTemplatesInEditor()
 {
     if(!GetWorld()||GetWorld()->WorldType!=EWorldType::Editor
-        ||GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeLoopNavigation_Dev"))return;
+        ||(GetWorld()->GetOutermost()->GetName()!=TEXT("/Game/Roguelite/Maps/L_Roguelite_RuntimeLoopNavigation_Dev")
+            &&!(IsValid(FloorProfile)&&GetWorld()->GetOutermost()->GetName()==TEXT("/Game/Roguelite/Maps/L_Roguelite_OpenPassageIntegration_Dev"))))return;
+    if(IsValid(FloorProfile)&&!FloorProfile->ResolvePreview(Seed).bValid){RuntimeStatus=TEXT("ProfileRejected");return;}
     ConfigureSource();Modify();FString Reason;
     const bool Good=FRoguelitePreparedTemplateCatalog::CaptureEditor(this,Settings,PreparedTemplates,Reason);
     RuntimeStatus=Good?TEXT("模板数据已准备；PIE时安全生成"):TEXT("模板数据准备失败");LastFailureReason=Good?FString():Reason;
@@ -31,7 +41,14 @@ bool ARogueliteRuntimeLoopAssembly::GenerateRuntime()
     ConfigureSource();NavigationReadiness->Cancel();bGeometryValidated=bDungeonReady=false;
     RuntimeStatus=TEXT("Planning");LastFailureReason.Reset();StageHistory.Reset();
     BatchSummary.Reset();NavigationSummary.Reset();MoveToSummary.Reset();
-    const bool Good=FRogueliteRuntimeLoopAssembler::Generate(this,Settings,Planning,PreparedTemplates,Batch,CommittedLoops,LastGeometry);
+    bool Good=false;
+    if(IsValid(FloorProfile))
+    {
+        const auto Config=FloorProfile->ResolvePreview(Seed);
+        if(Config.bValid)Good=FRogueliteFloorProfileResolver::GenerateRuntime(this,Config,ERogueliteFloorValidationPurpose::DeveloperValidation,PreparedTemplates,Batch,CommittedLoops,LastGeometry);
+        else {LastGeometry={};LastGeometry.Stage=Config.ErrorCode;LastGeometry.Reason=Config.Message;}
+    }
+    else Good=FRogueliteRuntimeLoopAssembler::Generate(this,Settings,Planning,PreparedTemplates,Batch,CommittedLoops,LastGeometry);
     if(!Good){RuntimeStatus=TEXT("Failed");LastFailureReason=LastGeometry.Reason;Stage=ERogueliteDungeonBuildStage::Failed;return false;}
     StageHistory={ERogueliteDungeonBuildStage::GraphGenerated,ERogueliteDungeonBuildStage::SpatialPlanValid,
         ERogueliteDungeonBuildStage::ActorsSpawned,ERogueliteDungeonBuildStage::GeometryValidated,ERogueliteDungeonBuildStage::NavigationPending};
@@ -73,7 +90,7 @@ FString ARogueliteRuntimeLoopAssembly::GetNavigationEpoch() const
         +Batch.GraphDigest+Batch.LayoutDigest+CommittedLoops.GeometryDigest+GetActorTransform().ToString();
 }
 bool ARogueliteRuntimeLoopAssembly::RevalidateRuntimeGeometry()
-{FString Reason;return FRogueliteRuntimeLoopAssembler::Revalidate(this,Batch,Settings,CommittedLoops,Reason);}
+{FString Reason;return IsValid(FloorProfile)?FRogueliteRuntimeLoopAssembler::RevalidateConfigured(this,Batch,Settings,CommittedLoops,Reason):FRogueliteRuntimeLoopAssembler::Revalidate(this,Batch,Settings,CommittedLoops,Reason);}
 FRogueliteLoopTraversalSnapshot ARogueliteRuntimeLoopAssembly::GetTraversalSnapshot() const
 {
     auto Result=FRogueliteLoopCommitQueries::Capture(const_cast<ARogueliteRuntimeLoopAssembly*>(this),Batch,Settings,CommittedLoops);
