@@ -17,6 +17,36 @@
 namespace { UWorld* EditorWorld(){return GEditor?GEditor->GetEditorWorldContext().World():nullptr;}
 bool Diagnostic(const FPropertyAndParent& P){if(P.Property.GetMetaData(TEXT("Category"))==TEXT("Developer Diagnostics"))return true;for(const auto* A:P.ParentProperties)if(A->GetMetaData(TEXT("Category"))==TEXT("Developer Diagnostics"))return true;return false;}
 bool Reserved(const FPropertyAndParent& P){return P.Property.GetMetaData(TEXT("Category"))==TEXT("Reserved Gameplay");}
+FString WeightMatrix(const TArray<TStrongObjectPtr<URogueliteFloorProfile>>& Profiles)
+{
+    TArray<FName> Ids;for(const auto& P:Profiles)if(P.IsValid())for(const auto& T:P->Rules.AllowedTemplates)Ids.AddUnique(T.Id);
+    Ids.Sort([](FName A,FName B){return A.ToString()<B.ToString();});
+    const auto Compact=[](const TArray<FString>& Values,bool ClassNames)
+    {
+        FString Common;bool Same=true;for(const auto& V:Values)if(!V.IsEmpty()){if(Common.IsEmpty())Common=V;else Same&=Common==V;}
+        const auto Label=[&](const FString& V){return ClassNames?FSoftObjectPath(V).GetAssetName():V;};
+        if(Same)return Label(Common);FString Result;
+        for(int32 I=0;I<Values.Num();++I)if(!Values[I].IsEmpty())Result+=FString::Printf(TEXT("F%d:%s "),I+1,*Label(Values[I]));
+        return Result;
+    };
+    FString Text=TEXT("Room Template Weights / 楼层权重（只读汇总）\nTemplateId | TemplateClass | Allowed RoomTypes | Floor1 Weight | Floor2 Weight | Floor3 Weight\n");
+    for(FName Id:Ids)
+    {
+        TArray<FString> Classes,Types;Classes.SetNum(3);Types.SetNum(3);FString Weights;
+        for(int32 I=0;I<3;++I)
+        {
+            const auto* P=Profiles.IsValidIndex(I)?Profiles[I].Get():nullptr;
+            const auto* T=P?P->Rules.AllowedTemplates.FindByPredicate([&](const auto& V){return V.Id==Id;}):nullptr;
+            Weights+=I?TEXT(" | "):TEXT("");Weights+=T?FString::FromInt(T->Weight):TEXT("禁用");
+            if(!T)continue;
+            Classes[I]=T->TemplateClass.ToSoftObjectPath().ToString();TArray<FString> TypeNames;
+            for(auto Type:T->AllowedTypes)TypeNames.Add(StaticEnum<ERogueliteSeedRoomType>()->GetNameStringByValue(int64(Type)));
+            Types[I]=FString::Join(TypeNames,TEXT("/"));
+        }
+        Text+=Id.ToString()+TEXT(" | ")+Compact(Classes,true)+TEXT(" | ")+Compact(Types,false)+TEXT(" | ")+Weights+TEXT("\n");
+    }
+    return Text+TEXT("在下方当前楼层 Allowed Templates 中修改 Weight（1–10000）；移除条目表示该层禁用。保存当前Profile后可重载；不会自动修改其他楼层。");
+}
 }
 void SDesignerWorkbenchPanel::Select(int32 I)
 {
@@ -73,6 +103,11 @@ void SDesignerWorkbenchPanel::Construct(const FArguments&,TSharedRef<FDesignerWo
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){FString Why;if(Status.Contains(TEXT("Geometry Validated"))){if(!LastSource.IsValid()||LastSource->GetWorld()!=EditorWorld()||GEditor->PlayWorld)return FText::FromString(TEXT("Generation Status：旧批次已失效；请读取当前World或重新生成。"));if(!LastSource->IsProfileCurrent(Why))return FText::FromString(TEXT("Generation Status：配置已改变，需重新生成。\n")+Why);}return FText::FromString(TEXT("Generation Status：")+Status+TEXT("\n")+Message);})]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("走廊长度：12–15米（所有楼层，Tree与回环均受硬限制）。\nFloor 1：4房3廊0环。Floor 2/3为待平衡范围；当前最多1环。\n安全屋、最远Boss、正式快速Ready及楼层Gameplay尚未实现。")))]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SExpandableArea).InitiallyCollapsed(true).HeaderContent()[SNew(STextBlock).Text(FText::FromString(TEXT("Advanced / 楼层规则与模板（修改后需保存）")))].BodyContent()[SNew(SVerticalBox)
+        +SVerticalBox::Slot().AutoHeight().Padding(0,6)[SNew(SCheckBox)
+          .IsChecked_Lambda([this](){return Session->Profile.IsValid()&&Session->Profile->Rules.SpatialPlanningVersion==3?ECheckBoxState::Checked:ECheckBoxState::Unchecked;})
+          .OnCheckStateChanged_Lambda([this](ECheckBoxState S){if(auto* P=Session->Profile.Get()){P->Modify();P->Rules.SpatialPlanningVersion=S==ECheckBoxState::Checked?3:2;Message=TEXT("当前Profile的加权选择版本已修改；请保存后Clear并重新生成。旧版本2保持原有结果，版本3采用加权候选回退。");}})
+          [SNew(STextBlock).Text(FText::FromString(TEXT("Use Floor Template Weights / 当前楼层启用加权模板选择（版本3）")))]]
+        +SVerticalBox::Slot().AutoHeight().Padding(0,6)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){return FText::FromString(WeightMatrix(Profiles));})]
         +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Save Floor Profile"))).OnClicked_Lambda([this](){FDesignerWorkbench::SaveProfile(Session->Profile.Get(),Session->PreviewSeed,Message);return FReply::Handled();})]
         +SVerticalBox::Slot().AutoHeight()[RulesView.ToSharedRef()]
         +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Inspect Actual Templates / 读取模板"))).OnClicked_Lambda([this](){Inventory=FDesignerWorkbench::TemplateInfo(EditorWorld(),Session->Profile.Get(),Session->PreviewSeed);return FReply::Handled();})]

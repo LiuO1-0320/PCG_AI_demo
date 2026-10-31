@@ -44,7 +44,7 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
 {
     FRogueliteResolvedFloor R;R.ProfileId=D.ProfileId;R.FloorIndex=D.FloorIndex;R.bDerivedFromRunSeed=FromRun;R.UsedSeed=FromRun?DeriveFloorSeed(Seed,D.FloorIndex,D.ProfileVersion):Seed;R.ProfileDigest=Digest(D);
     const auto Fail=[&](const FString& Code,const FString& Message){R.ErrorCode=Code;R.Message=Message;return R;};
-    if(D.ProfileId.IsNone()||D.FloorIndex<1||D.ProfileVersion<1||D.SpatialPlanningVersion!=2)return Fail(TEXT("InvalidProfileIdentity"),TEXT("楼层标识、版本或空间规划版本无效。"));
+    if(D.ProfileId.IsNone()||D.FloorIndex<1||D.ProfileVersion<1||(D.SpatialPlanningVersion!=2&&D.SpatialPlanningVersion!=3))return Fail(TEXT("InvalidProfileIdentity"),TEXT("楼层标识、版本或空间规划版本无效（2=原行为，3=加权模板选择）。"));
     if(D.MinRoomCount<2||D.MaxRoomCount<D.MinRoomCount||D.MaxRoomCount>32)return Fail(TEXT("RoomBudgetInvalid"),TEXT("房间范围无效；当前共享规划器最多支持32间房。"));
     if(D.FloorIndex==1&&(D.MinRoomCount!=4||D.MaxRoomCount!=4||D.MinLoops!=0||D.MaxLoops!=0))return Fail(TEXT("IntroBudgetViolation"),TEXT("第一层当前合同为4房3廊、零回环；不能静默改变该预设。"));
     if(D.MinLoops<0||D.MaxLoops<D.MinLoops||D.MaxLoops>1)return Fail(TEXT("LoopBudgetUnsupported"),TEXT("当前只能生成0或1个真实回环，不支持2环。"));
