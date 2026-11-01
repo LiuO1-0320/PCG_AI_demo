@@ -130,7 +130,7 @@ struct Solver
         const auto ParentRoom=*P.Rooms.FindByPredicate([&](const auto& R){return R.Record.NodeId==Parent;});
         auto Ports=ParentRoom.Sockets;Ports.RemoveAll([&](const auto& D){return ParentRoom.UsedSockets.Contains(D.Side)||(Intent&&((Parent==Intent->NodeA&&D.Side==Intent->SocketA)||(Parent==Intent->NodeB&&D.Side==Intent->SocketB)));});
         struct Choice{int32 Template;FRogueliteDoorSocket A,B;FRogueliteSeedCorridorProfile Profile;float Length;};TArray<Choice> Choices;
-        for(const auto& A:Ports)for(int32 TI:TemplateOrder(Input.Catalog,Input.Types[Child],Input.Graph.Nodes[Child].Degree,Child,Source))for(const auto& B:Input.Catalog[TI].Sockets)for(const auto& Profile:Input.Profiles)for(float L:Profile.LengthCandidates)
+        for(const auto& A:Ports)for(int32 TI:TemplateOrder(Input.Catalog,Input.Types[Child],Input.Graph.Nodes[Child].Degree,Child,Source,Input.Graph))for(const auto& B:Input.Catalog[TI].Sockets)for(const auto& Profile:Input.Profiles)for(float L:Profile.LengthCandidates)
             if(L>=S.MinTreeCorridorLength&&L<=S.MaxTreeCorridorLength&&FMath::Abs(A.DoorWidth-B.DoorWidth)<.1&&FMath::Abs(A.DoorWidth-Profile.DoorWidth)<.1&&FMath::Abs(A.DoorHeight-B.DoorHeight)<.1&&FMath::Abs(A.DoorHeight-Profile.DoorHeight)<.1)Choices.Add({TI,A,B,Profile,L});
         // This stream belongs to spatial search only, never to topology/type/content.
         if(S.SpatialPlanningVersion==3)
@@ -179,7 +179,7 @@ struct Solver
         for(int32 I=0;I<K;++I)
         {
             const int32 Node=Intent.TreePath[I],Degree=Input.Graph.Nodes[Node].Degree+((I==0||I==K-1)?1:0);TArray<Oriented> All;TArray<int32> Eligible;
-            for(int32 T:TemplateOrder(Input.Catalog,Input.Types[Node],Degree,Node,Source))for(int32 Yaw=0;Yaw<4;++Yaw)
+            for(int32 T:TemplateOrder(Input.Catalog,Input.Types[Node],Degree,Node,Source,Input.Graph))for(int32 Yaw=0;Yaw<4;++Yaw)
             {
                 const FQuat Q=FRotator(0,Yaw*90,0).Quaternion();const FVector In=-Dirs[(I+K-1)%K],Out=Dirs[I];const auto& Ports=Input.Catalog[T].Sockets;
                 const auto* A=Ports.FindByPredicate([&](const auto& D){return Q.RotateVector(D.LocalOutwardDirection).Equals(In,.0001);});const auto* B=Ports.FindByPredicate([&](const auto& D){return Q.RotateVector(D.LocalOutwardDirection).Equals(Out,.0001);});
@@ -237,7 +237,7 @@ struct Solver
         for(int32 I=0;I<K;++I)
         {
             const int32 Node=Intent.TreePath[I],Extra=(I==0||I==K-1)?1:0;TArray<Oriented> Options;
-            for(int32 T:TemplateOrder(Input.Catalog,Input.Types[Node],Input.Graph.Nodes[Node].Degree+Extra,Node,Source))for(int32 Yaw=0;Yaw<4;++Yaw)
+            for(int32 T:TemplateOrder(Input.Catalog,Input.Types[Node],Input.Graph.Nodes[Node].Degree+Extra,Node,Source,Input.Graph))for(int32 Yaw=0;Yaw<4;++Yaw)
             {
                 const FQuat Q=FRotator(0,Yaw*90,0).Quaternion();const FVector In=-Dirs[(I+K-1)%K],Out=Dirs[I];
                 const auto& Ports=Input.Catalog[T].Sockets;const auto* A=Ports.FindByPredicate([&](const auto& D){return Q.RotateVector(D.LocalOutwardDirection).Equals(In,.0001);});const auto* B=Ports.FindByPredicate([&](const auto& D){return Q.RotateVector(D.LocalOutwardDirection).Equals(Out,.0001);});
@@ -303,7 +303,7 @@ static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRoguel
     P.SourceCatalogDigest=P.Tree.Metadata.ConfigurationDigest;P.Tree.Graph=I.Graph;P.Tree.bGraphGenerated=true;E.GraphDigest=I.Graph.StableDigest;E.RoomCount=I.Graph.Nodes.Num();E.TreeEdgeCount=I.Graph.Edges.Num();
     if(E.RoomCount>32)return Fail(TEXT("InvalidInputs"),TEXT("Bounded planner currently accepts at most32 nodes; no topology changed."));
     FString Types;TArray<int32> Caps;
-    for(const auto& N:I.Graph.Nodes){int32 Cap=0;for(const auto& T:I.Catalog)if(T.Option.AllowedTypes.Contains(I.Types[N.NodeId]))Cap=FMath::Max(Cap,T.Capacity);Caps.Add(Cap);Types+=FString::Printf(TEXT("|%d:%d:%s"),N.NodeId,uint8(I.Types[N.NodeId]),*I.EventDefinitions[N.NodeId].ToString());}
+    for(const auto& N:I.Graph.Nodes){int32 Cap=0;for(const auto& T:I.Catalog)if(T.Option.AllowedTypes.Contains(I.Types[N.NodeId])&&IsTemplateRoleAllowed(T.Option.Id,I.Graph,N.NodeId,Source))Cap=FMath::Max(Cap,T.Capacity);Caps.Add(Cap);Types+=FString::Printf(TEXT("|%d:%d:%s"),N.NodeId,uint8(I.Types[N.NodeId]),*I.EventDefinitions[N.NodeId].ToString());}
     E.RoomTypeDigest=G::StableTextDigest(Types);for(const auto& T:I.Catalog)P.Tree.RetainedClasses.Add(TStrongObjectPtr<UClass>(T.Class));
     TArray<FRogueliteLoopIntent> Intents;
     if(S.MaxLoops>0)
@@ -324,14 +324,14 @@ static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRoguel
         {auto Intent=Intents[Attempt%Intents.Num()];if(Solver.Cycle(P.Tree,Intent)){E.Intents={Intent};E.FeasibleIntentCount=1;Solved=true;break;}}
         else
         {
-            const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source);if(!Order.IsEmpty())
+            const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source,I.Graph);if(!Order.IsEmpty())
             {const int32 T=Order[Attempt%Order.Num()];if(S.SpatialPlanningVersion==3){F1OrderTrace(TEXT("Root"),0,uint8(I.Types[0]),I.Graph.Nodes[0].Degree,E.LayoutAttempts,Order,I.Catalog);UE_LOG(LogTemp,Display,TEXT("F1_TRY Stage=Root Node=0 Attempt=%d Candidate=%d Template=%s"),E.LayoutAttempts,Attempt%Order.Num(),*I.Catalog[T].Option.Id.ToString());}P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[T],FTransform::Identity,Source));if(Solver.Branches(P.Tree,nullptr)){Solved=true;break;}}
         }
         E.Attempts.Add(FString::Printf(TEXT("Attempt=%d Intent=%s States=%d Checks=%d Failure=%s"),Attempt,!Intents.IsEmpty()?*Intents[Attempt%Intents.Num()].StableId.ToString():TEXT("None"),E.BacktrackStates,E.SpatialChecks,*Solver.Why));
     }
     if(!Solved&&S.MinLoops==0&&!Intents.IsEmpty()&&!Solver.Exhausted)
     {
-        ++E.LayoutAttempts;E.bUsedOptionalTreeFallback=true;P.Tree.Rooms.Reset();P.Tree.Edges.Reset();const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source);
+        ++E.LayoutAttempts;E.bUsedOptionalTreeFallback=true;P.Tree.Rooms.Reset();P.Tree.Edges.Reset();const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source,I.Graph);
         if(!Order.IsEmpty()){if(S.SpatialPlanningVersion==3){F1OrderTrace(TEXT("OptionalTreeRoot"),0,uint8(I.Types[0]),I.Graph.Nodes[0].Degree,E.LayoutAttempts,Order,I.Catalog);UE_LOG(LogTemp,Display,TEXT("F1_TRY Stage=OptionalTreeRoot Node=0 Attempt=%d Candidate=0 Template=%s"),E.LayoutAttempts,*I.Catalog[Order[0]].Option.Id.ToString());}P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[Order[0]],FTransform::Identity,Source));Solved=Solver.Branches(P.Tree,nullptr);if(Solved){E.Intents.Reset();E.FeasibleIntentCount=0;}}
     }
     if(!Solved)return Fail(Solver.Exhausted?TEXT("SearchBudgetExhausted"):TEXT("TreeOrLoopSpatialUnsatisfied"),Solver.Why+TEXT("; no formal Actors/leases spawned; original V2 topology preserved."));
@@ -368,3 +368,5 @@ bool FRogueliteLoopAwarePlanner::IsCurrent(AActor* Owner,const FRogueliteSeedLay
 }
 
 #include "Tests/RogueliteWeightedTemplateSelectionTests.inl"
+
+#include "Tests/RogueliteRoomRoleWeightsTests.inl"

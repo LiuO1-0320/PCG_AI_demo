@@ -8,22 +8,24 @@ namespace
 {
 // Match the original reflected ExportText representation while excluding only HF03-C
 // extension fields. This retains legacy sealed-catalog/settings identities.
-FString LegacyText(const UScriptStruct* Type, const void* Value, const void* Defaults=nullptr)
+FString LegacyText(const UScriptStruct* Type, const void* Value, const void* Defaults=nullptr,bool LegacyGeometry=true)
 {
     FString Text=TEXT("("); bool First=true;
     for (TFieldIterator<FProperty> It(Type);It;++It)
     {
         const FProperty* P=*It; const FName N=P->GetFName();
         const FString T=Type->GetName();
-        if ((T==TEXT("RogueliteSeedLayoutSettings")&&N==TEXT("GenerationGeometry"))
+        if(T==TEXT("RogueliteSeedLayoutSettings")&&N==TEXT("RoomTemplateRoles")
+            &&!static_cast<const FRogueliteSeedLayoutSettings*>(Value)->RoomTemplateRoles.bEnabled)continue;
+        if (LegacyGeometry&&((T==TEXT("RogueliteSeedLayoutSettings")&&N==TEXT("GenerationGeometry"))
             ||(T==TEXT("RogueliteSeedCorridorProfile")&&N==TEXT("bGenerateCeiling"))
             ||(T==TEXT("RoguelitePreparedTemplateRow")&&(N==TEXT("SourceDescriptor")||N==TEXT("EffectiveDoors")))
-            ||(T==TEXT("RoguelitePreparedTemplateCatalog")&&N==TEXT("GeometrySettingsDigest"))) continue;
+            ||(T==TEXT("RoguelitePreparedTemplateCatalog")&&N==TEXT("GeometrySettingsDigest")))) continue;
         if(!P->ShouldPort(PPF_None))continue;
         FString Part; const void* Data=P->ContainerPtrToValuePtr<void>(Value);
         const void* Delta=Defaults?P->ContainerPtrToValuePtr<void>(Defaults):nullptr;
         if(!P->ExportText_Direct(Part,Data,Delta,nullptr,PPF_Delimited))continue;
-        if(const auto* Array=CastField<FArrayProperty>(P))
+        if(const auto* Array=CastField<FArrayProperty>(P);LegacyGeometry&&Array)
         {
             const auto* Inner=CastField<FStructProperty>(Array->Inner);
             if(Inner&&(Inner->Struct==FRogueliteSeedCorridorProfile::StaticStruct()
@@ -50,6 +52,7 @@ bool IsLegacyDefaults(const FRogueliteSeedLayoutSettings& S)
 FString SettingsText(const FRogueliteSeedLayoutSettings& S)
 {
     if(IsLegacyDefaults(S))return LegacyText(FRogueliteSeedLayoutSettings::StaticStruct(),&S);
+    if(!S.RoomTemplateRoles.bEnabled)return LegacyText(FRogueliteSeedLayoutSettings::StaticStruct(),&S,nullptr,false);
     FString Text;FRogueliteSeedLayoutSettings::StaticStruct()->ExportText(Text,&S,nullptr,nullptr,PPF_None,nullptr);return Text;
 }
 FString SettingsDigest(const FRogueliteSeedLayoutSettings& S)

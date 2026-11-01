@@ -46,6 +46,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteFloorDefinition
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Loops",meta=(ClampMin="0",ClampMax="1")) int32 MaxLoops=0;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Room Types") FRogueliteRoomTypeAssignmentSettings RoomTypes;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Templates") TArray<FRogueliteSeedTemplateOption> AllowedTemplates;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Templates") FRogueliteRoomTemplateRoleRules RoomTemplateRoles;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(DisplayName="Opening Mode")) ERogueliteOpeningMode OpeningMode=ERogueliteOpeningMode::Legacy;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(DisplayName="Generate Corridor Ceiling")) bool bGenerateCorridorCeiling=true;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category="Corridor",meta=(Units="cm",ToolTip="Open Passage only: generated room shells and corridor clear height use 500 cm; source templates and owned POIs are unchanged.")) float OpenPassageRoomHeight=500;

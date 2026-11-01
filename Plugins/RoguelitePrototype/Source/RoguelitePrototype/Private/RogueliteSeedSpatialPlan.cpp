@@ -87,7 +87,7 @@ FRogueliteSeedSpatialPlan FRogueliteSeedLayoutAssembler::Plan(AActor* Owner,cons
         R.Record.LogicalDegree=Input.Graph.Nodes[Node].Degree;R.Record.TemplateCapacity=T.Capacity;R.Sockets=T.Sockets;R.Occupancy=RoomBounds(T.Descriptor).TransformBy(Transform);return R;
     };
     bool Root=false;
-    for(int32 Index:TemplateOrder(Input.Catalog,Input.Types[0],Input.Graph.Nodes[0].Degree,0,S))
+    for(int32 Index:TemplateOrder(Input.Catalog,Input.Types[0],Input.Graph.Nodes[0].Degree,0,S,Input.Graph))
     {
         auto R=MakeRoom(0,Input.Catalog[Index],Start);
         if(SpaceFree(Owner,R.Occupancy,Plan,Plan.Reason)){Plan.Rooms.Add(R);Root=true;break;}

@@ -34,6 +34,18 @@ struct ROGUELITEPROTOTYPE_API FRogueliteRoomTypeAssignmentSettings
 };
 
 USTRUCT(BlueprintType)
+struct ROGUELITEPROTOTYPE_API FRogueliteRoomTemplateRoleRules
+{
+    GENERATED_BODY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Use Room Role Isolation")) bool bEnabled = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 PolicyVersion = 1;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bEnabled")) TArray<FName> StartTemplateIds;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bEnabled")) TArray<FName> NormalTemplateIds;
+    // Interpreted by this FloorProfile's existing FloorExit/BossFinal policy.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bEnabled")) TArray<FName> FinalTemplateIds;
+};
+
+USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteSeedTemplateOption
 {
     GENERATED_BODY()
@@ -102,6 +114,7 @@ struct ROGUELITEPROTOTYPE_API FRogueliteSeedLayoutSettings
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="V2") FRogueliteRoomTypeAssignmentSettings TypeAssignment;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="1",ClampMax="256")) int32 MaxCandidatesPerEdge = 64;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FRogueliteSeedTemplateOption> Templates;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite) FRogueliteRoomTemplateRoleRules RoomTemplateRoles;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FRogueliteSeedEncounterOption> Encounters;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FRogueliteSeedCorridorProfile> Corridors;
     // Order Combat/Challenge/SupplyShop. Final is assigned by the graph's Final role.

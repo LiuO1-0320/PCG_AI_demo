@@ -99,9 +99,99 @@ namespace RogueliteSeedAssemblyInternal
             *FString::Join(M.MaterialPaths,TEXT(",")),*M.CollisionProfile.ToString(),M.CollisionEnabled,int32(M.Mobility.GetValue()));
         return Text;
     }
-    TArray<int32> TemplateOrder(const TArray<CatalogEntry>& Catalog,ERogueliteSeedRoomType Type,int32 Degree,int32 Node,const FRogueliteSeedLayoutSettings& S)
+
+    bool ValidateRoomRoleRules(const FRogueliteSeedLayoutSettings& S,FString& Reason)
     {
-        TArray<int32> Pool,Out; for(int32 I=0;I<Catalog.Num();++I) if(Catalog[I].Capacity>=Degree && Catalog[I].Option.AllowedTypes.Contains(Type)) Pool.Add(I);
+        const auto& R=S.RoomTemplateRoles;
+        if(!R.bEnabled)return true;
+        const auto Fail=[&](const FString& Why){Reason=TEXT("G1RoleConfiguration: ")+Why;return false;};
+        if(R.PolicyVersion!=1||S.AlgorithmVersion!=2||S.TypeAssignment.Version!=2||S.TypeAssignment.StartType!=ERogueliteSeedRoomType::Combat)
+            return Fail(TEXT("PolicyVersion1 requires V2 topology/types and a Combat-tagged StartSafehouse."));
+        TSet<FName> CatalogIds;
+        for(const auto& T:S.Templates)
+            if(T.Id.IsNone()||CatalogIds.Contains(T.Id)||T.TemplateClass.IsNull()||T.Weight<1||T.Weight>10000||T.AllowedTypes.IsEmpty())
+                return Fail(TEXT("Invalid current-floor template Id/Class/types/positive Weight."));
+            else CatalogIds.Add(T.Id);
+        TMap<FName,int32> IdGroups;TMap<FSoftObjectPath,int32> ClassGroups;
+        const TArray<FName>* Pools[]={&R.StartTemplateIds,&R.NormalTemplateIds,&R.FinalTemplateIds};
+        for(int32 Group=0;Group<3;++Group)
+        {
+            if(Pools[Group]->IsEmpty())return Fail(FString::Printf(TEXT("Role=%d has no explicitly authored template Ids; no Combat fallback."),Group));
+            for(FName Id:*Pools[Group])
+            {
+                const auto* T=S.Templates.FindByPredicate([&](const auto& V){return V.Id==Id;});
+                if(!T)return Fail(TEXT("Role references an Id outside this floor catalog: ")+Id.ToString());
+                if(IdGroups.Contains(Id))return Fail(TEXT("Duplicate/cross-role template Id: ")+Id.ToString());
+                IdGroups.Add(Id,Group);
+                const auto Path=T->TemplateClass.ToSoftObjectPath();
+                if(const auto* Old=ClassGroups.Find(Path);Old&&*Old!=Group)
+                    return Fail(TEXT("One template Class has aliases in conflicting role pools: ")+Id.ToString());
+                ClassGroups.Add(Path,Group);
+                if((Group==0&&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::Combat))
+                    ||(Group==2&&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::Final)))
+                    return Fail(TEXT("Start/Final role has incompatible AllowedTypes: ")+Id.ToString());
+                if(Group==1&&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::Combat)
+                    &&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::Challenge)
+                    &&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::SupplyShop)
+                    &&!T->AllowedTypes.Contains(ERogueliteSeedRoomType::Event))
+                    return Fail(TEXT("Normal role has no legal ordinary RoomType: ")+Id.ToString());
+            }
+        }
+        return true;
+    }
+    bool IsTemplateRoleAllowed(FName Id,const FRogueliteRoomGraph& G,int32 Node,const FRogueliteSeedLayoutSettings& S)
+    {
+        if(!S.RoomTemplateRoles.bEnabled)return true;
+        if(!G.FindNode(Node))return false;
+        const auto& R=S.RoomTemplateRoles;
+        return (Node==G.StartNodeId?R.StartTemplateIds:Node==G.FinalNodeId?R.FinalTemplateIds:R.NormalTemplateIds).Contains(Id);
+    }
+    FRogueliteRoomTypeAssignmentResult AssignTypesForLayout(const FRogueliteRoomGraph& G,const FRogueliteSeedLayoutSettings& S,
+        const TArray<TArray<ERogueliteSeedRoomType>>& Compatible)
+    {
+        if(!S.RoomTemplateRoles.bEnabled)return FRogueliteRoomTypeAssigner::Assign(G,S.TypeAssignment,Compatible);
+        FRogueliteRoomTypeAssignmentResult Bad;
+        const auto Fail=[&](const FString& Why){Bad.Reason=TEXT("G1OrdinaryCombatQuota: ")+Why;return Bad;};
+        const int32 N=G.Nodes.Num();
+        if(S.RoomTemplateRoles.PolicyVersion!=1||S.AlgorithmVersion!=2||S.TypeAssignment.Version!=2
+            ||S.TypeAssignment.StartType!=ERogueliteSeedRoomType::Combat||N<2||N>256
+            ||!G.FindNode(G.StartNodeId)||(!Compatible.IsEmpty()&&Compatible.Num()!=N))
+            return Fail(TEXT("Valid V2 graph, Combat-tagged Start and complete compatibility input required."));
+        auto Adjusted=S.TypeAssignment;
+        auto* C=Adjusted.Rules.FindByPredicate([](const auto& V){return V.Type==ERogueliteSeedRoomType::Combat;});
+        if(!C||C->Weight<0||C->Weight>10000||C->MinCount<0||C->MaxCount<C->MinCount||C->MaxCount>256
+            ||(C->MinCount>0&&C->Weight==0))return Fail(TEXT("Invalid authored ordinary Combat rule."));
+        const auto Authored=*C;
+        if(Authored.MinCount>N-1)return Fail(TEXT("Ordinary Combat minimum leaves no room for the existing StartSafehouse."));
+        TArray<TArray<ERogueliteSeedRoomType>> Allowed=Compatible;
+        if(Allowed.IsEmpty()){Allowed.SetNum(N);for(auto& Row:Allowed)for(int32 Type=0;Type<5;++Type)Row.Add(ERogueliteSeedRoomType(Type));}
+        for(int32 Node=0;Node<N;++Node)if(Node!=G.StartNodeId)
+        {
+            const bool Position=G.Nodes[Node].Role==ERogueliteGraphNodeRole::Branch?Authored.bAllowBranch:Authored.bAllowMainPath;
+            if(!Position||Authored.Weight==0||Authored.MaxCount==0)Allowed[Node].Remove(ERogueliteSeedRoomType::Combat);
+        }
+        // The unchanged allocator counts Start. Translate only this opt-in mode's
+        // authored ordinary quotas, keeping the original settings immutable.
+        C->MinCount=Authored.MinCount+1;C->MaxCount=FMath::Min(Authored.MaxCount,N-1)+1;
+        C->Weight=FMath::Max(1,Authored.Weight);C->bAllowMainPath=true;
+        auto Result=FRogueliteRoomTypeAssigner::Assign(G,Adjusted,Allowed);
+        if(!Result.bSucceeded){Result.Reason=TEXT("G1OrdinaryCombatQuota: ")+Result.Reason;return Result;}
+        int32 Ordinary=0;
+        for(int32 Node=0;Node<N;++Node)if(Node!=G.StartNodeId&&Result.Types[Node]==ERogueliteSeedRoomType::Combat)++Ordinary;
+        if(Result.Types[G.StartNodeId]!=ERogueliteSeedRoomType::Combat||Ordinary<Authored.MinCount||Ordinary>Authored.MaxCount)
+            return Fail(TEXT("Allocator postcondition failed; no layout may be accepted."));
+        Result.Counts[uint8(ERogueliteSeedRoomType::Combat)]=Ordinary;
+        Result.SettingsDigest=G::StableTextDigest(TEXT("G1OrdinaryQuotaV1|")+FRogueliteRoomTypeAssigner::DescribeSettings(S.TypeAssignment));
+        Result.StableDigest=G::StableTextDigest(TEXT("G1TypesV1|")+Result.SettingsDigest+TEXT("|")+Result.StableDigest
+            +FString::Printf(TEXT("|safehouses=1|ordinaryCombat=%d"),Ordinary));
+        Result.Reason=FString::Printf(TEXT("G1 StartSafehouse=1 OrdinaryCombat=%d TaggedCombat=%d; original allocator, ordinary quotas exclude Start."),Ordinary,Ordinary+1);
+        UE_LOG(LogTemp,Display,TEXT("G1_QUOTAS %s"),*Result.Reason);
+        return Result;
+    }
+
+    TArray<int32> TemplateOrder(const TArray<CatalogEntry>& Catalog,ERogueliteSeedRoomType Type,int32 Degree,int32 Node,const FRogueliteSeedLayoutSettings& S,const FRogueliteRoomGraph& Graph)
+    {
+        TArray<int32> Pool,Out; for(int32 I=0;I<Catalog.Num();++I) if(Catalog[I].Capacity>=Degree && Catalog[I].Option.AllowedTypes.Contains(Type) && IsTemplateRoleAllowed(Catalog[I].Option.Id,Graph,Node,S)) Pool.Add(I);
         FRandomStream R(G::DeriveSeed(S.Seed,ERogueliteGraphSeedPurpose::TemplateSelection,S.AlgorithmVersion,S.ConfigVersion,Node));
         while(!Pool.IsEmpty())
         {
@@ -121,7 +211,7 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
     UWorld* W=IsValid(Owner)?Owner->GetWorld():nullptr;
     const auto Fail=[&](const FString& Why){Reason=Why;return false;};
     if(!W)return Fail(TEXT("Input owner/world unavailable."));
-    if(!RogueliteGenerationGeometry::Validate(S,Reason))return false;
+    if(!RogueliteGenerationGeometry::Validate(S,Reason)||!ValidateRoomRoleRules(S,Reason))return false;
     if(Prepared&&!Prepared->IsCurrent(S,Reason))return false;
     if(S.TemplateCatalogVersion<1 || S.SolverVersion!=1 || S.MaxCandidatesPerEdge<1 || S.MaxCandidatesPerEdge>256 || S.Templates.IsEmpty()
         || S.Templates.Num()>16 || S.Corridors.IsEmpty() || S.Corridors.Num()>8 || S.Encounters.IsEmpty() || S.Encounters.Num()>32)
@@ -146,6 +236,7 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
     if(S.AlgorithmVersion==1){for(int32 I:S.MainTypeWeights) Configuration+=FString::Printf(TEXT("|mainWeight=%d"),I);
         for(int32 I:S.BranchTypeWeights) Configuration+=FString::Printf(TEXT("|branchWeight=%d"),I);}
     else Configuration+=TEXT("|")+FRogueliteRoomTypeAssigner::DescribeSettings(S.TypeAssignment);
+    if(S.RoomTemplateRoles.bEnabled){FString Roles;FRogueliteRoomTemplateRoleRules::StaticStruct()->ExportText(Roles,&S.RoomTemplateRoles,nullptr,nullptr,PPF_None,nullptr);Configuration+=TEXT("|G1Roles=")+Roles;}
     TArray<FRogueliteSeedEncounterOption> Encounters=S.Encounters;
     Encounters.Sort([](const auto& A,const auto& C){return A.ProfileId.ToString()<C.ProfileId.ToString();});
     for(const auto& E:Encounters)
@@ -218,9 +309,9 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
     {
         TArray<TArray<ERogueliteSeedRoomType>> Compatible;Compatible.SetNum(Graph.Nodes.Num());
         for(const auto& Node:Graph.Nodes)for(int32 Type=0;Type<5;++Type)
-            if(!TemplateOrder(Catalog,ERogueliteSeedRoomType(Type),Node.Degree,Node.NodeId,S).IsEmpty()
+            if(!TemplateOrder(Catalog,ERogueliteSeedRoomType(Type),Node.Degree,Node.NodeId,S,Graph).IsEmpty()
                 && (Type==4 || !PickEncounter(Node.NodeId,ERogueliteSeedRoomType(Type),S).IsNone()))Compatible[Node.NodeId].Add(ERogueliteSeedRoomType(Type));
-        Assigned=FRogueliteRoomTypeAssigner::Assign(Graph,S.TypeAssignment,Compatible);
+        Assigned=AssignTypesForLayout(Graph,S,Compatible);
         if(!Assigned.bSucceeded)return Fail(TEXT("RoomType assignment rejected: ")+Assigned.Reason);
         Configuration+=TEXT("|assignment=")+Assigned.StableDigest;
     }
@@ -231,7 +322,7 @@ bool RogueliteSeedAssemblyInternal::BuildInputs(AActor* Owner,const FRogueliteSe
         const auto Type=S.AlgorithmVersion==2?Assigned.Types[Node.NodeId]:PickType(Node,S); Types.Add(Type);
         EncounterRefs.Add(Type==ERogueliteSeedRoomType::Event?NAME_None:PickEncounter(Node.NodeId,Type,S));
         Input.EventDefinitions.Add(S.AlgorithmVersion==2?Assigned.EventDefinitionIds[Node.NodeId]:NAME_None);
-        if((Type!=ERogueliteSeedRoomType::Event && EncounterRefs.Last().IsNone()) || TemplateOrder(Catalog,Type,Node.Degree,Node.NodeId,S).IsEmpty())
+        if((Type!=ERogueliteSeedRoomType::Event && EncounterRefs.Last().IsNone()) || TemplateOrder(Catalog,Type,Node.Degree,Node.NodeId,S,Graph).IsEmpty())
             return Fail(FString::Printf(TEXT("Node=%d Type=%d Degree=%d has no compatible template/encounter reference."),Node.NodeId,uint8(Type),Node.Degree));
     }
     return true;
@@ -243,7 +334,7 @@ TArray<FRogueliteSeedCandidateRecord> RogueliteSeedAssemblyInternal::Candidates(
     TArray<FRogueliteSeedCandidateRecord> Out;
     ParentPorts.StableSort([&](const auto& X,const auto& Y){return (X.Side==Preferred?0:uint8(X.Side)+1)<(Y.Side==Preferred?0:uint8(Y.Side)+1);});
     for(const auto& PA:ParentPorts)
-        for(int32 Index:TemplateOrder(Input.Catalog,Input.Types[Child],Input.Graph.Nodes[Child].Degree,Child,S))
+        for(int32 Index:TemplateOrder(Input.Catalog,Input.Types[Child],Input.Graph.Nodes[Child].Degree,Child,S,Input.Graph))
         {
             auto ChildPorts=Input.Catalog[Index].Sockets;
             ChildPorts.StableSort([](const auto& X,const auto& Y){return (X.Side==ERogueliteRoomSide::South?0:uint8(X.Side)+1)<(Y.Side==ERogueliteRoomSide::South?0:uint8(Y.Side)+1);});
@@ -291,7 +382,7 @@ FRogueliteSeedBatch FRogueliteSeedLayoutAssembler::Generate(AActor* Owner,const 
         R.Dimensions=FVector(Room->RoomLength,Room->RoomWidth,Room->RoomHeight); R.WallThickness=Room->WallThickness; R.FloorThickness=Room->FloorThickness; R.MemberSignature=MembersText(Room);
     };
     bool RootPlaced=false;
-    for(int32 Index:TemplateOrder(Catalog,Types[0],Graph.Nodes[0].Degree,0,S))
+    for(int32 Index:TemplateOrder(Catalog,Types[0],Graph.Nodes[0].Degree,0,S,Graph))
     {
         auto* R=SpawnOwned<ARogueliteRoomTemplate>(W,Catalog[Index].Class,Owner,B.BatchId,Start);
         if(R && R->EvaluateTemplate().bValid && RootFree(R,Owner)){RecordRoom(0,Index,R);RootPlaced=true;break;} DestroyNew(R);

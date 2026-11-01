@@ -3,6 +3,8 @@
 #include "RogueliteRoomTypeAssignment.h"
 #include "RogueliteGenerationGeometry.h"
 #include "Engine/World.h"
+#include "RogueliteSeedAssemblyInternal.h"
+#include "UObject/UnrealType.h"
 
 FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
 {
@@ -24,13 +26,27 @@ FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
     FRogueliteSeedTemplateOption W;W.Id=TEXT("Warehouse");W.TemplateClass=FSoftObjectPath(TEXT("/Game/Roguelite/RoomTemplates/BP_Room_Warehouse.BP_Room_Warehouse_C"));W.AllowedTypes=All;D.AllowedTemplates={J,W};return D;
 }
 FString FRogueliteFloorProfileResolver::Digest(const FRogueliteFloorDefinition& D)
-{FString Text;FRogueliteFloorDefinition::StaticStruct()->ExportText(Text,&D,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(TEXT("FloorProfile1|")+Text);}
+{FString Text;
+    if(D.RoomTemplateRoles.bEnabled)FRogueliteFloorDefinition::StaticStruct()->ExportText(Text,&D,nullptr,nullptr,PPF_None,nullptr);
+    else
+    {
+        Text=TEXT("(");bool First=true;
+        for(TFieldIterator<FProperty> It(FRogueliteFloorDefinition::StaticStruct());It;++It)
+        {
+            const auto* P=*It;if(P->GetFName()==TEXT("RoomTemplateRoles")||!P->ShouldPort(PPF_None))continue;
+            FString Part;P->ExportText_Direct(Part,P->ContainerPtrToValuePtr<void>(&D),nullptr,nullptr,PPF_Delimited);
+            if(!First)Text+=TEXT(",");First=false;Text+=P->GetName()+TEXT("=")+Part;
+        }
+        Text+=TEXT(")");
+    }
+    return FRogueliteRoomGraphGenerator::StableTextDigest(TEXT("FloorProfile1|")+Text);}
 FString FRogueliteFloorProfileResolver::SettingsDigest(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& P)
 {const FString A=RogueliteGenerationGeometry::SettingsText(S);FString B;FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&P,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(A+TEXT("|")+B);}
 int32 FRogueliteFloorProfileResolver::DeriveFloorSeed(int32 Seed,int32 Floor,int32 Version)
 {return FRogueliteRoomGraphGenerator::DeriveSeed(Seed,static_cast<ERogueliteGraphSeedPurpose>(0x6e2f0121u),1,Version,Floor,0);}
 FString FRogueliteFloorProfileResolver::FriendlyFailure(const FString& Raw)
 {
+    if(Raw.Contains(TEXT("G1")))return TEXT("角色模板或普通Combat配额不满足：请检查本层安全屋、普通房及出口/Boss资格名单；不会使用禁止模板或自动降低配额。");
     if(Raw.Contains(TEXT("Compact"))||Raw.Contains(TEXT("Closure"))||Raw.Contains(TEXT("TreeBranchSpatial"))||Raw.Contains(TEXT("SpatialCheckBudget")))return TEXT("当前房间排列无法在12–15米走廊内完成合法连接，请重新生成或调整房间模板；未延长走廊或降低回环要求。");
     if(Raw.Contains(TEXT("Template"))||Raw.Contains(TEXT("Capacity"))||Raw.Contains(TEXT("Catalog")))return TEXT("当前模板不存在、门洞或房型支持不足，请检查可用模板和连接预算。");
     if(Raw.Contains(TEXT("Loop"))||Raw.Contains(TEXT("Closure")))return TEXT("无法在允许空间内形成要求的回环，请调整模板、走廊范围或回环预算。");
@@ -49,6 +65,13 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     if(D.FloorIndex==1&&(D.MinRoomCount!=4||D.MaxRoomCount!=4||D.MinLoops!=0||D.MaxLoops!=0))return Fail(TEXT("IntroBudgetViolation"),TEXT("第一层当前合同为4房3廊、零回环；不能静默改变该预设。"));
     if(D.MinLoops<0||D.MaxLoops<D.MinLoops||D.MaxLoops>1)return Fail(TEXT("LoopBudgetUnsupported"),TEXT("当前只能生成0或1个真实回环，不支持2环。"));
     if(D.bLastFloor!=(D.FinalRolePolicy==ERogueliteFloorFinalPolicy::BossFinal))return Fail(TEXT("FinalPolicyMismatch"),TEXT("仅最后一层使用BossFinal；普通楼层终点是FloorExit。两者Gameplay均未实现。"));
+    if(D.RoomTemplateRoles.bEnabled)
+    {
+        if(D.SpatialPlanningVersion!=3)return Fail(TEXT("G1RequiresWeightedSelection"),TEXT("角色隔离需显式启用Use Floor Template Weights；旧Profile不自动迁移。"));
+        if(D.FloorIndex>3||D.bLastFloor!=(D.FloorIndex==3)
+            ||D.FinalRolePolicy!=(D.FloorIndex==3?ERogueliteFloorFinalPolicy::BossFinal:ERogueliteFloorFinalPolicy::FloorExit))
+            return Fail(TEXT("G1FloorRoleMismatch"),TEXT("角色隔离：Floor1/2使用FloorExit，Floor3使用BossFinal；不自动纠正配置。"));
+    }
     if(D.AllowedTemplates.IsEmpty()||D.AllowedTemplates.Num()>16)return Fail(TEXT("TemplateCatalogInvalid"),TEXT("请选择1至16个现有房间模板。"));
     TSet<FName> Names;for(const auto& T:D.AllowedTemplates){if(T.Id.IsNone()||T.TemplateClass.IsNull()||T.Weight<1||T.AllowedTypes.IsEmpty()||Names.Contains(T.Id))return Fail(TEXT("TemplateOptionInvalid"),TEXT("模板标识、资源、权重或允许房型无效/重复。"));Names.Add(T.Id);}
     if(D.MinCorridorLength!=1200||D.MaxCorridorLength!=1500)return Fail(TEXT("CompactProfileRangeRequired"),TEXT("本轮所有楼层走廊固定12–15米；请更新Profile，不能使用旧长走廊范围。"));
@@ -59,6 +82,11 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     S.MinBranches=D.MinBranches;S.MaxBranches=D.MaxBranches;S.MinBranchDepth=D.MinBranchDepth;S.MaxBranchDepth=D.MaxBranchDepth;
     S.MinDecisionNodes=D.MinDecisionNodes;S.MaxDecisionNodes=D.MaxDecisionNodes;S.MinNestedDecisionNodes=D.MinNestedDecisionNodes;S.MaxBranchGenerationDepth=D.MaxBranchGenerationDepth;S.MaxDegree=D.MaxDegree;
     S.GraphAttempts=D.SearchBudget.GraphAttempts;S.MaxCandidatesPerEdge=D.SearchBudget.MaxCandidatesPerEdge;S.TypeAssignment=D.RoomTypes;S.Templates=D.AllowedTemplates;S.bCheckNavigation=false;
+    S.RoomTemplateRoles=D.RoomTemplateRoles;
+    FString RoleReason;if(!RogueliteSeedAssemblyInternal::ValidateRoomRoleRules(S,RoleReason))return Fail(TEXT("G1RoleConfigurationRejected"),RoleReason);
+    if(S.RoomTemplateRoles.bEnabled)
+        for(auto* Ids:{&S.RoomTemplateRoles.StartTemplateIds,&S.RoomTemplateRoles.NormalTemplateIds,&S.RoomTemplateRoles.FinalTemplateIds})
+            Ids->Sort([](FName A,FName B){return A.ToString()<B.ToString();});
     S.GenerationGeometry.OpeningMode=D.OpeningMode;S.GenerationGeometry.OpenPassageRoomHeight=D.OpenPassageRoomHeight;
     FRogueliteSeedEncounterOption E;E.ProfileId=TEXT("NoEncounter_Reserved");E.AllowedTypes={ERogueliteSeedRoomType::Combat,ERogueliteSeedRoomType::Challenge,ERogueliteSeedRoomType::SupplyShop,ERogueliteSeedRoomType::Final,ERogueliteSeedRoomType::Event};S.Encounters={E};
     FRogueliteSeedCorridorProfile C;C.LengthCandidates.Reset();C.Width=D.CorridorWidth;C.Height=D.CorridorHeight;C.WallThickness=D.WallThickness;C.FloorThickness=D.FloorThickness;C.DoorWidth=D.DoorWidth;C.DoorHeight=D.DoorHeight;
@@ -71,7 +99,7 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     P.MaxLayoutAttempts=D.SearchBudget.MaxLayoutAttempts;P.MaxBacktrackStates=D.SearchBudget.MaxBacktrackStates;P.MaxSpatialChecks=D.SearchBudget.MaxSpatialChecks;
     FString Why;if(S.MaxCandidatesPerEdge<1||S.MaxCandidatesPerEdge>256||!FRogueliteLoopAwarePlanner::ValidateSettings(P,Why))return Fail(TEXT("PlanningBudgetInvalid"),TEXT("空间预算无效：")+Why);
     const auto G=FRogueliteRoomGraphGenerator::Generate(S.Seed,S.GraphSettings());if(!G.bSucceeded)return Fail(TEXT("GraphBudgetRejected"),TEXT("房间、参考路径及分岔预算无法同时满足：")+G.Reason);
-    const auto Types=FRogueliteRoomTypeAssigner::Assign(G.Graph,S.TypeAssignment);if(!Types.bSucceeded)return Fail(TEXT("RoomTypeQuotaRejected"),TEXT("当前房型数量/权重无法满足：")+Types.Reason);
+    const auto Types=RogueliteSeedAssemblyInternal::AssignTypesForLayout(G.Graph,S);if(!Types.bSucceeded)return Fail(TEXT("RoomTypeQuotaRejected"),TEXT("当前房型数量/权重无法满足：")+Types.Reason);
     R.ConfigurationDigest=FRogueliteRoomGraphGenerator::StableTextDigest(R.ProfileDigest+SettingsDigest(S,P));R.bValid=true;R.Message=TEXT("规则解析通过；真实模板、空间与C2仍须实际生成验证。安全屋/Boss/楼层切换规则仅为预留合同。");return R;
 }
 bool FRogueliteFloorProfileResolver::GenerateRuntime(AActor* Owner,const FRogueliteResolvedFloor& C,ERogueliteFloorValidationPurpose Purpose,const FRoguelitePreparedTemplateCatalog& Catalog,FRogueliteSeedBatch& B,FRogueliteCommittedLoopBatch& L,FRogueliteRuntimeLoopResult& Out)
