@@ -19,7 +19,8 @@ FDesignerWorkbenchResult Read(ARogueliteWorkbenchPreview* A)
 }
 }
 TArray<FString> FDesignerWorkbench::ProfilePaths()
-{return {TEXT("/Game/Roguelite/FloorProfiles/DA_Floor1_Intro.DA_Floor1_Intro"),TEXT("/Game/Roguelite/FloorProfiles/DA_Floor2_Expansion.DA_Floor2_Expansion"),TEXT("/Game/Roguelite/FloorProfiles/DA_Floor3_Final.DA_Floor3_Final")};}
+{return {TEXT("/Game/Roguelite/FloorProfiles/DA_Floor1_Intro.DA_Floor1_Intro"),TEXT("/Game/Roguelite/FloorProfiles/DA_Floor2_Expansion.DA_Floor2_Expansion"),TEXT("/Game/Roguelite/FloorProfiles/DA_Floor3_Final.DA_Floor3_Final"),
+    TEXT("/Game/Roguelite/ProductionCandidates/P03M1/Profiles/DA_M1_Floor1_Candidate.DA_M1_Floor1_Candidate"),TEXT("/Game/Roguelite/ProductionCandidates/P03M1/Profiles/DA_M1_Floor2_Candidate.DA_M1_Floor2_Candidate"),TEXT("/Game/Roguelite/ProductionCandidates/P03M1/Profiles/DA_M1_Floor3_Candidate.DA_M1_Floor3_Candidate")};}
 ARogueliteWorkbenchPreview* FDesignerWorkbench::Find(UWorld* W,FString& Why)
 {
     ARogueliteWorkbenchPreview* Found=nullptr;if(!W)return nullptr;
@@ -30,7 +31,7 @@ ARogueliteWorkbenchPreview* FDesignerWorkbench::Find(UWorld* W,FString& Why)
 FDesignerWorkbenchResult FDesignerWorkbench::Generate(UWorld* W,URogueliteFloorProfile* P,int32 Seed)
 {
     if(!EditorWorld(W))return Fail(TEXT("EditorWorldRequired"),TEXT("Generate仅用于编辑器设计预览；请先停止PIE。"));
-    if(!IsValid(P))return Fail(TEXT("ProfileMissing"),TEXT("楼层Profile资产未加载，请确认本轮三个预设已安装。"));
+    if(!IsValid(P))return Fail(TEXT("ProfileMissing"),TEXT("楼层Profile资产未加载，请检查所选预设。"));
     const auto C=P->ResolvePreview(Seed);if(!C.bValid)return Fail(C.ErrorCode,C.Message);
     FString Why;auto* A=Find(W,Why);if(Why==TEXT("MultipleWorkbenchSources"))return Fail(Why,TEXT("场景有多个工作台所有者，已拒绝猜测或清理；请检查来源。"));
     if(A&&(!A->Batch.OwnedActors.IsEmpty()||!A->CommittedLoops.Edges.IsEmpty()))return Fail(TEXT("ExistingBatchProtected"));
@@ -62,12 +63,19 @@ FDesignerWorkbenchResult FDesignerWorkbench::Validate(UWorld* W)
     if(!EditorWorld(W))return Fail(TEXT("EditorWorldRequired"),TEXT("这是Editor几何验证入口；Runtime严格导航仍由原B4-B3执行。"));
     FString Why;auto* A=Find(W,Why);if(!A)return Fail(Why,TEXT("当前地图没有工作台批次，请重新生成。"));
     if(!A->IsProfileCurrent(Why))return Fail(Why);
+    // The shared Runtime resolver remains authoritative for quota/config feasibility.
+    const auto Resolved=A->Profile->ResolvePreview(A->UsedPreviewSeed);if(!Resolved.bValid)return Fail(Resolved.ErrorCode,Resolved.Message);
     TArray<FRogueliteCompactCorridorMeasurement> Lengths;if(!FRogueliteCompactCorridorContract::Actual(A->Batch,A->CommittedLoops,Lengths,Why))return Fail(Why);
     if(!FRogueliteLoopCommitQueries::Revalidate(A,A->Batch,A->CommittedLoops,Why))return Fail(Why);
     const auto Graph=FRogueliteRoomGraphGenerator::Generate(A->Settings.Seed,A->Settings.GraphSettings());const auto Traversal=FRogueliteLoopCommitQueries::Capture(A,A->Batch,A->Settings,A->CommittedLoops);
     const auto& D=A->AppliedRules;int32 Start=0,Final=0;for(const auto& N:Graph.Graph.Nodes){Start+=N.Role==ERogueliteGraphNodeRole::Start;Final+=N.Role==ERogueliteGraphNodeRole::Final;}
     bool Good=Graph.bSucceeded&&Traversal.bCurrent&&Traversal.bGeometryValidated&&Start==1&&Final==1&&A->Batch.Rooms.Num()>=D.MinRoomCount&&A->Batch.Rooms.Num()<=D.MaxRoomCount&&A->Batch.Edges.Num()==A->Batch.Rooms.Num()-1&&A->CommittedLoops.Edges.Num()>=D.MinLoops&&A->CommittedLoops.Edges.Num()<=D.MaxLoops&&Traversal.IndependentCycles==A->CommittedLoops.Edges.Num();
-    for(const auto& Rule:D.RoomTypes.Rules){int32 Count=0;for(const auto& N:A->Batch.Rooms)Count+=N.RoomType==Rule.Type;Good&=Count>=Rule.MinCount&&Count<=Rule.MaxCount;}
+    for(const auto& Rule:D.RoomTypes.Rules)
+    {
+        int32 Count=0;for(const auto& N:A->Batch.Rooms)
+            if(N.RoomType==Rule.Type&&!(D.RoomTemplateRoles.bEnabled&&Rule.Type==ERogueliteSeedRoomType::Combat&&N.NodeId==Graph.Graph.StartNodeId))++Count;
+        if(Count<Rule.MinCount||Count>Rule.MaxCount)return Fail(FString::Printf(TEXT("ActualRoomTypeQuotaMismatch Type=%d Count=%d Min=%d Max=%d G1=%d"),uint8(Rule.Type),Count,Rule.MinCount,Rule.MaxCount,D.RoomTemplateRoles.bEnabled));
+    }
     if(!Good)return Fail(TEXT("ActualProfileTraversalMismatch: ")+Traversal.Reason);
     auto R=Read(A);R.RawReason=Why;UE_LOG(LogTemp,Display,TEXT("E2_VALIDATE Passed=%d Batch=%s GraphRevision=%d GeometryRevision=%d NavigationNotTested=1"),R.bSucceeded,*A->Batch.BatchId.ToString(),A->CommittedLoops.GraphRevision,A->CommittedLoops.GeometryRevision);return R;
 }
@@ -89,7 +97,12 @@ FString FDesignerWorkbench::TemplateInfo(UWorld* W,URogueliteFloorProfile* P,int
 }
 bool FDesignerWorkbench::SaveProfile(URogueliteFloorProfile* P,int32 Seed,FString& Why)
 {
-    if(!IsValid(P)||!ProfilePaths().Contains(P->GetPathName())){Why=TEXT("只保存本轮三个工作台Profile，不触碰模板或其他资产。");return false;}
+    if(!GEditor||GEditor->PlayWorld){Why=TEXT("请停止PIE后保存当前Profile。");return false;}
+    const int32 Index=IsValid(P)?ProfilePaths().IndexOfByKey(P->GetPathName()):INDEX_NONE;
+    if(Index==INDEX_NONE||!P->IsAsset()||P->Rules.FloorIndex!=Index%3+1){Why=TEXT("只保存当前选中的六份合法工作台Profile；楼层与资产路径必须一致。");return false;}
+    if(Index>=3&&(P->Rules.ProfileVersion!=4||P->Rules.SpatialPlanningVersion!=3||P->Rules.ReliabilityPolicyVersion!=2))
+    {Why=TEXT("M1候选保留ProfileVersion4、SpatialPlanningVersion3及ReliabilityPolicyVersion2；未保存。");return false;}
     if(!P->ResolvePreview(Seed).bValid){Why=TEXT("Profile配置不合法，请修正后保存；原始输入保留。");return false;}
-    const bool Saved=GEditor&&GEditor->GetEditorSubsystem<UEditorAssetSubsystem>()->SaveLoadedAsset(P,false);Why=Saved?TEXT("当前Profile规则已保存到资产。"):TEXT("Profile保存失败。");return Saved;
+    const bool Saved=GEditor->GetEditorSubsystem<UEditorAssetSubsystem>()->SaveLoadedAsset(P,false);Why=Saved?TEXT("当前Profile规则已保存到资产。"):TEXT("Profile保存失败。");
+    UE_LOG(LogTemp,Display,TEXT("M1B_SAVE Profile=%s Floor=%d Candidate=%d Passed=%d"),*P->GetPathName(),P->Rules.FloorIndex,Index>=3,Saved);return Saved;
 }

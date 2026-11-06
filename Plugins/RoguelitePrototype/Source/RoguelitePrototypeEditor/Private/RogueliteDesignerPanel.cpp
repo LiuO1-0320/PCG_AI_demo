@@ -17,9 +17,16 @@
 namespace { UWorld* EditorWorld(){return GEditor?GEditor->GetEditorWorldContext().World():nullptr;}
 bool Diagnostic(const FPropertyAndParent& P){if(P.Property.GetMetaData(TEXT("Category"))==TEXT("Developer Diagnostics"))return true;for(const auto* A:P.ParentProperties)if(A->GetMetaData(TEXT("Category"))==TEXT("Developer Diagnostics"))return true;return false;}
 bool Reserved(const FPropertyAndParent& P){return P.Property.GetMetaData(TEXT("Category"))==TEXT("Reserved Gameplay");}
-FString WeightMatrix(const TArray<TStrongObjectPtr<URogueliteFloorProfile>>& Profiles)
+FString PresetLabel(const URogueliteFloorProfile* P)
 {
-    TArray<FName> Ids;for(const auto& P:Profiles)if(P.IsValid())for(const auto& T:P->Rules.AllowedTemplates)Ids.AddUnique(T.Id);
+    if(!P)return TEXT("预设资产未安装");
+    const bool Candidate=P->GetPathName().StartsWith(TEXT("/Game/Roguelite/ProductionCandidates/P03M1/Profiles/"));
+    return FString::Printf(TEXT("%s / Floor %d"),Candidate?TEXT("Production Candidate"):TEXT("Legacy"),P->Rules.FloorIndex);
+}
+FString WeightMatrix(const TArray<TStrongObjectPtr<URogueliteFloorProfile>>& Profiles,const URogueliteFloorProfile* Selected)
+{
+    const int32 Begin=Selected&&Selected->GetPathName().StartsWith(TEXT("/Game/Roguelite/ProductionCandidates/P03M1/Profiles/"))?3:0;
+    TArray<FName> Ids;for(int32 I=Begin;I<Begin+3;++I)if(Profiles.IsValidIndex(I)&&Profiles[I].IsValid())for(const auto& T:Profiles[I]->Rules.AllowedTemplates)Ids.AddUnique(T.Id);
     Ids.Sort([](FName A,FName B){return A.ToString()<B.ToString();});
     const auto Compact=[](const TArray<FString>& Values,bool ClassNames)
     {
@@ -35,7 +42,7 @@ FString WeightMatrix(const TArray<TStrongObjectPtr<URogueliteFloorProfile>>& Pro
         TArray<FString> Classes,Types;Classes.SetNum(3);Types.SetNum(3);FString Weights;
         for(int32 I=0;I<3;++I)
         {
-            const auto* P=Profiles.IsValidIndex(I)?Profiles[I].Get():nullptr;
+            const auto* P=Profiles.IsValidIndex(Begin+I)?Profiles[Begin+I].Get():nullptr;
             const auto* T=P?P->Rules.AllowedTemplates.FindByPredicate([&](const auto& V){return V.Id==Id;}):nullptr;
             Weights+=I?TEXT(" | "):TEXT("");Weights+=T?FString::FromInt(T->Weight):TEXT("禁用");
             if(!T)continue;
@@ -52,6 +59,7 @@ void SDesignerWorkbenchPanel::Select(int32 I)
 {
     Session->Profile=Profiles.IsValidIndex(I)?Profiles[I].Get():nullptr;
     RulesView->SetObject(Session->Profile.Get());DeveloperView->SetObject(Session->Profile.Get());
+    Status=TEXT("预设已选择");Raw.Empty();LastSource.Reset();
     Inventory.Empty();Message=TEXT("预设已选择；已有批次保持原配置。修改规则后需 Clear 再 Generate。");
 }
 FString SDesignerWorkbenchPanel::CurrentSummary() const
@@ -74,16 +82,17 @@ FReply SDesignerWorkbenchPanel::Execute(int32 Action)
 void SDesignerWorkbenchPanel::Construct(const FArguments&,TSharedRef<FDesignerWorkbenchSession> InSession,TFunction<void(AActor*)> OnResult)
 {
     Session=InSession;Changed=MoveTemp(OnResult);
-    for(const auto& Path:FDesignerWorkbench::ProfilePaths()){auto* P=LoadObject<URogueliteFloorProfile>(nullptr,*Path);Profiles.Emplace(P);Options.Add(MakeShared<FString>(P?P->Rules.DisplayName.ToString():TEXT("预设资产未创建：")+Path));}
+    for(const auto& Path:FDesignerWorkbench::ProfilePaths()){auto* P=LoadObject<URogueliteFloorProfile>(nullptr,*Path);Profiles.Emplace(P);Options.Add(MakeShared<FString>(P?PresetLabel(P):TEXT("预设资产未创建：")+Path));}
     auto& Module=FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
     FDetailsViewArgs Args;Args.bUpdatesFromSelection=false;Args.bShowOptions=false;Args.bShowPropertyMatrixButton=false;Args.NameAreaSettings=FDetailsViewArgs::HideNameArea;
     RulesView=Module.CreateDetailView(Args);RulesView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([](const FPropertyAndParent& P){return !Diagnostic(P)&&!Reserved(P);}));
     DeveloperView=Module.CreateDetailView(Args);DeveloperView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([](const FPropertyAndParent& P){return P.Property.GetFName()==TEXT("Rules")||Diagnostic(P);}));
-    int32 Initial=0;FString Why;if(auto* A=FDesignerWorkbench::Find(EditorWorld(),Why)){Session->PreviewSeed=A->UsedPreviewSeed;for(int32 I=0;I<Profiles.Num();++I)if(Profiles[I].Get()==A->Profile)Initial=I;}
+    int32 Initial=Profiles.IndexOfByPredicate([this](const auto& P){return P.IsValid()&&P.Get()==Session->Profile.Get();});if(Initial==INDEX_NONE)Initial=0;
+    FString Why;if(auto* A=FDesignerWorkbench::Find(EditorWorld(),Why)){Session->PreviewSeed=A->UsedPreviewSeed;for(int32 I=0;I<Profiles.Num();++I)if(Profiles[I].Get()==A->Profile)Initial=I;}
     Select(Initial);
     ChildSlot[SNew(SScrollBox)+SScrollBox::Slot()[SNew(SVerticalBox)
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(STextBlock).Text(FText::FromString(TEXT("Dungeon Generator / 地牢生成工作台\n这是策划开发预览。正式玩家开局不需要输入 Seed。")))]
-      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SComboBox<TSharedPtr<FString>>).OptionsSource(&Options).InitiallySelectedItem(Options[Initial]).OnGenerateWidget_Lambda([](TSharedPtr<FString> V){return SNew(STextBlock).Text(FText::FromString(*V));}).OnSelectionChanged_Lambda([this](TSharedPtr<FString> V,ESelectInfo::Type){Select(Options.IndexOfByKey(V));})[SNew(STextBlock).Text_Lambda([this](){return Session->Profile.IsValid()?Session->Profile->Rules.DisplayName:FText::FromString(TEXT("请选择已安装预设"));})]]
+      +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SComboBox<TSharedPtr<FString>>).OptionsSource(&Options).InitiallySelectedItem(Options[Initial]).OnGenerateWidget_Lambda([](TSharedPtr<FString> V){return SNew(STextBlock).Text(FText::FromString(*V));}).OnSelectionChanged_Lambda([this](TSharedPtr<FString> V,ESelectInfo::Type){Select(Options.IndexOfByKey(V));})[SNew(STextBlock).Text_Lambda([this](){return FText::FromString(Session->Profile.IsValid()?PresetLabel(Session->Profile.Get()):TEXT("请选择已安装预设"));})]]
       +SVerticalBox::Slot().AutoHeight().Padding(8)[SNew(SHorizontalBox)
         +SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[SNew(STextBlock).Text(FText::FromString(TEXT("Opening Mode： ")))]
         +SHorizontalBox::Slot().AutoWidth()[SNew(SComboButton).ButtonContent()[SNew(STextBlock).Text_Lambda([this](){return FText::FromString(Session->Profile.IsValid()&&Session->Profile->Rules.OpeningMode==ERogueliteOpeningMode::OpenPassage?TEXT("Open Passage"):TEXT("Legacy"));})].MenuContent()[SNew(SVerticalBox)
@@ -107,7 +116,7 @@ void SDesignerWorkbenchPanel::Construct(const FArguments&,TSharedRef<FDesignerWo
           .IsChecked_Lambda([this](){return Session->Profile.IsValid()&&Session->Profile->Rules.SpatialPlanningVersion==3?ECheckBoxState::Checked:ECheckBoxState::Unchecked;})
           .OnCheckStateChanged_Lambda([this](ECheckBoxState S){if(auto* P=Session->Profile.Get()){P->Modify();P->Rules.SpatialPlanningVersion=S==ECheckBoxState::Checked?3:2;Message=TEXT("当前Profile的加权选择版本已修改；请保存后Clear并重新生成。旧版本2保持原有结果，版本3采用加权候选回退。");}})
           [SNew(STextBlock).Text(FText::FromString(TEXT("Use Floor Template Weights / 当前楼层启用加权模板选择（版本3）")))]]
-        +SVerticalBox::Slot().AutoHeight().Padding(0,6)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){return FText::FromString(WeightMatrix(Profiles));})]
+        +SVerticalBox::Slot().AutoHeight().Padding(0,6)[SNew(STextBlock).AutoWrapText(true).Text_Lambda([this](){return FText::FromString(WeightMatrix(Profiles,Session->Profile.Get()));})]
         +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Save Floor Profile"))).OnClicked_Lambda([this](){FDesignerWorkbench::SaveProfile(Session->Profile.Get(),Session->PreviewSeed,Message);return FReply::Handled();})]
         +SVerticalBox::Slot().AutoHeight()[RulesView.ToSharedRef()]
         +SVerticalBox::Slot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("Inspect Actual Templates / 读取模板"))).OnClicked_Lambda([this](){Inventory=FDesignerWorkbench::TemplateInfo(EditorWorld(),Session->Profile.Get(),Session->PreviewSeed);return FReply::Handled();})]

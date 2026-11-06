@@ -7,7 +7,7 @@ public class RoguelitePrototype : ModuleRules
         bUseUnity = false;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine" });
-        PrivateDependencyModuleNames.AddRange(new[] { "NavigationSystem", "AIModule" });
+        PrivateDependencyModuleNames.AddRange(new[] { "NavigationSystem", "AIModule", "EnhancedInput", "InputCore" });
 
         if (Target.bBuildEditor)
         {

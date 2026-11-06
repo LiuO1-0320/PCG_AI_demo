@@ -12,6 +12,9 @@ struct ROGUELITEPROTOTYPE_API FRogueliteLoopAwareSettings
     UPROPERTY(EditAnywhere,BlueprintReadWrite) bool bEnableLoopAwarePlanning=false;
     UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 SpatialPlanningVersion=2;
     UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 ConfigVersion=1;
+    // R1 opt-in; independent of topology and F1 weighted selection versions.
+    UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 ReliabilityPolicyVersion=1;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,meta=(ClampMin="1",ClampMax="99")) int32 OptionalTreeReservePercent=25;
     UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 MinLoops=1;
     UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 MaxLoops=1;
     UPROPERTY(EditAnywhere,BlueprintReadWrite) int32 MinLoopTreeDistance=3;
@@ -82,6 +85,22 @@ struct ROGUELITEPROTOTYPE_API FRogueliteLoopAwareEvidence
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bCleanupComplete=false;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bUsedOptionalTreeFallback=false;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bNavigationReady=false;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 ReliabilityPolicyVersion=1;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bOptionalBudgetProtected=false;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) bool bLoopBudgetExhausted=false;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 TreeReservedStates=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 TreeReservedChecks=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 LoopStateLimit=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 LoopCheckLimit=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 LoopBacktrackStates=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 LoopSpatialChecks=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 TreeBacktrackStates=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) int32 TreeSpatialChecks=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString LoopStopReason;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FString TreeStopReason;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) double LoopPlanningSeconds=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) double TreePlanningSeconds=0;
+    UPROPERTY(VisibleAnywhere,BlueprintReadOnly) double TotalPlanningSeconds=0;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) TArray<FRogueliteLoopIntent> Intents;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) TArray<FString> Attempts;
     UPROPERTY(VisibleAnywhere,BlueprintReadOnly) FRogueliteFixedLoopCommitResult CommitResult;

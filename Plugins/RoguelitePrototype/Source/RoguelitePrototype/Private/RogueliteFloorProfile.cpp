@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "RogueliteSeedAssemblyInternal.h"
 #include "UObject/UnrealType.h"
+#include "RogueliteReliabilitySerialization.h"
 
 FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
 {
@@ -26,22 +27,10 @@ FRogueliteFloorDefinition FRogueliteFloorProfileResolver::Defaults(int32 Floor)
     FRogueliteSeedTemplateOption W;W.Id=TEXT("Warehouse");W.TemplateClass=FSoftObjectPath(TEXT("/Game/Roguelite/RoomTemplates/BP_Room_Warehouse.BP_Room_Warehouse_C"));W.AllowedTypes=All;D.AllowedTemplates={J,W};return D;
 }
 FString FRogueliteFloorProfileResolver::Digest(const FRogueliteFloorDefinition& D)
-{FString Text;
-    if(D.RoomTemplateRoles.bEnabled)FRogueliteFloorDefinition::StaticStruct()->ExportText(Text,&D,nullptr,nullptr,PPF_None,nullptr);
-    else
-    {
-        Text=TEXT("(");bool First=true;
-        for(TFieldIterator<FProperty> It(FRogueliteFloorDefinition::StaticStruct());It;++It)
-        {
-            const auto* P=*It;if(P->GetFName()==TEXT("RoomTemplateRoles")||!P->ShouldPort(PPF_None))continue;
-            FString Part;P->ExportText_Direct(Part,P->ContainerPtrToValuePtr<void>(&D),nullptr,nullptr,PPF_Delimited);
-            if(!First)Text+=TEXT(",");First=false;Text+=P->GetName()+TEXT("=")+Part;
-        }
-        Text+=TEXT(")");
-    }
+{const FString Text=RogueliteReliabilitySerialization::Text(FRogueliteFloorDefinition::StaticStruct(),&D,D.ReliabilityPolicyVersion==1,!D.RoomTemplateRoles.bEnabled);
     return FRogueliteRoomGraphGenerator::StableTextDigest(TEXT("FloorProfile1|")+Text);}
 FString FRogueliteFloorProfileResolver::SettingsDigest(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& P)
-{const FString A=RogueliteGenerationGeometry::SettingsText(S);FString B;FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&P,nullptr,nullptr,PPF_None,nullptr);return FRogueliteRoomGraphGenerator::StableTextDigest(A+TEXT("|")+B);}
+{const FString A=RogueliteGenerationGeometry::SettingsText(S);const FString B=RogueliteReliabilitySerialization::Text(FRogueliteLoopAwareSettings::StaticStruct(),&P,P.ReliabilityPolicyVersion==1);return FRogueliteRoomGraphGenerator::StableTextDigest(A+TEXT("|")+B);}
 int32 FRogueliteFloorProfileResolver::DeriveFloorSeed(int32 Seed,int32 Floor,int32 Version)
 {return FRogueliteRoomGraphGenerator::DeriveSeed(Seed,static_cast<ERogueliteGraphSeedPurpose>(0x6e2f0121u),1,Version,Floor,0);}
 FString FRogueliteFloorProfileResolver::FriendlyFailure(const FString& Raw)
@@ -94,7 +83,7 @@ FRogueliteResolvedFloor FRogueliteFloorProfileResolver::Resolve(const FRoguelite
     if(D.OpeningMode==ERogueliteOpeningMode::OpenPassage){C.Height=D.OpenPassageRoomHeight;C.DoorWidth=C.Width;C.DoorHeight=C.Height;}
     for(float L:{D.MinCorridorLength,1400.f,1450.f,1475.f,D.MaxCorridorLength})if(L>=D.MinCorridorLength&&L<=D.MaxCorridorLength)C.LengthCandidates.AddUnique(L);C.LengthCandidates.Sort();S.Corridors={C};
     FString GeometryReason;if(!RogueliteGenerationGeometry::Validate(S,GeometryReason))return Fail(TEXT("GenerationGeometryInvalid"),GeometryReason);
-    auto& P=R.Planning;P.bEnableLoopAwarePlanning=true;P.SpatialPlanningVersion=D.SpatialPlanningVersion;P.MinLoops=D.MinLoops;P.MaxLoops=D.MaxLoops;
+    auto& P=R.Planning;P.ReliabilityPolicyVersion=D.ReliabilityPolicyVersion;P.OptionalTreeReservePercent=D.OptionalTreeReservePercent;P.bEnableLoopAwarePlanning=true;P.SpatialPlanningVersion=D.SpatialPlanningVersion;P.MinLoops=D.MinLoops;P.MaxLoops=D.MaxLoops;
     P.MinTreeCorridorLength=P.MinLoopCorridorLength=D.MinCorridorLength;P.MaxTreeCorridorLength=P.MaxLoopCorridorLength=D.MaxCorridorLength;
     P.MaxLayoutAttempts=D.SearchBudget.MaxLayoutAttempts;P.MaxBacktrackStates=D.SearchBudget.MaxBacktrackStates;P.MaxSpatialChecks=D.SearchBudget.MaxSpatialChecks;
     FString Why;if(S.MaxCandidatesPerEdge<1||S.MaxCandidatesPerEdge>256||!FRogueliteLoopAwarePlanner::ValidateSettings(P,Why))return Fail(TEXT("PlanningBudgetInvalid"),TEXT("空间预算无效：")+Why);

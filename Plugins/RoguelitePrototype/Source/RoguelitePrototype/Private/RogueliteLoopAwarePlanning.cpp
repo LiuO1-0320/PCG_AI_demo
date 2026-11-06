@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Math/RandomStream.h"
+#include "HAL/PlatformTime.h"
+#include "RogueliteReliabilitySerialization.h"
 
 namespace
 {
@@ -12,7 +14,7 @@ using namespace RogueliteSeedAssemblyInternal;
 constexpr auto SpatialPurpose=static_cast<ERogueliteGraphSeedPurpose>(0x63b29a15u);
 bool Editor(AActor* A){return IsValid(A)&&A->GetWorld()&&A->GetWorld()->WorldType==EWorldType::Editor;}
 FString SettingsText(const FRogueliteSeedLayoutSettings& S,const FRogueliteLoopAwareSettings& V)
-{const FString A=RogueliteGenerationGeometry::SettingsText(S);FString B;FRogueliteLoopAwareSettings::StaticStruct()->ExportText(B,&V,nullptr,nullptr,PPF_None,nullptr);return A+TEXT("|SpatialDomain=63b29a15|")+B;}
+{const FString A=RogueliteGenerationGeometry::SettingsText(S);const FString B=RogueliteReliabilitySerialization::Text(FRogueliteLoopAwareSettings::StaticStruct(),&V,V.ReliabilityPolicyVersion==1);return A+TEXT("|SpatialDomain=63b29a15|")+B;}
 FBox RoomBox(const FRogueliteTemplateDescriptor& D)
 {return FBox(FVector(-D.Dimensions.X*.5-D.WallThickness,-D.Dimensions.Y*.5-D.WallThickness,-D.FloorThickness),FVector(D.Dimensions.X*.5+D.WallThickness,D.Dimensions.Y*.5+D.WallThickness,D.Dimensions.Z));}
 bool Intersects(const FBox& A,const FBox& B)
@@ -79,8 +81,9 @@ struct Solver
     AActor* Owner;const Inputs& Input;const FRogueliteSeedLayoutSettings& Source;const FRogueliteLoopAwareSettings& S;
     FRogueliteLoopAwareEvidence& E;FTransform Start;FRandomStream Random;
     bool Exhausted=false;FString Why;
+    int32 StateLimit=S.MaxBacktrackStates,CheckLimit=S.MaxSpatialChecks;
     bool Charge()
-    {if(E.SpatialChecks>=S.MaxSpatialChecks){Exhausted=true;Why=TEXT("SpatialCheckBudgetExhausted");return false;}++E.SpatialChecks;return true;}
+    {if(E.SpatialChecks>=CheckLimit){Exhausted=true;Why=TEXT("SpatialCheckBudgetExhausted");return false;}++E.SpatialChecks;return true;}
     bool Free(const FBox& B,const FRogueliteSeedSpatialPlan& P,const FBox& Reserved)
     {
         if(!Charge())return false;
@@ -151,7 +154,7 @@ struct Solver
         const auto BeforeRooms=P.Rooms;const auto BeforeEdges=P.Edges;
         for(int32 I=0;I<FMath::Min(Choices.Num(),Source.MaxCandidatesPerEdge);++I)
         {
-            if(E.BacktrackStates>=S.MaxBacktrackStates){Exhausted=true;Why=TEXT("BacktrackStateBudgetExhausted");return false;}++E.BacktrackStates;
+            if(E.BacktrackStates>=StateLimit){Exhausted=true;Why=TEXT("BacktrackStateBudgetExhausted");return false;}++E.BacktrackStates;
             const auto& C=Choices[I];const auto Desc=Corridor(C.Profile,C.Length);FTransform CT,BT;
             if(S.SpatialPlanningVersion==3)UE_LOG(LogTemp,Display,TEXT("F1_TRY Stage=Branch Node=%d Attempt=%d Candidate=%d Template=%s"),Child,E.LayoutAttempts,I,*Input.Catalog[C.Template].Option.Id.ToString());
             if(!ARogueliteRoomAssembly::ComputeCorridorSocketTransforms(Placed(C.A,ParentRoom.Record.PlacedTransform),C.B,Desc.Start,Desc.End,.1f,CT,BT,Why)){if(S.SpatialPlanningVersion==3)UE_LOG(LogTemp,Display,TEXT("F1_REJECT Stage=Branch Node=%d Template=%s Reason=%s"),Child,*Input.Catalog[C.Template].Option.Id.ToString(),*Why);continue;}
@@ -214,7 +217,7 @@ struct Solver
             if(I==K){auto Trial=Intent;if(Close(Trial)){Intent=Trial;return true;}UE_LOG(LogTemp,Display,TEXT("F1_REJECT Stage=CycleLayout Attempt=%d Reason=%s"),E.LayoutAttempts,*Why);return false;}
             for(int32 J=0;J<FMath::Min(OptionsByNode[I].Num(),Source.MaxCandidatesPerEdge);++J)
             {
-                if(E.BacktrackStates>=S.MaxBacktrackStates){Exhausted=true;Why=TEXT("BacktrackStateBudgetExhausted");return false;}++E.BacktrackStates;
+                if(E.BacktrackStates>=StateLimit){Exhausted=true;Why=TEXT("BacktrackStateBudgetExhausted");return false;}++E.BacktrackStates;
                 Selected[I]=OptionsByNode[I][J];UE_LOG(LogTemp,Display,TEXT("F1_TRY Stage=Cycle Node=%d Attempt=%d Candidate=%d Template=%s"),Intent.TreePath[I],E.LayoutAttempts,J,*Input.Catalog[Selected[I].Template].Option.Id.ToString());
                 if(Visit(I+1))return true;if(Exhausted)return false;
             }
@@ -290,13 +293,18 @@ bool FRogueliteLoopAwarePlanner::ValidateSettings(const FRogueliteLoopAwareSetti
     if(S.MaxLayoutAttempts<1||S.MaxLayoutAttempts>512||S.MaxLoopIntentCandidates<1||S.MaxLoopIntentCandidates>256||S.MaxBacktrackStates<1||S.MaxBacktrackStates>100000||S.MaxSpatialChecks<1||S.MaxSpatialChecks>500000){Reason=TEXT("InvalidBoundedSearchBudget");return false;}
     for(float V:{S.MinTreeCorridorLength,S.MaxTreeCorridorLength,S.MinLoopCorridorLength,S.MaxLoopCorridorLength})if(!FMath::IsFinite(V)||V<100||V>100000){Reason=TEXT("InvalidC1LengthLimits");return false;}
     if(S.MaxTreeCorridorLength<S.MinTreeCorridorLength||S.MaxLoopCorridorLength<S.MinLoopCorridorLength){Reason=TEXT("InvertedLengthLimits");return false;}
+    if(S.ReliabilityPolicyVersion!=1&&S.ReliabilityPolicyVersion!=2){Reason=TEXT("UnsupportedReliabilityPolicyVersion");return false;}
+    if(S.ReliabilityPolicyVersion==2&&(S.OptionalTreeReservePercent<1||S.OptionalTreeReservePercent>99
+        ||(S.MinLoops==0&&S.MaxLoops>0&&(S.MaxBacktrackStates<2||S.MaxSpatialChecks<2||S.MaxLayoutAttempts<2))))
+    {Reason=TEXT("InvalidProtectedOptionalBudget: require 1..99 percent, at least two states/checks/attempts for optional-loop search plus Tree fallback.");return false;}
     auto L=LoopSettings(S);return FRogueliteLoopPlanner::ValidateSettings(L,Reason);
 }
 static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start,const FRoguelitePreparedTemplateCatalog* Prepared)
 {
-    FRogueliteLoopAwareSpatialPlan P;auto& E=P.Evidence;E.Seed=Source.Seed;E.DerivedSpatialSeed=FRogueliteLoopAwarePlanner::SpatialSeed(Source.Seed,S.ConfigVersion);E.SpatialPlanningVersion=S.SpatialPlanningVersion;E.MinLoops=S.MinLoops;E.MaxLoops=S.MaxLoops;
+    const double PlanningStarted=FPlatformTime::Seconds();
+    FRogueliteLoopAwareSpatialPlan P;auto& E=P.Evidence;E.ReliabilityPolicyVersion=S.ReliabilityPolicyVersion;E.Seed=Source.Seed;E.DerivedSpatialSeed=FRogueliteLoopAwarePlanner::SpatialSeed(Source.Seed,S.ConfigVersion);E.SpatialPlanningVersion=S.SpatialPlanningVersion;E.MinLoops=S.MinLoops;E.MaxLoops=S.MaxLoops;
     P.Start=Start;P.Owner=Owner;P.World=IsValid(Owner)?Owner->GetWorld():nullptr;P.AuthoringOwnerTransform=IsValid(Owner)?Owner->GetActorTransform():FTransform::Identity;P.SourceSettingsDigest=G::StableTextDigest(SettingsText(Source,S));
-    const auto Fail=[&](const FString& Stage,const FString& Why){E.Stage=Stage;E.Reason=Why;E.bCleanupComplete=true;P.Tree.bValid=false;return MoveTemp(P);};
+    const auto Fail=[&](const FString& Stage,const FString& Why){E.TotalPlanningSeconds=FPlatformTime::Seconds()-PlanningStarted;E.Stage=Stage;E.Reason=Why;E.bCleanupComplete=true;P.Tree.bValid=false;return MoveTemp(P);};
     if(!(Prepared?(IsValid(Owner)&&Owner->GetWorld()&&Owner->GetWorld()->IsGameWorld()):Editor(Owner))||!Rigid(Start)||Source.AlgorithmVersion!=2||!FRogueliteLoopAwarePlanner::ValidateSettings(S,E.Reason))return Fail(TEXT("InvalidInputs"),E.Reason.IsEmpty()?TEXT("Editor, rigid Start and normal V2 graph required."):E.Reason);
     P.SourceGeometryDigest=WorldDigest(Owner);P.Tree.Metadata.Seed=Source.Seed;P.Tree.Metadata.BatchId=FGuid::NewGuid();Inputs I;
     if(!BuildInputs(Owner,Source,P.Tree.Metadata,I,E.Reason,Prepared)){E.GraphDigest=P.Tree.Metadata.GraphDigest;return Fail(P.Tree.Metadata.GraphDigest.IsEmpty()?TEXT("GraphRejected"):TEXT("CatalogOrRoomTypeRejected"),E.Reason);}
@@ -316,6 +324,16 @@ static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRoguel
         if(Intents.IsEmpty()&&S.MinLoops>0)return Fail(TEXT("LoopIntentUnsatisfied"),TEXT("No legal non-Final topology pair within actual template/graph degree capacity. MinLoops unchanged."));
     }
     Solver Solver{Owner,I,Source,S,E,Start,FRandomStream(E.DerivedSpatialSeed)};bool Solved=false;
+    const bool Protected=S.ReliabilityPolicyVersion==2&&S.MinLoops==0&&!Intents.IsEmpty();
+    E.bOptionalBudgetProtected=Protected;
+    if(Protected)
+    {
+        E.TreeReservedStates=FMath::Clamp(int32(int64(S.MaxBacktrackStates)*S.OptionalTreeReservePercent/100),1,S.MaxBacktrackStates-1);
+        E.TreeReservedChecks=FMath::Clamp(int32(int64(S.MaxSpatialChecks)*S.OptionalTreeReservePercent/100),1,S.MaxSpatialChecks-1);
+        Solver.StateLimit-=E.TreeReservedStates;Solver.CheckLimit-=E.TreeReservedChecks;
+    }
+    E.LoopStateLimit=Intents.IsEmpty()?0:Solver.StateLimit;E.LoopCheckLimit=Intents.IsEmpty()?0:Solver.CheckLimit;
+    const double SearchStarted=FPlatformTime::Seconds();
     const int32 SearchAttempts=S.MinLoops==0&&!Intents.IsEmpty()?S.MaxLayoutAttempts-1:S.MaxLayoutAttempts;
     for(int32 Attempt=0;Attempt<SearchAttempts&&!Solver.Exhausted;++Attempt)
     {
@@ -329,18 +347,39 @@ static FRogueliteLoopAwareSpatialPlan PlanWithInputs(AActor* Owner,const FRoguel
         }
         E.Attempts.Add(FString::Printf(TEXT("Attempt=%d Intent=%s States=%d Checks=%d Failure=%s"),Attempt,!Intents.IsEmpty()?*Intents[Attempt%Intents.Num()].StableId.ToString():TEXT("None"),E.BacktrackStates,E.SpatialChecks,*Solver.Why));
     }
+    if(!Intents.IsEmpty())
+    {
+        E.LoopBacktrackStates=E.BacktrackStates;E.LoopSpatialChecks=E.SpatialChecks;
+        E.LoopPlanningSeconds=FPlatformTime::Seconds()-SearchStarted;E.bLoopBudgetExhausted=Solver.Exhausted;
+        E.LoopStopReason=Solved?TEXT("LoopSpatialPlanFound"):Solver.Exhausted?Solver.Why:TEXT("LoopAttemptOrCandidateBudgetFinished: ")+Solver.Why;
+    }
+    else
+    {E.TreeBacktrackStates=E.BacktrackStates;E.TreeSpatialChecks=E.SpatialChecks;E.TreePlanningSeconds=FPlatformTime::Seconds()-SearchStarted;E.TreeStopReason=Solved?TEXT("TreeSpatialPlanFound"):Solver.Why;}
+    if(Protected&&!Solved)
+    {
+        // Counters remain cumulative. The Tree can use only the unspent total;
+        // its guaranteed reserve cannot be consumed by optional Loop search.
+        Solver.Exhausted=false;Solver.Why.Reset();Solver.StateLimit=S.MaxBacktrackStates;Solver.CheckLimit=S.MaxSpatialChecks;
+    }
+    const double FallbackStarted=FPlatformTime::Seconds();
     if(!Solved&&S.MinLoops==0&&!Intents.IsEmpty()&&!Solver.Exhausted)
     {
         ++E.LayoutAttempts;E.bUsedOptionalTreeFallback=true;P.Tree.Rooms.Reset();P.Tree.Edges.Reset();const auto Order=TemplateOrder(I.Catalog,I.Types[0],I.Graph.Nodes[0].Degree,0,Source,I.Graph);
         if(!Order.IsEmpty()){if(S.SpatialPlanningVersion==3){F1OrderTrace(TEXT("OptionalTreeRoot"),0,uint8(I.Types[0]),I.Graph.Nodes[0].Degree,E.LayoutAttempts,Order,I.Catalog);UE_LOG(LogTemp,Display,TEXT("F1_TRY Stage=OptionalTreeRoot Node=0 Attempt=%d Candidate=0 Template=%s"),E.LayoutAttempts,*I.Catalog[Order[0]].Option.Id.ToString());}P.Tree.Rooms.Add(MakeRoom(I,0,I.Catalog[Order[0]],FTransform::Identity,Source));Solved=Solver.Branches(P.Tree,nullptr);if(Solved){E.Intents.Reset();E.FeasibleIntentCount=0;}}
     }
-    if(!Solved)return Fail(Solver.Exhausted?TEXT("SearchBudgetExhausted"):TEXT("TreeOrLoopSpatialUnsatisfied"),Solver.Why+TEXT("; no formal Actors/leases spawned; original V2 topology preserved."));
+    if(E.bUsedOptionalTreeFallback)
+    {
+        E.TreeBacktrackStates=E.BacktrackStates-E.LoopBacktrackStates;E.TreeSpatialChecks=E.SpatialChecks-E.LoopSpatialChecks;
+        E.TreePlanningSeconds=FPlatformTime::Seconds()-FallbackStarted;E.TreeStopReason=Solved?TEXT("OptionalTreeFallbackSucceeded"):Solver.Why;
+        if(Protected)E.Attempts.Add(FString::Printf(TEXT("OptionalTreeFallback States=%d Checks=%d Success=%d LoopStop=%s TreeStop=%s"),E.TreeBacktrackStates,E.TreeSpatialChecks,Solved,*E.LoopStopReason,*E.TreeStopReason));
+    }
+    if(!Solved)return Fail(Solver.Exhausted?TEXT("SearchBudgetExhausted"):TEXT("TreeOrLoopSpatialUnsatisfied"),(Protected?TEXT("OptionalLoopStop=")+E.LoopStopReason+TEXT("; TreeFallbackStop=")+E.TreeStopReason+TEXT("; "):FString())+Solver.Why+TEXT("; no formal Actors/leases spawned; original V2 topology preserved."));
     E.bTreePlanned=true;P.Tree.bValid=true;P.Tree.Reason=TEXT("Complete joint data plan. Actual C2/Loop commit still pending.");
     FString Text=SettingsText(Source,S)+TEXT("|graph=")+E.GraphDigest+TEXT("|types=")+E.RoomTypeDigest;
     for(const auto& R:P.Tree.Rooms)Text+=FString::Printf(TEXT("|node=%d,%s,%s,%s,%s"),R.Record.NodeId,*R.Record.TemplateId.ToString(),*GetPathNameSafe(R.Record.TemplateClass.Get()),*Pose(R.Record.PlacedTransform),*R.Record.MemberSignature);
     for(const auto& C:P.Tree.Edges)Text+=FString::Printf(TEXT("|tree=%d,%d,%d,%d,%d,%s,%.3f,%s"),C.Record.EdgeId,C.Record.ParentNode,C.Record.ChildNode,uint8(C.Record.ParentSocket),uint8(C.Record.ChildSocket),*C.Profile.Id.ToString(),C.Record.CorridorLength,*Pose(C.Transform));
     for(const auto& L:E.Intents)if(L.bSpatiallyFeasible)Text+=FString::Printf(TEXT("|intent=%s,%d,%d,%d,%d,%s,%.3f,%s"),*L.StableId.ToString(),L.NodeA,L.NodeB,uint8(L.SocketA),uint8(L.SocketB),*L.CorridorProfile.ToString(),L.CorridorLength,*Pose(L.CorridorTransform));
-    E.StablePlanText=Text;E.StablePlanDigest=G::StableTextDigest(Text);E.Stage=E.FeasibleIntentCount?TEXT("SpatiallyFeasibleLoop"):TEXT("TreeSpatialPlanValid");E.Reason=TEXT("Joint closure constraints and reserved envelope solved before formal Static registration; not a committed connection.");return P;
+    E.TotalPlanningSeconds=FPlatformTime::Seconds()-PlanningStarted;E.StablePlanText=Text;E.StablePlanDigest=G::StableTextDigest(Text);E.Stage=E.FeasibleIntentCount?TEXT("SpatiallyFeasibleLoop"):TEXT("TreeSpatialPlanValid");E.Reason=TEXT("Joint closure constraints and reserved envelope solved before formal Static registration; not a committed connection.");return P;
 }
 FRogueliteLoopAwareSpatialPlan FRogueliteLoopAwarePlanner::Plan(AActor* Owner,const FRogueliteSeedLayoutSettings& Source,const FRogueliteLoopAwareSettings& S,const FTransform& Start)
 {return PlanWithInputs(Owner,Source,S,Start,nullptr);}
@@ -370,3 +409,5 @@ bool FRogueliteLoopAwarePlanner::IsCurrent(AActor* Owner,const FRogueliteSeedLay
 #include "Tests/RogueliteWeightedTemplateSelectionTests.inl"
 
 #include "Tests/RogueliteRoomRoleWeightsTests.inl"
+
+#include "Tests/RogueliteOptionalLoopWeightRegression.inl"

@@ -59,6 +59,8 @@ struct ROGUELITEPROTOTYPE_API FRogueliteFloorDefinition
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(Units="cm")) float DoorWidth=200;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Corridor",meta=(Units="cm")) float DoorHeight=250;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Developer Diagnostics") int32 SpatialPlanningVersion=2;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Developer Diagnostics") int32 ReliabilityPolicyVersion=1;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Developer Diagnostics",meta=(ClampMin="1",ClampMax="99")) int32 OptionalTreeReservePercent=25;
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Developer Diagnostics") FRogueliteFloorSearchBudget SearchBudget;
     // Explicit metadata contracts. None of these constructs gameplay.
     UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Reserved Gameplay") ERogueliteFloorStartPolicy StartRolePolicy=ERogueliteFloorStartPolicy::TopologyStart_SafeHouseReserved;

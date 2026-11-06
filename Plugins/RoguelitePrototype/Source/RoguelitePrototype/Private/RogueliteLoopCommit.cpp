@@ -4,6 +4,7 @@
 #include "RoguelitePrototype.h"
 #include "RogueliteNavigationTestCharacter.h"
 #include "RogueliteNavigationReadinessComponent.h"
+#include "RogueliteDynamicGameplayBridge.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
@@ -61,7 +62,8 @@ FString FRogueliteLoopCommitQueries::GeometryDigest(AActor* Owner,const FRogueli
             {const auto& D=Door(const_cast<ARogueliteParametricRoom*>(R),Side);FString T;FRogueliteDoorConfig::StaticStruct()->ExportText(T,&D,nullptr,nullptr,PPF_None,nullptr);Rows.Add(Label+FString::FromInt(uint8(Side))+T);}
         }
         TInlineComponentArray<UPrimitiveComponent*> Components;I->GetComponents(Components);
-        for(const auto* C:Components)if(C->GetCollisionEnabled()!=ECollisionEnabled::NoCollision&&C->GetCollisionResponseToChannel(ECC_Pawn)==ECR_Block)
+        for(const auto* C:Components)if(!FRogueliteDynamicGameplayBridge::IsComponentIsolated(Owner,B.BatchId,C)
+            &&C->GetCollisionEnabled()!=ECollisionEnabled::NoCollision&&C->GetCollisionResponseToChannel(ECC_Pawn)==ECR_Block)
         {const auto* M=Cast<UStaticMeshComponent>(C);Rows.Add(Label+C->GetClass()->GetPathName()+C->GetComponentTransform().ToString()+C->Bounds.Origin.ToString()+C->Bounds.BoxExtent.ToString()+(M&&M->GetStaticMesh()?M->GetStaticMesh()->GetPathName():TEXT(""))+FString::FromInt(uint8(C->GetCollisionEnabled()))+FString::FromInt(I->GetActorEnableCollision())+FString::FromInt(uint8(C->GetCollisionResponseToChannel(ECC_Visibility)))+FString::FromInt(uint8(C->GetCollisionObjectType())));}
     }
     Rows.Sort();FString T;for(const auto& R:Rows)T+=R+TEXT("\n");return G::StableTextDigest(T);
