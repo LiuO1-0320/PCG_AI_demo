@@ -1,5 +1,6 @@
 #include "RogueliteDynamicGameplayBridge.h"
 #include "RogueliteRuntimeLoopAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
 #include "RogueliteNavigationTestCharacter.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -131,17 +132,26 @@ void PollRecovery(TWeakPtr<FContext> Weak)
 bool FRogueliteDynamicGameplayBridge::Enable(ARogueliteRuntimeLoopAssembly* S,FGuid Batch,FString& Why)
 {
     using namespace DynamicBridge;if(!IsInGameThread()){Why=TEXT("Game thread required.");return false;}
+    FRogueliteGameplayObservationWrite ObservationWrite(IsValid(S)?S->AActor::GetWorld():nullptr,TEXT("G1A context enable"));
     auto C=MakeShared<FContext>();C->Source=S;C->World=IsValid(S)?S->GetWorld():nullptr;C->Batch=Batch;
     if(!Identity(*C)||!FRogueliteRuntimeLoopAssembler::Current(S,S->Batch,S->Settings,S->CommittedLoops)){Why=TEXT("Enable requires current successful runtime Source/World/Batch geometry.");return false;}
     if(const auto Existing=Context(S);Existing&&Identity(*Existing)&&Existing->Batch==Batch){Why=TEXT("Already enabled; existing component leases preserved.");return true;}
-    Disable(S);for(auto It=Contexts.CreateIterator();It;++It)if(!Identity(*It.Value())){Cancel(It.Value());It.RemoveCurrent();}
+    Disable(S);for(auto It=Contexts.CreateIterator();It;++It)if(!Identity(*It.Value())){FRogueliteGameplayObservationWrite StaleContextWrite(It.Value()->World.Get(),TEXT("G1A stale context cleanup"));Cancel(It.Value());It.RemoveCurrent();}
     Contexts.Add(S,C);Why=TEXT("Explicit component registration enabled for this Source/World/Batch only.");return true;
 }
 void FRogueliteDynamicGameplayBridge::Disable(ARogueliteRuntimeLoopAssembly* S)
-{using namespace DynamicBridge;if(!IsInGameThread())return;if(auto C=Context(S)){Cancel(C);Contexts.Remove(S);}}
+{
+    using namespace DynamicBridge;if(!IsInGameThread())return;
+    if(auto C=Context(S))
+    {
+        FRogueliteGameplayObservationWrite ObservationWrite(C->World.Get(),TEXT("G1A context disable"));
+        Cancel(C);Contexts.Remove(S);
+    }
+}
 bool FRogueliteDynamicGameplayBridge::RegisterComponent(ARogueliteRuntimeLoopAssembly* S,FGuid Batch,AActor* A,UPrimitiveComponent* P,ERogueliteDynamicParticipant Kind,FString& Why)
 {
     using namespace DynamicBridge;if(!IsInGameThread()){Why=TEXT("Game thread required.");return false;}const auto C=Context(S);
+    FRogueliteGameplayObservationWrite ObservationWrite(C?C->World.Get():(IsValid(S)?S->AActor::GetWorld():nullptr),TEXT("G1A component registration"));
     if(!C||!Identity(*C)||C->Batch!=Batch||!IsValid(A)||!IsValid(P)||P->GetOwner()!=A||A==S
         ||A->IsA<ARogueliteParametricRoom>()||A->IsA<ARogueliteParametricCorridor>()||A->IsA<ARogueliteRoomAssembly>()||A->IsA<ARogueliteNavigationTestCharacter>())
     {Why=TEXT("Component lease rejected: invalid Source/Batch/component owner or protected structural/verifier actor.");return false;}
@@ -163,7 +173,15 @@ bool FRogueliteDynamicGameplayBridge::RegisterComponent(ARogueliteRuntimeLoopAss
     Why=TEXT("Only this exact component leased; other components remain in GeometryDigest.");return true;
 }
 bool FRogueliteDynamicGameplayBridge::UnregisterComponent(ARogueliteRuntimeLoopAssembly* S,UPrimitiveComponent* P)
-{using namespace DynamicBridge;if(!IsInGameThread())return false;if(const auto C=Context(S)){C->Leases.RemoveAll([&](const auto& L){return L.Component.Get()==P;});++C->GateRevision;C->bMovePassed=false;}return true;}
+{
+    using namespace DynamicBridge;if(!IsInGameThread())return false;
+    if(const auto C=Context(S))
+    {
+        FRogueliteGameplayObservationWrite ObservationWrite(C->World.Get(),TEXT("G1A component unregister"));
+        C->Leases.RemoveAll([&](const auto& L){return L.Component.Get()==P;});++C->GateRevision;C->bMovePassed=false;
+    }
+    return true;
+}
 int32 FRogueliteDynamicGameplayBridge::ActiveComponentCount(const ARogueliteRuntimeLoopAssembly* S)
 {using namespace DynamicBridge;if(!IsInGameThread())return 0;int32 N=0;if(const auto C=Context(S);C&&Identity(*C))for(const auto& L:C->Leases)N+=Usable(*C,L);return N;}
 bool FRogueliteDynamicGameplayBridge::IsComponentIsolated(const AActor* Owner,FGuid Batch,const UPrimitiveComponent* P)
@@ -175,7 +193,11 @@ bool FRogueliteDynamicGameplayBridge::IsComponentIsolated(const AActor* Owner,FG
 void FRogueliteDynamicGameplayBridge::NotifyGateCollisionChanged(UPrimitiveComponent* P)
 {
     using namespace DynamicBridge;if(!IsInGameThread())return;for(const auto& Pair:Contexts)if(Identity(*Pair.Value))for(const auto& L:Pair.Value->Leases)
-        if(L.Kind==ERogueliteDynamicParticipant::Gate&&L.Component.Get()==P){++Pair.Value->GateRevision;Pair.Value->bMovePassed=false;Cancel(Pair.Value);}
+        if(L.Kind==ERogueliteDynamicParticipant::Gate&&L.Component.Get()==P)
+        {
+            FRogueliteGameplayObservationWrite ObservationWrite(Pair.Value->World.Get(),TEXT("G1A gate collision change"));
+            ++Pair.Value->GateRevision;Pair.Value->bMovePassed=false;Cancel(Pair.Value);
+        }
 }
 FRogueliteGameplayPassageQuery FRogueliteDynamicGameplayBridge::QueryConnection(ARogueliteRuntimeLoopAssembly* S,FGuid Id,APawn* Pawn)
 {
@@ -194,6 +216,7 @@ FRogueliteGameplayPassageQuery FRogueliteDynamicGameplayBridge::QueryConnection(
 bool FRogueliteDynamicGameplayBridge::BeginRecovery(ARogueliteRuntimeLoopAssembly* S,FGuid Id,APawn* Pawn,AAIController* Controller,FString& Why)
 {
     using namespace DynamicBridge;if(!IsInGameThread()){Why=TEXT("Game thread required.");return false;}const auto C=Context(S);FPassageFrame F;
+    FRogueliteGameplayObservationWrite ObservationWrite(C?C->World.Get():(IsValid(S)?S->AActor::GetWorld():nullptr),TEXT("G1A recovery request"));
     if(!Frame(C,Id,F)||!IsValid(Pawn)||!IsValid(Controller)||Controller->GetPawn()!=Pawn||Controller->GetOwner()!=S
         ||!IsComponentIsolated(S,C->Batch,Cast<UPrimitiveComponent>(Pawn->GetRootComponent())))
     {Why=TEXT("Recovery requires a registered pawn and its Source-owned controller.");return false;}

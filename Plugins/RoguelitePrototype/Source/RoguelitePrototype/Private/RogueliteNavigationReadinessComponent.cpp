@@ -1,5 +1,10 @@
 #include "RogueliteNavigationReadinessComponent.h"
 #include "RogueliteRuntimeSeedAssembly.h"
+#include "RogueliteRuntimeLoopAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
+#include "RogueliteReadyQueryProof.h"
+#include "RogueliteRoomAssembly.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RogueliteRuntimeNavigationSystem.h"
 #include "RogueliteNavigationTestCharacter.h"
 #include "RoguelitePrototype.h"
@@ -29,12 +34,71 @@ bool URogueliteNavigationReadinessComponent::Current() const
 }
 bool URogueliteNavigationReadinessComponent::IsCurrentBatchReady() const
 {
+    if(Report.Epoch.IsEmpty()||Report.Epoch==TEXT("InvalidRuntimeGeometry"))return false;
     return Report.bReady && IsValid(Rig()) && GetWorld() && !GetWorld()->bIsTearingDown
         && Rig()->Batch.BatchId==Report.BatchId && Rig()->bGeometryValidated && Rig()->GetNavigationEpoch()==Report.Epoch && IsValid(Data)
         && Data->GetWorld()==GetWorld() && !UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(GetWorld());
 }
+ERogueliteReadyProofAdmission URogueliteNavigationReadinessComponent::PrepareReadyQuery(
+    const ARogueliteRuntimeLoopAssembly& Source,FRogueliteReadyQueryProof& Proof) const
+{
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1B_ProofPrepare);
+    UWorld* World=GetWorld();
+    if(!IsInGameThread()||GetOwner()!=&Source||!IsValid(World)||World!=Source.GetWorld()||!World->IsGameWorld()||World->bIsTearingDown
+        ||!Report.bReady||Report.State!=TEXT("NavigationReady")||!Source.bGeometryValidated||Report.BatchId!=Source.Batch.BatchId
+        ||Report.Epoch.IsEmpty()||Report.Epoch==TEXT("InvalidRuntimeGeometry")||!IsValid(Data))return ERogueliteReadyProofAdmission::Rejected;
+    auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+    if(World->GetClass()!=UWorld::StaticClass()||Source.Batch.Registry->GetClass()!=ARogueliteRoomAssembly::StaticClass()
+        ||GetClass()!=StaticClass()||!IsValid(Nav)||Nav->GetClass()!=URogueliteRuntimeNavigationSystem::StaticClass()
+        ||Data->GetClass()!=ARogueliteRuntimeRecastNavMesh::StaticClass()||Nav->NavDataSet.IsEmpty())return ERogueliteReadyProofAdmission::Legacy;
+    // IsNavigationBuildInProgress dispatches to these generators. Admit only the audited
+    // native Recast implementation; a custom data/generator class keeps the Legacy check.
+    for(const ANavigationData* Entry:Nav->NavDataSet)
+        if(!IsValid(Entry)||Entry->GetClass()!=ARogueliteRuntimeRecastNavMesh::StaticClass())return ERogueliteReadyProofAdmission::Legacy;
+    if(Data->GetWorld()!=World||UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(World))return ERogueliteReadyProofAdmission::Rejected;
+    Proof.Readiness=this;Proof.ReadinessKey=FObjectKey(this);Proof.World=World;Proof.WorldKey=FObjectKey(World);Proof.WorldPath=World->GetPathName();
+    Proof.Report=&Report;Proof.NavData=Data.Get();Proof.NavDataKey=FObjectKey(Data.Get());Proof.Navigation=Nav;Proof.NavigationKey=FObjectKey(Nav);
+    for(const ANavigationData* Entry:Nav->NavDataSet)Proof.NavigationDataKeys.Add(FObjectKey(Entry));
+    return ERogueliteReadyProofAdmission::Native;
+}
+bool URogueliteNavigationReadinessComponent::ConsumeReadyQuery(const ARogueliteRuntimeLoopAssembly& Source,FRogueliteReadyQueryProof& Proof) const
+{
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1B_ProofConsume);
+    auto Fail=[&](ERogueliteReadyProofFailure Reason){Proof.Failure=Reason;return false;};
+    if(!IsInGameThread()||!Source.bReadyQueryInProgress||Source.ActiveReadyQueryProof!=&Proof||!Proof.bProduced||Proof.bConsumed)
+        return Fail(ERogueliteReadyProofFailure::QueryLifetime);
+    Proof.bConsumed=true;
+    if(Proof.Source!=&Source||Proof.SourceKey!=FObjectKey(&Source)||Proof.Readiness!=this||Proof.ReadinessKey!=FObjectKey(this)
+        ||GetOwner()!=&Source||Source.NavigationReadiness.Get()!=this)return Fail(ERogueliteReadyProofFailure::Identity);
+    UWorld* World=Proof.World;
+    if(!IsValid(World)||Proof.WorldKey!=FObjectKey(World)||World->bIsTearingDown||!World->IsGameWorld()
+        ||Source.AActor::GetWorld()!=World||UActorComponent::GetWorld()!=World)return Fail(ERogueliteReadyProofFailure::World);
+    if(!Source.bDungeonReady||!Source.bGeometryValidated||Proof.Batch!=&Source.Batch||!Proof.BatchId.IsValid()
+        ||Proof.BatchId!=Source.Batch.BatchId||Proof.BatchId!=Report.BatchId)return Fail(ERogueliteReadyProofFailure::Batch);
+    if(!IsValid(Proof.Registry)||Proof.Registry!=Source.Batch.Registry.Get()||Proof.RegistryKey!=FObjectKey(Proof.Registry)
+        ||Proof.Registry->AActor::GetWorld()!=World)return Fail(ERogueliteReadyProofFailure::Registry);
+    if(Proof.Loops!=&Source.CommittedLoops||Proof.GraphRevision!=Source.CommittedLoops.GraphRevision
+        ||Proof.GeometryRevision!=Source.CommittedLoops.GeometryRevision)return Fail(ERogueliteReadyProofFailure::Revision);
+    if(Proof.GraphDigest!=Source.Batch.GraphDigest||Proof.LayoutDigest!=Source.Batch.LayoutDigest
+        ||Proof.GeometryDigest!=Source.CommittedLoops.GeometryDigest)return Fail(ERogueliteReadyProofFailure::Digest);
+    if(Proof.Settings!=&Source.Settings||Proof.ConfigurationDigest!=Source.Batch.ConfigurationDigest)return Fail(ERogueliteReadyProofFailure::Configuration);
+    if(!Proof.SourceTransform.Equals(Source.GetActorTransform(),0))return Fail(ERogueliteReadyProofFailure::Transform);
+    if(Proof.Report!=&Report||!Report.bReady||Report.State!=TEXT("NavigationReady")||Report.World!=Proof.WorldPath
+        ||!IsValid(Data)||Proof.NavData!=Data.Get()||Proof.NavDataKey!=FObjectKey(Data.Get())||Data->AActor::GetWorld()!=World
+        ||!IsValid(Proof.Navigation)||Proof.NavigationKey!=FObjectKey(Proof.Navigation)
+        ||FNavigationSystem::GetCurrent<UNavigationSystemV1>(World)!=Proof.Navigation)return Fail(ERogueliteReadyProofFailure::Navigation);
+    if(Proof.Epoch.IsEmpty()||Proof.Epoch==TEXT("InvalidRuntimeGeometry")||Proof.Epoch!=Report.Epoch)return Fail(ERogueliteReadyProofFailure::Epoch);
+    if(Proof.NavigationDataKeys.Num()!=Proof.Navigation->NavDataSet.Num())return Fail(ERogueliteReadyProofFailure::Navigation);
+    for(int32 I=0;I<Proof.NavigationDataKeys.Num();++I)
+        if(Proof.NavigationDataKeys[I]!=FObjectKey(Proof.Navigation->NavDataSet[I]))return Fail(ERogueliteReadyProofFailure::Navigation);
+    // The exact native system/data classes above have audited read-only build-status
+    // implementations. No delegate, Blueprint, timer pump, generation or mutation occurs here.
+    if(UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(World))return Fail(ERogueliteReadyProofFailure::Navigation);
+    Proof.Failure=ERogueliteReadyProofFailure::None;return true;
+}
 bool URogueliteNavigationReadinessComponent::Start(float GeometrySeconds)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation Start"));
     Cancel();Report={};
     auto* R=Rig();if(!R || !GetWorld() || !GetWorld()->IsGameWorld() || !R->bGeometryValidated)return false;
     ActiveEpoch=R->GetNavigationEpoch();Report.Epoch=ActiveEpoch;
@@ -189,6 +253,7 @@ bool URogueliteNavigationReadinessComponent::ValidatePaths()
 }
 void URogueliteNavigationReadinessComponent::ReleaseTestObjects()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation ReleaseTestObjects"));
     bWaitingForMove=false;ActiveRequest=0;
     if(IsValid(Controller) && Controller->GetOwner()==GetOwner() && Controller->GetWorld()==GetWorld())
     {Controller->Verifier.Reset();Controller->StopMovement();Controller->UnPossess();Controller->Destroy();}
@@ -198,6 +263,7 @@ void URogueliteNavigationReadinessComponent::ReleaseTestObjects()
 }
 void URogueliteNavigationReadinessComponent::NextMove()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation NextMove"));
     if(!Current() || !bPathsValidated)return;
     ReleaseTestObjects();
     if(MoveIndex>=Report.Moves.Num())
@@ -289,6 +355,7 @@ void URogueliteNavigationReadinessComponent::CheckMove()
 }
 void URogueliteNavigationReadinessComponent::Fail(const FString& State,const FString& Reason)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation Fail"));
     Report.State=State;Report.bReady=false;Report.Reason=Reason;Report.TotalSeconds=FPlatformTime::Seconds()-StartSeconds;
     if(Report.BuildSeconds==0)Report.BuildSeconds=Report.TotalSeconds;
     if(AllMovesStart>0)Report.MoveSeconds=FPlatformTime::Seconds()-AllMovesStart;
@@ -303,6 +370,7 @@ void URogueliteNavigationReadinessComponent::Fail(const FString& State,const FSt
 }
 void URogueliteNavigationReadinessComponent::Cancel()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation Cancel"));
     bActive=false;bPathsValidated=false;
     if(GetWorld()){GetWorld()->GetTimerManager().ClearTimer(BuildTimer);GetWorld()->GetTimerManager().ClearTimer(MoveTimer);GetWorld()->GetTimerManager().ClearTimer(NextMoveTimer);}
     if(Navigation)Navigation->OnNavigationGenerationFinishedDelegate.RemoveDynamic(this,&URogueliteNavigationReadinessComponent::NavigationGenerated);
@@ -314,6 +382,7 @@ void URogueliteNavigationReadinessComponent::Cancel()
 }
 bool URogueliteNavigationReadinessComponent::RetryNavigation()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(GetOwner()?GetOwner()->AActor::GetWorld():nullptr,TEXT("Navigation RetryNavigation"));
     if(!Rig() || !GetWorld() || !GetWorld()->IsGameWorld())return false;
     Rig()->PublishNavigationState(Rig()->Batch.BatchId,ERogueliteDungeonBuildStage::NavigationPending,TEXT("Explicit navigation retry revokes prior Ready; geometry rechecked."));
     Cancel();

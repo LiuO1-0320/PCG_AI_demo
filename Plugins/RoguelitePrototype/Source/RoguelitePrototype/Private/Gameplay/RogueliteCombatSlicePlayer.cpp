@@ -1,7 +1,13 @@
 #include "Gameplay/RogueliteCombatSlicePlayer.h"
+
+/* PERF1A_BEGIN */
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+/* PERF1A_END */
 #include "Gameplay/RogueliteCombatSliceActors.h"
 #include "RogueliteDynamicGameplayBridge.h"
 #include "RogueliteRuntimeLoopAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -18,6 +24,11 @@
 #include "InputModifiers.h"
 #include "InputCoreTypes.h"
 #include "DrawDebugHelpers.h"
+
+TRACE_DECLARE_INT_COUNTER(PerfPlayerTracked, TEXT("PERF21B/Player/TrackedRead"));
+TRACE_DECLARE_INT_COUNTER(PerfPlayerStrong, TEXT("PERF21B/Player/OrdinaryStrong"));
+TRACE_DECLARE_INT_COUNTER(PerfPlayerDenied, TEXT("PERF21B/Player/ReadDenied"));
+TRACE_DECLARE_INT_COUNTER(PerfPlayerStrongBinding, TEXT("PERF21B/Player/HasLiveBinding"));
 
 namespace RogueliteSliceInput
 {
@@ -62,6 +73,7 @@ void ARogueliteSlicePlayer::BeginPlay()
 
 void ARogueliteSlicePlayer::Restart()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Player Restart"));
     Super::Restart();
     // Possess/client restart restores the engine default movement mode; keep the waiting pawn inert.
     if(!HasLiveBinding())UnbindFromDungeon();
@@ -103,6 +115,7 @@ bool ARogueliteSlicePlayer::BindToDungeon(ARogueliteRuntimeLoopAssembly* Source,
         Reason=TEXT("G1B player spawn capsule overlaps existing blocking geometry.");
         BindingStatus=Reason;return false;
     }
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Player dungeon bind"));
     UnbindFromDungeon();
     if(!FRogueliteDynamicGameplayBridge::Enable(Source,Source->Batch.BatchId,Reason))
     {BindingStatus=Reason;return false;}
@@ -123,6 +136,12 @@ bool ARogueliteSlicePlayer::BindToDungeon(ARogueliteRuntimeLoopAssembly* Source,
 
 void ARogueliteSlicePlayer::UnbindFromDungeon()
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_UnbindFromDungeon);
+/* PERF1A_END */
+
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Player dungeon unbind"));
+    CancelReload(TEXT("Dungeon binding ended"));
     GetCharacterMovement()->StopMovementImmediately();
     GetCharacterMovement()->SetMovementMode(MOVE_None);
     StopJumping();
@@ -139,14 +158,86 @@ ARogueliteRuntimeLoopAssembly* ARogueliteSlicePlayer::GetDungeonSource() const
 
 bool ARogueliteSlicePlayer::FindAcceptedShot(FGuid Id,FRogueliteSliceShot& OutShot) const
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_FindAcceptedShot);
+/* PERF1A_END */
+
     if(!Id.IsValid()||!HasLiveBinding())return false;
     if(const auto* Recorded=AcceptedShots.Find(Id);Recorded&&Recorded->Shooter.Get()==this&&Recorded->BatchId==BoundBatch)
     {OutShot=*Recorded;return true;}
     return false;
 }
 
+bool ARogueliteSlicePlayer::TryReload()
+{
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_TryReload);
+/* PERF1A_END */
+
+    auto Reject=[this](const TCHAR* Why){ReloadStatus=Why;return false;};
+    if(bReloading)return false; // Repeated input never resets or stacks the existing timer.
+    UWorld* W=GetWorld();
+    if(!W||W->bIsTearingDown||IsActorBeingDestroyed()||!HealthComponent||!HealthComponent->IsAlive()||!HasLiveBinding())
+        return Reject(TEXT("Reload unavailable: no living player in a current dungeon"));
+    if(bResolvingShot)return Reject(TEXT("Reload unavailable while a shot is resolving"));
+    if(MagazineCapacity<=0||Ammo<0||Ammo>MagazineCapacity||!FMath::IsFinite(ReloadDurationSeconds)||ReloadDurationSeconds<=0)
+        return Reject(TEXT("Invalid prototype reload configuration"));
+    if(Ammo==MagazineCapacity)return Reject(TEXT("Magazine full - Prototype infinite reserve"));
+    ReloadWorld=W;ReloadSource=BoundSource;ReloadBatch=BoundBatch;ReloadCapacity=MagazineCapacity;
+    ReloadRequest=FGuid::NewGuid();bReloading=true;++ReloadStartedCount;
+    ReloadStatus=TEXT("Reloading - Prototype infinite reserve");
+    W->GetTimerManager().SetTimer(ReloadTimer,FTimerDelegate::CreateUObject(this,&ARogueliteSlicePlayer::CompleteReload,ReloadRequest),ReloadDurationSeconds,false);
+    UE_LOG(LogTemp,Display,TEXT("G1B_RELOAD_START Player=%s Batch=%s Request=%s Ammo=%d Capacity=%d Duration=%.3f"),*GetName(),*ReloadBatch.ToString(),*ReloadRequest.ToString(),Ammo,ReloadCapacity,ReloadDurationSeconds);
+    return true;
+}
+
+void ARogueliteSlicePlayer::CancelReload(const FString& Reason)
+{
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_CancelReload);
+/* PERF1A_END */
+
+    const bool WasReloading=bReloading;
+    if(UWorld* W=ReloadWorld.Get())W->GetTimerManager().ClearTimer(ReloadTimer);
+    ReloadTimer.Invalidate();bReloading=false;ReloadWorld.Reset();ReloadSource.Reset();ReloadBatch.Invalidate();ReloadRequest.Invalidate();ReloadCapacity=0;
+    if(WasReloading)
+    {
+        ++ReloadCancelledCount;ReloadStatus=TEXT("Reload cancelled: ")+Reason;
+        UE_LOG(LogTemp,Display,TEXT("G1B_RELOAD_CANCEL Player=%s Ammo=%d Reason=%s"),*GetName(),Ammo,*Reason);
+    }
+}
+
+float ARogueliteSlicePlayer::GetReloadRemainingSeconds() const
+{
+    const UWorld* W=ReloadWorld.Get();
+    return bReloading&&W?FMath::Max(0.f,W->GetTimerManager().GetTimerRemaining(ReloadTimer)):0.f;
+}
+
+void ARogueliteSlicePlayer::CompleteReload(FGuid RequestId)
+{
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_CompleteReload);
+/* PERF1A_END */
+
+    // A stale callback cannot clear a newer reload, or refill a different World/Source/Batch.
+    if(!bReloading||RequestId!=ReloadRequest)return;
+    UWorld* W=GetWorld();
+    if(!W||W!=ReloadWorld.Get()||W->bIsTearingDown||IsActorBeingDestroyed()||!HealthComponent||!HealthComponent->IsAlive()
+        ||!HasLiveBinding()||BoundSource!=ReloadSource||BoundBatch!=ReloadBatch||MagazineCapacity!=ReloadCapacity||Ammo<0||Ammo>ReloadCapacity)
+    {CancelReload(TEXT("Original player/World/Source/Batch or magazine is no longer valid"));return;}
+    const int32 Capacity=ReloadCapacity;const FGuid Batch=ReloadBatch;
+    W->GetTimerManager().ClearTimer(ReloadTimer);ReloadTimer.Invalidate();bReloading=false;
+    ReloadWorld.Reset();ReloadSource.Reset();ReloadBatch.Invalidate();ReloadRequest.Invalidate();ReloadCapacity=0;
+    Ammo=Capacity;++ReloadCompletedCount;ReloadStatus=TEXT("Reload complete - Prototype infinite reserve");
+    UE_LOG(LogTemp,Display,TEXT("G1B_RELOAD_COMPLETE Player=%s Batch=%s Ammo=%d"),*GetName(),*Batch.ToString(),Ammo);
+}
+
 bool ARogueliteSlicePlayer::TryFire()
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_TryFire);
+/* PERF1A_END */
+
     auto Reject=[this](const FString& Why)
     {
         ++ShotRejectedCount;LastRejectedReason=Why;LastFireOutcome=TEXT("Rejected: ")+Why;LastAppliedDamage=0;
@@ -155,7 +246,8 @@ bool ARogueliteSlicePlayer::TryFire()
     if(!GetWorld()||GetWorld()->bIsTearingDown||!HealthComponent||!HealthComponent->IsAlive())return Reject(TEXT("Player is not alive in an active world"));
     if(!HasLiveBinding())return Reject(TEXT("No current dungeon binding"));
     if(bResolvingShot)return Reject(TEXT("Another shot is still resolving"));
-    if(Ammo<=0)return Reject(TEXT("Empty ammunition"));
+    if(bReloading)return Reject(TEXT("Reloading - wait, then press fire again"));
+    if(Ammo<=0)return Reject(TEXT("Empty ammunition - press R to reload"));
     if(!FMath::IsFinite(FireIntervalSeconds)||FireIntervalSeconds<=0||!FMath::IsFinite(ShotDamage)||ShotDamage<=0
         ||!FMath::IsFinite(WeaponRangeCm)||WeaponRangeCm<=0)return Reject(TEXT("Invalid weapon configuration"));
     const double Now=GetWorld()->GetTimeSeconds();
@@ -190,6 +282,10 @@ bool ARogueliteSlicePlayer::TryFire()
 
 float ARogueliteSlicePlayer::ReceiveTestDamage(float Damage,FGuid EventId,AActor* Causer)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_ReceiveTestDamage);
+/* PERF1A_END */
+
     const auto* Enemy=Cast<ARogueliteSliceEnemy>(Causer);
     if(!HasLiveBinding()||!HealthComponent||!HealthComponent->IsAlive()||!Enemy||!Enemy->IsActive()
         ||Enemy->GetWorld()!=GetWorld()||Enemy->GetDungeonSource()!=BoundSource.Get()||Enemy->GetBoundBatch()!=BoundBatch)return 0;
@@ -204,25 +300,121 @@ void ARogueliteSlicePlayer::PlayerKilled(URogueliteSliceHealth* DeadHealth)
 
 bool ARogueliteSlicePlayer::HasLiveBinding() const
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_HasLiveBinding);
+/* PERF1A_END */
+
+    if(IsInGameThread())
+    {
+        ++OrdinaryReadCounters.StrongBindingCalls;
+        TRACE_COUNTER_INCREMENT(PerfPlayerStrongBinding);
+    }
     const auto* Source=BoundSource.Get();
     return IsValid(Source)&&Source->GetWorld()==GetWorld()&&BoundBatch.IsValid()&&Source->Batch.BatchId==BoundBatch
         &&FRogueliteDynamicGameplayBridge::IsComponentIsolated(Source,BoundBatch,GetCapsuleComponent())
         &&Source->GetTraversalSnapshot().bCurrent;
 }
 
+bool ARogueliteSlicePlayer::ReadOrdinaryGameplayBinding(ERoguelitePlayerReadOperation Operation)
+{
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF21B_Player_OrdinaryRead);
+    const int32 Index=static_cast<int32>(Operation);
+    if(!IsInGameThread()||Index<0||Index>=3)return false;
+    const auto Strong=[&]()
+    {
+        ++OrdinaryReadCounters.Strong[Index];
+        TRACE_COUNTER_INCREMENT(PerfPlayerStrong);
+        return HasLiveBinding();
+    };
+    const auto Reject=[&](const FString& Reason)
+    {
+        ++OrdinaryReadCounters.Rejected[Index];
+        TRACE_COUNTER_INCREMENT(PerfPlayerDenied);
+        BindingStatus=Reason;
+        if(auto* Movement=GetCharacterMovement())Movement->StopMovementImmediately();
+        ConsumeMovementInputVector();
+        return false;
+    };
+    if(bOrdinaryReadInProgress)
+    {
+        ++OrdinaryReadCounters.ReentryRejected;
+        return Reject(TEXT("Ordinary Player read reentry rejected"));
+    }
+    auto* Source=BoundSource.Get();
+    if(!IsValid(Source)||Source->GetGameplayReadMode()!=ERogueliteGameplayReadMode::TrackedGameplay)
+        return Strong();
+    const auto Fallback=[&]() { return Strong()?true:Reject(TEXT("Fresh strict Player binding rejected")); };
+    TGuardValue<bool> ReadGuard(bOrdinaryReadInProgress,true);
+    const auto* PlayerController=GetController();
+    const auto* Capsule=GetCapsuleComponent();
+    const auto* Movement=GetCharacterMovement();
+    // Unknown implementations preserve the original strong getter order.
+    if(GetClass()!=ARogueliteSlicePlayer::StaticClass()
+        ||!PlayerController||PlayerController->GetClass()!=ARogueliteSlicePlayerController::StaticClass()
+        ||!Capsule||Capsule->GetClass()!=UCapsuleComponent::StaticClass()
+        ||!Movement||Movement->GetClass()!=UCharacterMovementComponent::StaticClass()
+        ||!IsValid(HealthComponent)||HealthComponent->GetClass()!=URogueliteSliceHealth::StaticClass()
+        ||!IsValid(FirstPersonCamera)||FirstPersonCamera->GetClass()!=UCameraComponent::StaticClass())
+        return Fallback();
+    UWorld* World=AActor::GetWorld();
+    if(!IsInGameThread()||!IsValid(World)||!World->IsGameWorld()||World->bIsTearingDown
+        ||IsActorBeingDestroyed()||!BoundBatch.IsValid()||!HealthComponent->IsAlive()
+        ||PlayerController->GetPawn()!=this||GetOwner()!=PlayerController||!PlayerController->IsLocalController()
+        ||!static_cast<const APlayerController*>(PlayerController)->GetLocalPlayer()
+        ||PlayerController->AActor::GetWorld()!=World||Capsule!=GetRootComponent()
+        ||Capsule->GetOwner()!=this||Movement->GetOwner()!=this||Movement->UpdatedComponent!=Capsule
+        ||HealthComponent->GetOwner()!=this||FirstPersonCamera->GetOwner()!=this
+        ||Capsule->GetCollisionEnabled()!=ECollisionEnabled::QueryAndPhysics
+        ||!Movement->IsActive()||(Movement->MovementMode!=MOVE_Walking&&Movement->MovementMode!=MOVE_Falling))
+        return Reject(TEXT("Current Player ownership, health or movement qualification rejected"));
+    FString Reason;
+    auto Status=Source->GetGameplayObservationStatus(Reason);
+    if(Status==ERogueliteGameplayObservationStatus::RequiresStrongValidation)
+    {
+        ++OrdinaryReadCounters.RefreshAttempts;
+        if(Source->RefreshGameplayObservation(Reason))++OrdinaryReadCounters.RefreshSucceeded;
+        Status=Source->GetGameplayObservationStatus(Reason);
+        if(Status==ERogueliteGameplayObservationStatus::RequiresStrongValidation)
+            return Fallback(); // Includes the frozen Cleared/Recovery strict domain.
+    }
+    if(Status!=ERogueliteGameplayObservationStatus::ValidObservation)return Reject(Reason);
+    const uint64 Epoch=Source->GetGameplayObservationEpoch();
+    // Status admits the exact Source implementation before any virtual lease getters.
+    if(Source->AActor::GetWorld()!=World||Source->Batch.BatchId!=BoundBatch
+        ||!FRogueliteDynamicGameplayBridge::IsComponentIsolated(Source,BoundBatch,Capsule)
+        ||Epoch==0||Epoch!=Source->GetGameplayObservationEpoch())
+        return Reject(TEXT("Player lease or current Observation epoch rejected"));
+    ++OrdinaryReadCounters.Tracked[Index];
+    TRACE_COUNTER_INCREMENT(PerfPlayerTracked);
+    return true;
+}
 void ARogueliteSlicePlayer::Tick(float DeltaSeconds)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Player_Tick);
+/* PERF1A_END */
+
     Super::Tick(DeltaSeconds);
-    if(BoundBatch.IsValid()&&!HasLiveBinding()) UnbindFromDungeon();
+    if(BoundBatch.IsValid())
+    {
+        const auto* Source=BoundSource.Get();
+        if(IsValid(Source)&&Source->GetGameplayReadMode()==ERogueliteGameplayReadMode::TrackedGameplay)
+        {
+            ReadOrdinaryGameplayBinding(ERoguelitePlayerReadOperation::Tick);
+        }
+        else if(!ReadOrdinaryGameplayBinding(ERoguelitePlayerReadOperation::Tick))UnbindFromDungeon();
+    }
 }
 
 void ARogueliteSlicePlayer::UnPossessed()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Player UnPossessed"));
     UnbindFromDungeon();Super::UnPossessed();
 }
 
 void ARogueliteSlicePlayer::EndPlay(const EEndPlayReason::Type Reason)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Player EndPlay"));
     UnbindFromDungeon();Super::EndPlay(Reason);
 }
 
@@ -244,6 +436,8 @@ void ARogueliteSlicePlayerController::CreateInputActions()
     JumpAction->ValueType=EInputActionValueType::Boolean;
     FireAction=NewObject<UInputAction>(this,NAME_None,RF_Transient);
     FireAction->ValueType=EInputActionValueType::Boolean;
+    ReloadAction=NewObject<UInputAction>(this,NAME_None,RF_Transient);
+    ReloadAction->ValueType=EInputActionValueType::Boolean;
     using namespace RogueliteSliceInput;
     MapAxis(MappingContext,MoveAction,EKeys::D,false,false);
     MapAxis(MappingContext,MoveAction,EKeys::A,true,false);
@@ -253,6 +447,7 @@ void ARogueliteSlicePlayerController::CreateInputActions()
     MapAxis(MappingContext,LookAction,EKeys::MouseY,true,true);
     MappingContext->MapKey(JumpAction,EKeys::SpaceBar);
     MappingContext->MapKey(FireAction,EKeys::LeftMouseButton);
+    MappingContext->MapKey(ReloadAction,EKeys::R);
 }
 
 void ARogueliteSlicePlayerController::SetupInputComponent()
@@ -271,6 +466,7 @@ void ARogueliteSlicePlayerController::SetupInputComponent()
         Enhanced->BindAction(JumpAction,ETriggerEvent::Completed,this,&ARogueliteSlicePlayerController::FinishJump);
         Enhanced->BindAction(JumpAction,ETriggerEvent::Canceled,this,&ARogueliteSlicePlayerController::FinishJump);
         Enhanced->BindAction(FireAction,ETriggerEvent::Started,this,&ARogueliteSlicePlayerController::Fire);
+        Enhanced->BindAction(ReloadAction,ETriggerEvent::Started,this,&ARogueliteSlicePlayerController::Reload);
     }
     InstallInputContext();
 }
@@ -305,8 +501,12 @@ void ARogueliteSlicePlayerController::EndPlay(const EEndPlayReason::Type Reason)
 
 void ARogueliteSlicePlayerController::Move(const FInputActionValue& Value)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_Move);
+/* PERF1A_END */
+
     LastMoveInput=Value.Get<FVector2D>();++MoveInputEvents;
-    if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&FPS->HasLiveBinding())
+    if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&FPS->ReadOrdinaryGameplayBinding(ERoguelitePlayerReadOperation::Move))
     {
         const FRotator Yaw(0,GetControlRotation().Yaw,0);
         FPS->AddMovementInput(FRotationMatrix(Yaw).GetUnitAxis(EAxis::X),LastMoveInput.Y);
@@ -316,31 +516,61 @@ void ARogueliteSlicePlayerController::Move(const FInputActionValue& Value)
 
 void ARogueliteSlicePlayerController::Look(const FInputActionValue& Value)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_Look);
+/* PERF1A_END */
+
     LastLookInput=Value.Get<FVector2D>();++LookInputEvents;
-    if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&FPS->HasLiveBinding())
+    if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&FPS->ReadOrdinaryGameplayBinding(ERoguelitePlayerReadOperation::Look))
     {AddYawInput(LastLookInput.X);AddPitchInput(LastLookInput.Y);}
 }
 
 void ARogueliteSlicePlayerController::StartJump(const FInputActionValue& Value)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_StartJump);
+/* PERF1A_END */
+
     ++JumpInputEvents;
     if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&FPS->HasLiveBinding()&&Value.Get<bool>())FPS->Jump();
 }
 
 void ARogueliteSlicePlayerController::FinishJump(const FInputActionValue& Value)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_FinishJump);
+/* PERF1A_END */
+
     if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn()))FPS->StopJumping();
 }
 
 void ARogueliteSlicePlayerController::Fire(const FInputActionValue& Value)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_Fire);
+/* PERF1A_END */
+
     ++FireInputEvents;
     if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&Value.Get<bool>())
     {++FPS->FireInputPressedCount;FPS->TryFire();}
 }
 
+void ARogueliteSlicePlayerController::Reload(const FInputActionValue& Value)
+{
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Input_Reload);
+/* PERF1A_END */
+
+    ++ReloadInputEvents;
+    if(auto* FPS=Cast<ARogueliteSlicePlayer>(GetPawn());FPS&&Value.Get<bool>())FPS->TryReload();
+}
+
 void ARogueliteSliceHUD::DrawHUD()
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_HUD_DrawHUD);
+/* PERF1A_END */
+
     Super::DrawHUD();
     if(!Canvas)return;
     const auto* FPS=PlayerOwner?Cast<ARogueliteSlicePlayer>(PlayerOwner->GetPawn()):nullptr;
@@ -349,11 +579,14 @@ void ARogueliteSliceHUD::DrawHUD()
     DrawLine(CenterX-6,CenterY,CenterX+6,CenterY,FLinearColor::White,1.f);
     DrawLine(CenterX,CenterY-6,CenterX,CenterY+6,FLinearColor::White,1.f);
     const float HP=FPS->HealthComponent?FPS->HealthComponent->GetHealth():0;
-    DrawText(FString::Printf(TEXT("HP %.0f    Ammo %d    Shots %d / rejected %d / hits %d"),HP,FPS->Ammo,
+    DrawText(FString::Printf(TEXT("HP %.0f    Ammo %d/%d    Shots %d / rejected %d / hits %d"),HP,FPS->Ammo,FPS->MagazineCapacity,
         FPS->ShotAcceptedCount,FPS->ShotRejectedCount,FPS->HitConfirmedCount),FLinearColor::White,20,20);
-    DrawText(FPS->BindingStatus,FLinearColor::White,20,42);
-    DrawText(FPS->LastFireOutcome,FLinearColor::White,20,64);
-    if(!FPS->GameplaySummary.IsEmpty())DrawText(FPS->GameplaySummary,FLinearColor::White,20,86);
+    const FString ReloadLine=FPS->IsReloading()?FString::Printf(TEXT("Reloading %.1fs | Prototype infinite reserve"),FPS->GetReloadRemainingSeconds())
+        :(FPS->Ammo==0?TEXT("Empty - press R to reload | Prototype infinite reserve"):TEXT("R: reload | Prototype infinite reserve"));
+    DrawText(ReloadLine,FLinearColor::Yellow,20,42);
+    DrawText(FPS->BindingStatus,FLinearColor::White,20,64);
+    DrawText(FPS->LastFireOutcome,FLinearColor::White,20,86);
+    if(!FPS->GameplaySummary.IsEmpty())DrawText(FPS->GameplaySummary,FLinearColor::White,20,108);
 }
 
 ARogueliteSliceGameMode::ARogueliteSliceGameMode()

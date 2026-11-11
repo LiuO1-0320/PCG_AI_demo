@@ -1,4 +1,10 @@
 #include "RogueliteLoopCommit.h"
+
+/* PERF1A_BEGIN */
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
+/* PERF1A_END */
 #include "RogueliteSeedAssemblyInternal.h"
 #include "RogueliteGenerationGeometry.h"
 #include "RoguelitePrototype.h"
@@ -41,15 +47,52 @@ void ARogueliteRoomAssembly::Destroyed()
     Super::Destroyed();
 }
 
+
+/* PERF1A_BEGIN */
+namespace
+{
+TRACE_DECLARE_INT_COUNTER(PERF1A_ScannedDigests, TEXT("PERF1A.ScannedDigests"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_ActorsEntered, TEXT("PERF1A.ActorsEntered"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_ComponentsEnumerated, TEXT("PERF1A.ComponentsEnumerated"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_ComponentsIncluded, TEXT("PERF1A.ComponentsIncluded"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_ConfigRows, TEXT("PERF1A.ConfigRows"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_Rows, TEXT("PERF1A.Rows"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_ComponentEnumerationNs, TEXT("PERF1A.ComponentEnumerationNs"));
+TRACE_DECLARE_INT_COUNTER(PERF1A_PrimitiveTextNs, TEXT("PERF1A.PrimitiveTextNs"));
+}
+/* PERF1A_END */
 FString FRogueliteLoopCommitQueries::GeometryDigest(AActor* Owner,const FRogueliteSeedBatch& B,const FRogueliteCommittedLoopBatch& L)
 {
-    if(!IsValid(Owner)||!Owner->GetWorld())return TEXT("NoWorld");TMap<AActor*,FString> Names;
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_GeometryDigest);
+    const bool PERF1A_Count=TRACE_CPUPROFILER_EVENT_MANUAL_IS_ENABLED();
+    int64 PERF1A_Actors=0, PERF1A_Components=0, PERF1A_Included=0, PERF1A_Config=0;
+    uint64 PERF1A_ComponentCycles=0, PERF1A_TextCycles=0;
+/* PERF1A_END */
+
+    if(!IsValid(Owner)||!Owner->GetWorld())return TEXT("NoWorld");
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Geometry_OwnedNames"));
+/* PERF1A_END */
+TMap<AActor*,FString> Names;
     for(const auto& R:B.Rooms)if(IsValid(R.Room))Names.Add(R.Room,FString::Printf(TEXT("Node%d"),R.NodeId));
     for(const auto& E:B.Edges)if(IsValid(E.Corridor))Names.Add(E.Corridor,FString::Printf(TEXT("TreeEdge%d"),E.EdgeId));
     for(const auto& E:L.Edges)if(IsValid(E.Corridor))Names.Add(E.Corridor,TEXT("Loop:")+E.CandidateId.ToString());
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+
     TArray<FString> Rows;
+
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Geometry_WorldScan"));
+/* PERF1A_END */
     for(TActorIterator<AActor> I(Owner->GetWorld());I;++I)if(!I->IsActorBeingDestroyed())
     {
+
+/* PERF1A_BEGIN */
+        if(PERF1A_Count) ++PERF1A_Actors;
+/* PERF1A_END */
         // Only this batch's verifier-owned moving NPC is excluded from the static-geometry fingerprint.
         // Actual C2 collision tests are not filtered or weakened.
         if(L.bRuntimePrepared)if(const auto* Test=Cast<ARogueliteNavigationTestCharacter>(*I))
@@ -57,16 +100,75 @@ FString FRogueliteLoopCommitQueries::GeometryDigest(AActor* Owner,const FRogueli
         const FString* Known=Names.Find(*I);const FString Label=Known?*Known:TEXT("External");
         if(const auto* R=Cast<ARogueliteParametricRoom>(*I))
         {
+/* PERF1A_BEGIN */
+            TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Geometry_RoomConfigText);
+/* PERF1A_END */
+
             Rows.Add(Label+R->GetActorTransform().ToString());
             for(auto Side:{ERogueliteRoomSide::North,ERogueliteRoomSide::South,ERogueliteRoomSide::East,ERogueliteRoomSide::West})
-            {const auto& D=Door(const_cast<ARogueliteParametricRoom*>(R),Side);FString T;FRogueliteDoorConfig::StaticStruct()->ExportText(T,&D,nullptr,nullptr,PPF_None,nullptr);Rows.Add(Label+FString::FromInt(uint8(Side))+T);}
+            {
+/* PERF1A_BEGIN */
+if(PERF1A_Count) ++PERF1A_Config;
+/* PERF1A_END */
+const auto& D=Door(const_cast<ARogueliteParametricRoom*>(R),Side);FString T;FRogueliteDoorConfig::StaticStruct()->ExportText(T,&D,nullptr,nullptr,PPF_None,nullptr);Rows.Add(Label+FString::FromInt(uint8(Side))+T);}
         }
+
+/* PERF1A_BEGIN */
+        const uint64 PERF1A_ComponentStart=PERF1A_Count ? FPlatformTime::Cycles64() : 0;
+/* PERF1A_END */
         TInlineComponentArray<UPrimitiveComponent*> Components;I->GetComponents(Components);
+/* PERF1A_BEGIN */
+        if(PERF1A_Count) { PERF1A_ComponentCycles+=FPlatformTime::Cycles64()-PERF1A_ComponentStart; PERF1A_Components+=Components.Num(); }
+/* PERF1A_END */
+
         for(const auto* C:Components)if(!FRogueliteDynamicGameplayBridge::IsComponentIsolated(Owner,B.BatchId,C)
             &&C->GetCollisionEnabled()!=ECollisionEnabled::NoCollision&&C->GetCollisionResponseToChannel(ECC_Pawn)==ECR_Block)
-        {const auto* M=Cast<UStaticMeshComponent>(C);Rows.Add(Label+C->GetClass()->GetPathName()+C->GetComponentTransform().ToString()+C->Bounds.Origin.ToString()+C->Bounds.BoxExtent.ToString()+(M&&M->GetStaticMesh()?M->GetStaticMesh()->GetPathName():TEXT(""))+FString::FromInt(uint8(C->GetCollisionEnabled()))+FString::FromInt(I->GetActorEnableCollision())+FString::FromInt(uint8(C->GetCollisionResponseToChannel(ECC_Visibility)))+FString::FromInt(uint8(C->GetCollisionObjectType())));}
+        {
+/* PERF1A_BEGIN */
+const uint64 PERF1A_TextStart=PERF1A_Count ? FPlatformTime::Cycles64() : 0;
+/* PERF1A_END */
+const auto* M=Cast<UStaticMeshComponent>(C);Rows.Add(Label+C->GetClass()->GetPathName()+C->GetComponentTransform().ToString()+C->Bounds.Origin.ToString()+C->Bounds.BoxExtent.ToString()+(M&&M->GetStaticMesh()?M->GetStaticMesh()->GetPathName():TEXT(""))+FString::FromInt(uint8(C->GetCollisionEnabled()))+FString::FromInt(I->GetActorEnableCollision())+FString::FromInt(uint8(C->GetCollisionResponseToChannel(ECC_Visibility)))+FString::FromInt(uint8(C->GetCollisionObjectType())));
+/* PERF1A_BEGIN */
+if(PERF1A_Count) { ++PERF1A_Included; PERF1A_TextCycles+=FPlatformTime::Cycles64()-PERF1A_TextStart; }
+/* PERF1A_END */
+}
     }
-    Rows.Sort();FString T;for(const auto& R:Rows)T+=R+TEXT("\n");return G::StableTextDigest(T);
+
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+    if(PERF1A_Count)
+    {
+        TRACE_COUNTER_ADD(PERF1A_ScannedDigests,1);
+        TRACE_COUNTER_ADD(PERF1A_ActorsEntered,PERF1A_Actors);
+        TRACE_COUNTER_ADD(PERF1A_ComponentsEnumerated,PERF1A_Components);
+        TRACE_COUNTER_ADD(PERF1A_ComponentsIncluded,PERF1A_Included);
+        TRACE_COUNTER_ADD(PERF1A_ConfigRows,PERF1A_Config);
+        TRACE_COUNTER_ADD(PERF1A_Rows,Rows.Num());
+        TRACE_COUNTER_ADD(PERF1A_ComponentEnumerationNs,static_cast<int64>(FPlatformTime::ToSeconds64(PERF1A_ComponentCycles)*1.e9));
+        TRACE_COUNTER_ADD(PERF1A_PrimitiveTextNs,static_cast<int64>(FPlatformTime::ToSeconds64(PERF1A_TextCycles)*1.e9));
+    }
+/* PERF1A_END */
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Geometry_Sort"));
+/* PERF1A_END */
+Rows.Sort();
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+FString T;
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Geometry_TextJoin"));
+/* PERF1A_END */
+for(const auto& R:Rows)T+=R+TEXT("\n");
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Geometry_HashAndReturn);
+/* PERF1A_END */
+return G::StableTextDigest(T);
 }
 
 FRogueliteFixedLoopCommitResult ARogueliteRoomAssembly::TryCommitFixedEndpointLoop(FRogueliteSeedBatch& B,
@@ -177,25 +279,87 @@ FRogueliteFixedLoopCommitResult ARogueliteRoomAssembly::TryCommitFixedEndpointLo
 FRogueliteLoopTraversalSnapshot FRogueliteLoopCommitQueries::Capture(AActor* Owner,const FRogueliteSeedBatch& B,
     const FRogueliteSeedLayoutSettings& Source,const FRogueliteCommittedLoopBatch& L)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Capture);
+/* PERF1A_END */
+
     FRogueliteLoopTraversalSnapshot S;S.BatchId=B.BatchId;S.Seed=B.Seed;S.GraphRevision=L.GraphRevision;S.GeometryRevision=L.GeometryRevision;
     if(!IsValid(Owner)||!Owner->GetWorld()||!B.bSucceeded||!B.bGeometryValid||!IsValid(B.Registry)||B.Registry->GetWorld()!=Owner->GetWorld()||L.SourceBatchId!=B.BatchId||L.BaseGraphDigest!=B.GraphDigest||L.BaseLayoutDigest!=B.LayoutDigest){S.Reason=TEXT("Stale/cleared/replaced source batch or World.");return S;}
-    const auto Graph=G::Generate(B.Seed,Source.GraphSettings());if(!Graph.bSucceeded||Graph.Graph.StableDigest!=B.GraphDigest){S.Reason=TEXT("Base graph settings changed.");return S;}
-    const auto Records=B.Registry->GetConnectionRecords();int32 Active=0;for(const auto& R:Records)Active+=R.bActive;
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Capture_OriginalGraphGenerate"));
+/* PERF1A_END */
+const auto Graph=G::Generate(B.Seed,Source.GraphSettings());
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+if(!Graph.bSucceeded||Graph.Graph.StableDigest!=B.GraphDigest){S.Reason=TEXT("Base graph settings changed.");return S;}
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Capture_C2RecordsCopy"));
+/* PERF1A_END */
+const auto Records=B.Registry->GetConnectionRecords();
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+int32 Active=0;for(const auto& R:Records)Active+=R.bActive;
     if(Active!=B.Edges.Num()+L.Edges.Num()){S.Reason=TEXT("Unmatched authority records; revalidate/clean the overlay.");return S;}
+
+/* PERF1A_BEGIN */
+    {
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Capture_EdgeTraversal);
+/* PERF1A_END */
     for(const auto& E:B.Edges)
     {const auto* C=Records.FindByPredicate([&](const auto& R){return R.Id==E.ConnectionId&&R.bActive;});if(!C||!C->bGeometryValid||C->ValidationStatus!=ERogueliteConnectionValidation::Passed){S.Reason=TEXT("Base Tree C2 validation is not current.");return S;}auto& X=S.Edges.AddDefaulted_GetRef();X.EdgeId=E.EdgeId;X.NodeA=E.ParentNode;X.NodeB=E.ChildNode;X.ConnectionId=E.ConnectionId;}
     for(const auto& E:L.Edges)
     {const auto* C=Records.FindByPredicate([&](const auto& R){return Owns(R,B,E)&&R.bActive;});if(!C||!IsValid(E.Corridor)||E.Corridor->GetWorld()!=Owner->GetWorld()||!C->bGeometryValid||C->ValidationStatus!=ERogueliteConnectionValidation::Passed){S.Edges.Reset();S.Reason=TEXT("Committed Loop is missing, released or requires actual C2 revalidation.");return S;}auto& X=S.Edges.AddDefaulted_GetRef();X.EdgeId=E.EdgeId;X.NodeA=E.NodeA;X.NodeB=E.NodeB;X.bCommittedLoop=true;X.CandidateId=E.CandidateId;X.ConnectionId=E.ConnectionId;}
+
+/* PERF1A_BEGIN */
+    }
+/* PERF1A_END */
     if(L.GeometryDigest!=GeometryDigest(Owner,B,L)){S.Edges.Reset();S.Reason=TEXT("Geometry/obstacles changed since validation; no fresh traversal or Ready claim.");return S;}
+
+/* PERF1A_BEGIN */
+    {
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Capture_NodeTraversal);
+/* PERF1A_END */
     for(const auto& N:Graph.Graph.Nodes)
     {
         auto& Row=S.Nodes.AddDefaulted_GetRef();Row.NodeId=N.NodeId;Row.Degree=N.Degree;Row.Role=N.Role==ERogueliteGraphNodeRole::Start?TEXT("Start"):N.Role==ERogueliteGraphNodeRole::Final?TEXT("Final"):N.Role==ERogueliteGraphNodeRole::Branch?TEXT("Branch"):TEXT("MainPath");
         const auto* R=B.Rooms.FindByPredicate([&](const auto& X){return X.NodeId==N.NodeId;});if(R){Row.RoomType=R->RoomType;Row.TemplateId=R->TemplateId;}for(const auto& E:L.Edges)Row.Degree+=(E.NodeA==N.NodeId||E.NodeB==N.NodeId);
     }
-    S.Edges.Sort([](const auto& A,const auto& C){return A.EdgeId<C.EdgeId;});S.IndependentCycles=S.Edges.Num()-S.Nodes.Num()+1;
+
+/* PERF1A_BEGIN */
+    }
+/* PERF1A_END */
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Capture_EdgeSort"));
+/* PERF1A_END */
+S.Edges.Sort([](const auto& A,const auto& C){return A.EdgeId<C.EdgeId;});
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+S.IndependentCycles=S.Edges.Num()-S.Nodes.Num()+1;
     FString Text=TEXT("TraversalV1|base=")+B.GraphDigest+TEXT("|layout=")+B.LayoutDigest;
-    for(const auto& E:S.Edges)Text+=FString::Printf(TEXT("|%d:%d,%d:%d:%s"),E.EdgeId,E.NodeA,E.NodeB,E.bCommittedLoop,*E.CandidateId.ToString());
-    S.StableDigest=G::StableTextDigest(Text);S.bCurrent=S.bGeometryValidated=true;S.Reason=L.bRuntimePrepared?TEXT("Runtime BaseTree + actual authoritative CommittedLoopEdges. Strict navigation verification is separate."):TEXT("BaseTree + actual authoritative CommittedLoopEdges only. NavigationPending; B4-B3 readiness not implemented.");return S;
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Capture_TraversalText"));
+/* PERF1A_END */
+for(const auto& E:S.Edges)Text+=FString::Printf(TEXT("|%d:%d,%d:%d:%s"),E.EdgeId,E.NodeA,E.NodeB,E.bCommittedLoop,*E.CandidateId.ToString());
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+
+    
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_START(TEXT("PERF1A_Capture_TraversalHash"));
+/* PERF1A_END */
+S.StableDigest=G::StableTextDigest(Text);
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_MANUAL_END();
+/* PERF1A_END */
+S.bCurrent=S.bGeometryValidated=true;S.Reason=L.bRuntimePrepared?TEXT("Runtime BaseTree + actual authoritative CommittedLoopEdges. Strict navigation verification is separate."):TEXT("BaseTree + actual authoritative CommittedLoopEdges only. NavigationPending; B4-B3 readiness not implemented.");return S;
 }
 
 bool FRogueliteLoopCommitQueries::Clear(AActor* Owner,FRogueliteSeedBatch& B,FRogueliteCommittedLoopBatch& L,FString& Reason)

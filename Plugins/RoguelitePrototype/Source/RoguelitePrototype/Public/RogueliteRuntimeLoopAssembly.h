@@ -8,6 +8,18 @@
 #include "RogueliteRuntimeLoopAssembly.generated.h"
 
 class URogueliteFloorProfile;
+struct FRogueliteReadyQueryProof;
+struct FRogueliteGameplayObservationState;
+struct FRogueliteGameplayObservationDeleter
+{
+    void operator()(FRogueliteGameplayObservationState* State) const;
+};
+struct FRogueliteGameplayObservationValue;
+struct FRogueliteGameplayObservationWrite;
+struct FObjectKey;
+
+enum class ERogueliteGameplayReadMode : uint8 { DeveloperStrict, TrackedGameplay };
+enum class ERogueliteGameplayObservationStatus : uint8 { ValidObservation, RequiresStrongValidation, InvalidRevoked };
 
 UENUM()
 enum class ERogueliteLoopTestPreset : uint8 { EightRoomSingleLoop, FourRoomTree };
@@ -50,6 +62,12 @@ public:
     static bool Current(AActor* Owner,const FRogueliteSeedBatch& Batch,const FRogueliteSeedLayoutSettings& Settings,
         const FRogueliteCommittedLoopBatch& Loops);
     static FRogueliteSeedLayoutSettings SourcePreset(int32 Seed,bool Small=false);
+private:
+    friend class ARogueliteRuntimeLoopAssembly;
+    // The same full Current implementation, with an optional move-only handoff.
+    static bool CurrentWithTraversal(AActor* Owner,const FRogueliteSeedBatch& Batch,
+        const FRogueliteSeedLayoutSettings& Settings,const FRogueliteCommittedLoopBatch& Loops,
+        FRogueliteLoopTraversalSnapshot* OutTraversal);
 };
 
 USTRUCT(BlueprintType)
@@ -71,6 +89,16 @@ class ROGUELITEPROTOTYPE_API ARogueliteRuntimeLoopAssembly : public ARogueliteRu
     GENERATED_BODY()
 public:
     ARogueliteRuntimeLoopAssembly();
+    virtual ~ARogueliteRuntimeLoopAssembly() override;
+    // Experimental passive-read policy. An observation never authorizes a critical gameplay action.
+    void SetGameplayReadMode(ERogueliteGameplayReadMode Mode);
+    ERogueliteGameplayReadMode GetGameplayReadMode() const;
+    uint64 GetGameplayObservationEpoch() const;
+    bool IsGameplayObservationEpochCurrent(uint64 Epoch) const;
+    ERogueliteGameplayObservationStatus GetGameplayObservationStatus(FString& Reason) const;
+    bool RefreshGameplayObservation(FString& Reason);
+    bool GetGameplayObservedRoom(int32 NodeId,FTransform& Transform,FVector& Dimensions,uint64& Epoch) const;
+    void RevokeGameplayObservation(const TCHAR* Reason);
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type Reason) override;
     virtual bool GenerateRuntime() override;
@@ -109,6 +137,27 @@ public:
     UFUNCTION(BlueprintPure,Category="Dungeon") FRogueliteLoopTraversalSnapshot GetTraversalSnapshot() const;
     void RunSuite();
 private:
+    friend class URogueliteNavigationReadinessComponent;
+    friend struct FRogueliteGameplayObservationWrite;
+    static void BeginGameplayObservationWrite(UWorld* World,const TCHAR* Reason);
+    static void EndGameplayObservationWrite(FObjectKey World,bool bGameThread);
+    ERogueliteGameplayObservationStatus CheckGameplayObservationDomain(FString& Reason) const;
+    bool CaptureGameplayObservationIdentity(FRogueliteGameplayObservationValue& Value) const;
+    void ObserveGameplayStrongResult(bool Ready) const;
+    mutable TUniquePtr<FRogueliteGameplayObservationState,FRogueliteGameplayObservationDeleter> GameplayObservation;
+#if WITH_DEV_AUTOMATION_TESTS
+    friend struct FRogueliteReadyProofTestAccess;
+    friend struct FRogueliteTraversalReuseTestAccess;
+#endif
+    static bool IsNativeReadyProofClass(const UClass* Class);
+    bool CanReuseNativeTraversal(FString* Rejection=nullptr) const;
+    bool TakeCurrentTraversal(FRogueliteReadyQueryProof& Request,FRogueliteLoopTraversalSnapshot& Out) const;
+    bool ProduceReadyQueryProof(FRogueliteReadyQueryProof& Proof) const;
+    FString FormatCurrentNavigationEpoch(const FTransform& SourceTransform) const;
+    mutable bool bReadyQueryInProgress=false;
+    mutable const FRogueliteReadyQueryProof* ActiveReadyQueryProof=nullptr;
+    // RAII-bound to one GetTraversalSnapshot stack; never owns a saved result.
+    mutable FRogueliteReadyQueryProof* ActiveTraversalRequest=nullptr;
     UFUNCTION() void ReadinessChanged(FGuid Id,ERogueliteDungeonBuildStage Value,bool Ready,const FString& Reason);
     void ConfigureSource();
     void PollSuite();

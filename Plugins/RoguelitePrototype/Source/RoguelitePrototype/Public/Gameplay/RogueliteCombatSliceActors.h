@@ -8,6 +8,7 @@
 class ARogueliteRuntimeLoopAssembly;
 class ARogueliteSlicePlayer;
 class URogueliteSliceHealth;
+class URogueliteSliceEncounter;
 class UStaticMeshComponent;
 class UBoxComponent;
 class AAIController;
@@ -49,7 +50,7 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual void EndPlay(const EEndPlayReason::Type Reason) override;
     bool Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid Batch,int32 NodeId,FGuid MemberId,
-        const FTransform& Spawn,FString& Reason);
+        const FTransform& Spawn,FString& Reason,URogueliteSliceEncounter* Encounter=nullptr);
     bool Activate(ARogueliteSlicePlayer* PlayerTarget);
     float ReceiveShot(const FRogueliteSliceShot& Shot);
     float ReceiveShot(ARogueliteSlicePlayer* Shooter,FGuid ShotId);
@@ -73,6 +74,8 @@ private:
     TWeakObjectPtr<ARogueliteSlicePlayer> Target;
     FGuid BoundBatch,EncounterMemberId;
     int32 RoomNodeId=INDEX_NONE;
+    TWeakObjectPtr<URogueliteSliceEncounter> DamageEncounter;
+    bool bScopedDamage=false;
     bool bConfigured=false,bDormant=true,bActive=false,bLeaseRegistered=false;
     double NextAttackAt=0;
 };
@@ -90,6 +93,8 @@ public:
     bool SetClosed(bool Closed,FString& Reason);
     bool IsClosed() const;
     FGuid GetConnectionId() const { return Connection; }
+    int32 GetRoomNodeId() const { return BoundRoomNode; }
+    FGuid GetBoundBatch() const { return BoundBatch; }
     UBoxComponent* GetBlocker() const;
     void Quiesce();
 private:

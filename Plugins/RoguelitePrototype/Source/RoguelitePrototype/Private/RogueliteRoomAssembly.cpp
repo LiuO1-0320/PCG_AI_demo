@@ -1,4 +1,5 @@
 #include "RogueliteRoomAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
 #include "RogueliteRoomTemplate.h"
 #include "RoguelitePrototype.h"
 #include "Components/SceneComponent.h"
@@ -414,6 +415,7 @@ bool ARogueliteRoomAssembly::ValidateDirect(ARogueliteParametricRoom* A, ERoguel
 FRogueliteAssemblyResult ARogueliteRoomAssembly::TryAlignRoomToSocket(ARogueliteParametricRoom* FixedRoom,
     ERogueliteRoomSide FixedSocket, ARogueliteParametricRoom* TargetRoom, ERogueliteRoomSide TargetSocket, ERogueliteConnectionMode Mode)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 TryAlignRoomToSocket"));
     FRogueliteAssemblyResult Result;
     const FString Prefix = Context(FixedRoom, FixedSocket, TargetRoom, TargetSocket);
     const auto Finish = [&]()
@@ -560,6 +562,7 @@ void ARogueliteRoomAssembly::RevalidateConnections()
 
 FRogueliteAssemblyResult ARogueliteRoomAssembly::RevalidateConnection(FGuid ConnectionId)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 RevalidateConnection"));
 #if WITH_EDITOR
     if (GetWorld() && !GetWorld()->IsGameWorld()) Modify();
 #endif
@@ -611,6 +614,7 @@ bool ARogueliteRoomAssembly::ReleaseConnection(FGuid ConnectionId)
         Modify();
     }
 #endif
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 connection release"));
     ARogueliteParametricCorridor* ReleasedCorridor = Connections[Index].Corridor;
     Connections.RemoveAt(Index);
     if (IsValid(ReleasedCorridor)) ReleasedCorridor->RebuildCorridor(); // Derived socket cache only.

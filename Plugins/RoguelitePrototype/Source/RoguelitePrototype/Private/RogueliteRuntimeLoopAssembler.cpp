@@ -6,6 +6,10 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Components/BoxComponent.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
+
+TRACE_DECLARE_INT_COUNTER(PerfTraversalStrongCurrent,TEXT("PERF1D1.StrongCurrent"));
 
 namespace
 {
@@ -75,6 +79,14 @@ bool FRogueliteRuntimeLoopAssembler::Clear(AActor* Owner,FRogueliteSeedBatch& B,
 
 bool FRogueliteRuntimeLoopAssembler::Current(AActor* Owner,const FRogueliteSeedBatch& B,const FRogueliteSeedLayoutSettings& S,const FRogueliteCommittedLoopBatch& L)
 {
+    return CurrentWithTraversal(Owner,B,S,L,nullptr);
+}
+
+bool FRogueliteRuntimeLoopAssembler::CurrentWithTraversal(AActor* Owner,const FRogueliteSeedBatch& B,
+    const FRogueliteSeedLayoutSettings& S,const FRogueliteCommittedLoopBatch& L,FRogueliteLoopTraversalSnapshot* OutTraversal)
+{
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1D1_StrongCurrent);
+    TRACE_COUNTER_INCREMENT(PerfTraversalStrongCurrent);
     if(!Game(Owner)||!L.bRuntimePrepared||!B.bSucceeded||!B.bGeometryValid)return false;
     for(const auto& R:B.Rooms)
     {
@@ -88,7 +100,10 @@ bool FRogueliteRuntimeLoopAssembler::Current(AActor* Owner,const FRogueliteSeedB
     }
     for(const auto& E:B.Edges)if(!IsValid(E.Corridor)||!E.Corridor->RuntimeRegistrationAudit.Passed(E.Corridor))return false;
     for(const auto& E:L.Edges)if(!IsValid(E.Corridor)||!E.Corridor->RuntimeRegistrationAudit.Passed(E.Corridor))return false;
-    return FRogueliteLoopCommitQueries::Capture(Owner,B,S,L).bCurrent;
+    auto Traversal=FRogueliteLoopCommitQueries::Capture(Owner,B,S,L);
+    if(!Traversal.bCurrent)return false;
+    if(OutTraversal){TRACE_CPUPROFILER_EVENT_SCOPE(PERF1D1_CaptureMoveToProof);*OutTraversal=MoveTemp(Traversal);}
+    return true;
 }
 
 bool FRogueliteRuntimeLoopAssembler::Revalidate(AActor* Owner,FRogueliteSeedBatch& B,const FRogueliteSeedLayoutSettings& S,

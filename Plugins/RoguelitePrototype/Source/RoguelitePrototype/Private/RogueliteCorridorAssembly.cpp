@@ -1,4 +1,5 @@
 #include "RogueliteRoomAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
 #include "Components/SceneComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -68,6 +69,7 @@ bool ARogueliteRoomAssembly::HasOtherConnection(AActor* Actor, const FGuid& Exce
 
 void ARogueliteRoomAssembly::RecordValidation(FRogueliteRoomConnection& C, const FRogueliteAssemblyResult& R)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 RecordValidation"));
     C.bGeometryValid = R.bSucceeded && R.bGeometryPassed && R.bCapsulePassed;
     C.Navigation = R.Navigation;
     C.ValidationStatus = R.bSucceeded ? ERogueliteConnectionValidation::Passed : ERogueliteConnectionValidation::Failed;
@@ -157,6 +159,7 @@ bool ARogueliteRoomAssembly::CheckCorridorOccupancy(ARogueliteParametricRoom* A,
 FRogueliteAssemblyResult ARogueliteRoomAssembly::TryAlignCorridorConnection(ARogueliteParametricRoom* A, ERogueliteRoomSide SideA,
     ARogueliteParametricCorridor* C, ERogueliteCorridorEndpoint EndA, ARogueliteParametricRoom* B, ERogueliteRoomSide SideB)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 TryAlignCorridorConnection"));
     FRogueliteAssemblyResult R;
     const FString Prefix = ConnectionContext(A, SideA, C, EndA, B, SideB);
     int32 Existing = Connections.IndexOfByPredicate([&](const FRogueliteRoomConnection& Item)
@@ -485,6 +488,7 @@ FRogueliteAssemblyResult ARogueliteRoomAssembly::TryRegisterConfiguredPlacedConn
 FRogueliteAssemblyResult ARogueliteRoomAssembly::RegisterPlacedConnection(ARogueliteParametricRoom* A,ERogueliteRoomSide SideA,
     ARogueliteParametricCorridor* C,ARogueliteParametricRoom* B,ERogueliteRoomSide SideB,FGuid SourceBatch,FName LoopCandidate,bool bConfigured)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 RegisterPlacedConnection"));
     FRogueliteAssemblyResult R;
     const auto Finish=[&](){PublishResult(R);return R;};
     if(!GetWorld()||(!GetWorld()->IsGameWorld()&&!(bConfigured&&GetWorld()->WorldType==EWorldType::Editor))||!SourceBatch.IsValid()||!IsValid(A)||!IsValid(B)||!IsValid(C)
@@ -514,6 +518,7 @@ bool ARogueliteRoomAssembly::ReleaseRuntimePlacedConnection(FGuid Id,FGuid Sourc
     const int32 Index=Connections.IndexOfByPredicate([&](const auto& R){return R.Id==Id;});
     if(Index==INDEX_NONE)return true;
     if(Connections[Index].LoopSourceBatchId!=SourceBatch)return false;
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 runtime connection release"));
     Connections.RemoveAt(Index);return true; // No Static rebuild; whole owned batch is being discarded.
 }
 
@@ -567,6 +572,7 @@ bool ARogueliteRoomAssembly::HasCompleteCorridorEvidence(ARogueliteParametricRoo
 
 FRogueliteAssemblyResult ARogueliteRoomAssembly::RevalidateConfiguredConnection(FGuid Id)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("C2 RevalidateConfiguredConnection"));
     FRogueliteAssemblyResult R;R.ConnectionId=Id;
     auto* C=Connections.FindByPredicate([&](const auto& X){return X.Id==Id&&X.bActive&&X.Mode==ERogueliteConnectionMode::StraightCorridor;});
     if(!C){R.Message=TEXT("Configured ConnectionId absent/inactive; no geometry or lease changed.");PublishResult(R);return R;}

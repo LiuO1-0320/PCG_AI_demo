@@ -31,14 +31,28 @@ public:
     virtual bool GenerateRuntime() override;
     UPROPERTY(EditAnywhere,Category="Combat Slice") bool bEnableCombatEncounter=true;
     UPROPERTY(VisibleAnywhere,Category="Combat Slice") TObjectPtr<URogueliteSliceEncounter> Encounter;
+    UPROPERTY(EditAnywhere,Category="G2 Two Rooms") bool bEnableTwoCombatRooms=false;
+    UPROPERTY(VisibleAnywhere,Category="G2 Two Rooms") TObjectPtr<URogueliteSliceEncounter> SecondEncounter;
     UPROPERTY(VisibleInstanceOnly,Transient,Category="Combat Slice") bool bPlayerBridgeReady=false;
     UPROPERTY(VisibleInstanceOnly,Transient,Category="Combat Slice") FGuid GameplayBatchId;
     UPROPERTY(VisibleInstanceOnly,Transient,Category="Combat Slice") int32 PlayerStartNode=INDEX_NONE;
     UPROPERTY(VisibleInstanceOnly,Transient,Category="Combat Slice") FString SliceStatus=TEXT("Awaiting PIE");
     UPROPERTY(VisibleInstanceOnly,Transient,Category="Combat Slice") FString SliceFailure;
     ARogueliteSlicePlayer* GetSlicePlayer() const;
+    TArray<URogueliteSliceEncounter*> GetRoomEncounters() const;
+    URogueliteSliceEncounter* GetEncounterForNode(int32 NodeId) const;
+    URogueliteSliceEncounter* GetActiveEncounter() const;
+    int32 GetCurrentPlayerRoomNode() const;
+    FGuid GetRecoveryConnectionId() const;
+    bool RequestRoomRecovery(int32 RoomNodeId,FGuid Connection,FString& Reason);
 private:
     void PollSlice();
+    bool InitializeTwoRooms(FString& Reason);
+    FGuid PreferredRecoveryConnection(int32 FromNode) const;
+    void PollTwoRoomRecovery();
+    FString DescribeTwoRooms() const;
+    TWeakObjectPtr<URogueliteSliceEncounter> RecoveryOwner;
+    bool bTwoRoomBatch=false;
     bool PlaceAndRegisterPlayer(FString& Reason);
     TWeakObjectPtr<ARogueliteSlicePlayer> Player;
     TWeakObjectPtr<ARogueliteSlicePlayerController> BoundController;

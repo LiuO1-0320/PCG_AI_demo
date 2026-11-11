@@ -1,7 +1,14 @@
 #include "Gameplay/RogueliteCombatSliceActors.h"
+
+/* PERF1A_BEGIN */
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "ProfilingDebugging/MiscTrace.h"
+/* PERF1A_END */
 #include "Gameplay/RogueliteCombatSlicePlayer.h"
+#include "Gameplay/RogueliteCombatSliceEncounter.h"
 #include "RogueliteDynamicGameplayBridge.h"
 #include "RogueliteRuntimeLoopAssembly.h"
+#include "Gameplay/RogueliteGameplayObservation.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -108,12 +115,12 @@ ARogueliteSliceEnemy::ARogueliteSliceEnemy()
     TestBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);TestBody->SetCanEverAffectNavigation(false);
 }
 bool ARogueliteSliceEnemy::Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid Batch,int32 NodeId,FGuid MemberId,
-    const FTransform& Spawn,FString& Why)
+    const FTransform& Spawn,FString& Why,URogueliteSliceEncounter* Encounter)
 {
     if(bConfigured)
     {
         const bool Same=HasCurrentBinding()&&BoundSource.Get()==Source&&BoundBatch==Batch
-            &&RoomNodeId==NodeId&&EncounterMemberId==MemberId&&GetActorTransform().Equals(Spawn,.01);
+            &&RoomNodeId==NodeId&&EncounterMemberId==MemberId&&GetActorTransform().Equals(Spawn,.01)&&DamageEncounter.Get()==Encounter;
         Why=Same?TEXT("Enemy is already configured; existing lease preserved."):TEXT("Enemy instances cannot be reused across identities or after quiescence.");return Same;
     }
     if(!IsInGameThread()||!IsValid(Source)||!GetWorld()||!GetWorld()->IsGameWorld()||Source->GetWorld()!=GetWorld()
@@ -121,6 +128,8 @@ bool ARogueliteSliceEnemy::Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid
         ||!Source->IsDungeonReady()||Spawn.ContainsNaN()||!Spawn.GetScale3D().Equals(FVector::OneVector,.0001)
         ||!GetActorScale3D().Equals(FVector::OneVector,.0001)||!Health||!Health->IsAlive())
     {Why=TEXT("Enemy requires actual Source ownership, current Ready GameWorld/Batch, valid member and unit-scale spawn.");return false;}
+    if(Encounter&&(!IsValid(Encounter)||Encounter->GetOwner()!=Source||Encounter->GetWorld()!=GetWorld()||!Encounter->IsCoordinated()||Encounter->GetTargetNodeId()!=NodeId))
+    {Why=TEXT("Scoped enemy requires its actual Source-owned encounter and matching NodeId.");return false;}
     const auto Traversal=Source->GetTraversalSnapshot();
     const auto* Node=Traversal.Nodes.FindByPredicate([&](const auto& Row){return Row.NodeId==NodeId;});
     const auto* Room=Source->Batch.Rooms.FindByPredicate([&](const auto& Row){return Row.NodeId==NodeId;});
@@ -146,10 +155,11 @@ bool ARogueliteSliceEnemy::Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid
             *GetNameSafe(Ground.GetActor()),*GetNameSafe(Ground.GetComponent()),*Ground.ImpactPoint.ToString(),
             Room->PlacedTransform.InverseTransformPosition(Ground.ImpactPoint).Z,Spawn.GetLocation().Z-88-Ground.ImpactPoint.Z);return false;
     }
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Enemy configuration"));
     if(!FRogueliteDynamicGameplayBridge::Enable(Source,Batch,Why))return false;
     SetActorLocationAndRotation(Spawn.GetLocation(),Spawn.GetRotation(),false,nullptr,ETeleportType::TeleportPhysics);
     if(!FRogueliteDynamicGameplayBridge::RegisterComponent(Source,Batch,this,GetCapsuleComponent(),ERogueliteDynamicParticipant::Pawn,Why))return false;
-    BoundSource=Source;BoundBatch=Batch;RoomNodeId=NodeId;EncounterMemberId=MemberId;
+    BoundSource=Source;BoundBatch=Batch;RoomNodeId=NodeId;EncounterMemberId=MemberId;DamageEncounter=Encounter;bScopedDamage=Encounter!=nullptr;
     bConfigured=bLeaseRegistered=true;bDormant=true;bActive=false;
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_None);
@@ -158,6 +168,10 @@ bool ARogueliteSliceEnemy::Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid
 }
 bool ARogueliteSliceEnemy::HasCurrentBinding() const
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Enemy_HasCurrentBinding);
+/* PERF1A_END */
+
     const auto* Source=BoundSource.Get();
     return bConfigured&&bLeaseRegistered&&IsValid(Source)&&GetOwner()==Source&&Source->GetWorld()==GetWorld()
         &&BoundBatch.IsValid()&&Source->Batch.BatchId==BoundBatch&&Source->bGeometryValidated
@@ -181,9 +195,14 @@ bool ARogueliteSliceEnemy::ContainsStandingPlayer(const ARogueliteSlicePlayer* P
 }
 bool ARogueliteSliceEnemy::Activate(ARogueliteSlicePlayer* PlayerTarget)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Enemy_Activate);
+/* PERF1A_END */
+
     if(!IsInGameThread()||!HasCurrentBinding()||!Health||!Health->IsAlive()||!IsValid(PlayerTarget)
         ||!PlayerTarget->HasLiveBinding()||PlayerTarget->GetDungeonSource()!=BoundSource.Get()
         ||PlayerTarget->GetBoundBatch()!=BoundBatch||!ContainsStandingPlayer(PlayerTarget))return false;
+    if(bScopedDamage&&(!DamageEncounter.IsValid()||DamageEncounter->GetState()!=ERogueliteSliceEncounterState::CombatActive||DamageEncounter->GetTargetNodeId()!=RoomNodeId))return false;
     if(bActive)return Target.Get()==PlayerTarget;
     if(!bDormant)return false;
     Target=PlayerTarget;bDormant=false;bActive=true;
@@ -196,17 +215,28 @@ float ARogueliteSliceEnemy::ReceiveShot(ARogueliteSlicePlayer* Shooter,FGuid Sho
 }
 float ARogueliteSliceEnemy::ReceiveShot(const FRogueliteSliceShot& Shot)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Enemy_ReceiveRecordedShot);
+/* PERF1A_END */
+
     auto* Shooter=Shot.Shooter.Get();FRogueliteSliceShot Recorded;
     if(!IsInGameThread()||!IsActive()||!IsValid(Shooter)||!Shooter->HasLiveBinding()
         ||Shooter->GetDungeonSource()!=BoundSource.Get()||Shooter->GetBoundBatch()!=BoundBatch
         ||!Shot.Id.IsValid()||!Shooter->FindAcceptedShot(Shot.Id,Recorded)||Recorded.Id!=Shot.Id
         ||Recorded.BatchId!=BoundBatch||Recorded.Shooter.Get()!=Shooter||!Recorded.bHit
         ||!Recorded.Hit.bBlockingHit||Recorded.Hit.GetActor()!=this)return 0;
+    if(bScopedDamage&&(!DamageEncounter.IsValid()||!DamageEncounter->AuthorizesMemberDamage(this,Recorded)))return 0;
     // Damage and the hit come only from the actual accepted-shot ledger, never the supplied copy.
     return Health->ApplyDamageOnce(Recorded.Damage,Recorded.Id,Shooter);
 }
 void ARogueliteSliceEnemy::Tick(float DeltaSeconds)
 {
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Enemy_Tick);
+    TRACE_CPUPROFILER_EVENT_SCOPE_CONDITIONAL(PERF1A_Enemy_Dormant, bDormant && !bActive);
+    TRACE_CPUPROFILER_EVENT_SCOPE_CONDITIONAL(PERF1A_Enemy_Active, bActive);
+/* PERF1A_END */
+
     Super::Tick(DeltaSeconds);if(!bConfigured||!bLeaseRegistered)return;
     auto* Source=BoundSource.Get();
     if(!IsValid(Source)||Source->GetWorld()!=GetWorld()||Source->Batch.BatchId!=BoundBatch
@@ -219,6 +249,10 @@ void ARogueliteSliceEnemy::Tick(float DeltaSeconds)
     if(!bActive||!Health->IsAlive()||!IsValid(PlayerTarget)||!PlayerTarget->HasLiveBinding()
         ||PlayerTarget->GetDungeonSource()!=Source||PlayerTarget->GetBoundBatch()!=BoundBatch
         ||!ContainsStandingPlayer(PlayerTarget))return;
+
+/* PERF1A_BEGIN */
+    TRACE_CPUPROFILER_EVENT_SCOPE(PERF1A_Enemy_ActiveAttackWork);
+/* PERF1A_END */
     FVector Aim=PlayerTarget->GetActorLocation()-GetActorLocation();Aim.Z=0;
     if(!Aim.IsNearlyZero())SetActorRotation(Aim.Rotation());
     const double Now=GetWorld()->GetTimeSeconds();if(Now<NextAttackAt)return;
@@ -239,6 +273,7 @@ void ARogueliteSliceEnemy::HealthKilled(URogueliteSliceHealth* Sender)
 }
 void ARogueliteSliceEnemy::Quiesce()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("ARogueliteSliceEnemy quiesce"));
     bActive=bDormant=false;Target.Reset();
     GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_None);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -250,6 +285,7 @@ void ARogueliteSliceEnemy::Quiesce()
 }
 void ARogueliteSliceEnemy::EndPlay(const EEndPlayReason::Type Reason)
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Enemy EndPlay"));
     Quiesce();if(Health)Health->OnKilled.RemoveAll(this);Super::EndPlay(Reason);
 }
 
@@ -281,6 +317,7 @@ bool ARogueliteSliceGate::Configure(ARogueliteRuntimeLoopAssembly* Source,FGuid 
     if(RoomNodeId!=Endpoints.NodeA&&RoomNodeId!=Endpoints.NodeB)
     {Why=TEXT("Gate's room is not incident to the specified actual connection.");return false;}
     const auto& Socket=RoomNodeId==Endpoints.NodeA?Endpoints.A:Endpoints.B;
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Gate configuration"));
     Blocker->SetBoxExtent(FVector(25,Socket.DoorWidth*.5,Socket.DoorHeight*.5));
     SetActorLocationAndRotation(Socket.WorldPosition+FVector(0,0,Socket.DoorHeight*.5),FRotationMatrix::MakeFromX(Socket.WorldOutwardDirection).Rotator());
     BarrierVisual->SetRelativeScale3D(Blocker->GetUnscaledBoxExtent()/50.f);
@@ -320,6 +357,7 @@ bool ARogueliteSliceGate::SetClosed(bool Closed,FString& Why)
     if(PhysicalClosed!=bClosed){Why=TEXT("Gate collision was changed outside the controlled setter.");return false;}
     if(bClosed==Closed){Why=TEXT("Gate is already in the requested state; no new revision.");return true;}
     if(Closed&&!CanClose(Why))return false;
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Gate controlled collision change"));
     Blocker->SetCollisionEnabled(Closed?ECollisionEnabled::QueryAndPhysics:ECollisionEnabled::NoCollision);
     BarrierVisual->SetVisibility(Closed,true);bClosed=Closed;
     FRogueliteDynamicGameplayBridge::NotifyGateCollisionChanged(Blocker);
@@ -330,6 +368,7 @@ bool ARogueliteSliceGate::IsClosed() const
 UBoxComponent* ARogueliteSliceGate::GetBlocker() const {return Blocker.Get();}
 void ARogueliteSliceGate::Quiesce()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("ARogueliteSliceGate quiesce"));
     const bool Changed=Blocker->GetCollisionEnabled()!=ECollisionEnabled::NoCollision;
     Blocker->SetCollisionEnabled(ECollisionEnabled::NoCollision);BarrierVisual->SetVisibility(false,true);bClosed=false;
     if(Changed)FRogueliteDynamicGameplayBridge::NotifyGateCollisionChanged(Blocker);
@@ -337,7 +376,7 @@ void ARogueliteSliceGate::Quiesce()
     {bLeaseRegistered=false;if(auto* Source=BoundSource.Get())FRogueliteDynamicGameplayBridge::UnregisterComponent(Source,Blocker);}
 }
 void ARogueliteSliceGate::EndPlay(const EEndPlayReason::Type Reason)
-{Quiesce();Super::EndPlay(Reason);}
+{FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Gate EndPlay"));Quiesce();Super::EndPlay(Reason);}
 
 ARogueliteSliceRecoveryProbe::ARogueliteSliceRecoveryProbe()
 {
@@ -357,6 +396,7 @@ ARogueliteSliceRecoveryProbe::ARogueliteSliceRecoveryProbe()
 }
 void ARogueliteSliceRecoveryProbe::Restart()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Recovery probe Restart"));
     Super::Restart();
     if(!bLeaseRegistered){GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_None);}
 }
@@ -372,6 +412,7 @@ bool ARogueliteSliceRecoveryProbe::Configure(ARogueliteRuntimeLoopAssembly* Sour
     const FVector Goal=Endpoints.B.WorldPosition-Endpoints.B.WorldOutwardDirection*300;
     if(!SupportedEndpoint(GetWorld(),this,Endpoints.Record.RoomA,Start,Why)
         ||!SupportedEndpoint(GetWorld(),this,Endpoints.Record.RoomB,Goal,Why))return false;
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Recovery probe configuration"));
     if(!FRogueliteDynamicGameplayBridge::Enable(Source,Batch,Why))return false;
     BoundSource=Source;BoundBatch=Batch;Connection=ConnectionId;StartFeet=Start;GoalFeet=Goal;
     SetActorLocationAndRotation(StartFeet+FVector(0,0,90),(GoalFeet-StartFeet).Rotation(),false,nullptr,ETeleportType::TeleportPhysics);
@@ -390,6 +431,7 @@ bool ARogueliteSliceRecoveryProbe::Configure(ARogueliteRuntimeLoopAssembly* Sour
 AAIController* ARogueliteSliceRecoveryProbe::GetRecoveryController() const {return OwnedController.Get();}
 void ARogueliteSliceRecoveryProbe::Quiesce()
 {
+    FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("ARogueliteSliceRecoveryProbe quiesce"));
     auto* Source=BoundSource.Get();auto* RecoveryController=OwnedController.Get();auto* World=GetWorld();
     // Capture the actual owned possession chain before UnPossess clears Pawn.Owner.
     // Only that controlled hand-back may restore Source ownership for batch cleanup.
@@ -415,4 +457,4 @@ void ARogueliteSliceRecoveryProbe::Quiesce()
         &&!IsActorBeingDestroyed()&&!GetOwner()&&!GetController())SetOwner(Source);
 }
 void ARogueliteSliceRecoveryProbe::EndPlay(const EEndPlayReason::Type Reason)
-{Quiesce();Super::EndPlay(Reason);}
+{FRogueliteGameplayObservationWrite ObservationWrite(AActor::GetWorld(),TEXT("Recovery probe EndPlay"));Quiesce();Super::EndPlay(Reason);}

@@ -5,6 +5,9 @@
 
 class ARogueliteParametricCorridor;
 struct FRogueliteSeedEdgeRecord;
+struct FRogueliteReadyQueryProof;
+class ARogueliteRuntimeLoopAssembly;
+enum class ERogueliteReadyProofAdmission : uint8;
 
 USTRUCT(BlueprintType)
 struct ROGUELITEPROTOTYPE_API FRogueliteNavigationPathEvidence
@@ -102,6 +105,12 @@ public:
     void MoveCompleted(class ARogueliteNavigationTestController* Source,FGuid Batch,uint32 Request,const struct FPathFollowingResult& Result);
     virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 private:
+    friend class ARogueliteRuntimeLoopAssembly;
+#if WITH_DEV_AUTOMATION_TESTS
+    friend struct FRogueliteReadyProofTestAccess;
+#endif
+    ERogueliteReadyProofAdmission PrepareReadyQuery(const ARogueliteRuntimeLoopAssembly& Source,FRogueliteReadyQueryProof& Proof) const;
+    bool ConsumeReadyQuery(const ARogueliteRuntimeLoopAssembly& Source,FRogueliteReadyQueryProof& Proof) const;
     UFUNCTION() void NavigationGenerated(class ANavigationData* Data);
     void CheckBuild();
     bool ValidatePaths();
