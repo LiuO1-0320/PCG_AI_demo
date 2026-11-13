@@ -1,4 +1,7 @@
 #include "CastleDemo.h"
+#include "CastleLanguage.h"
+#include "CastleProjectileChecks.h"
+#include "Components/StaticMeshComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
@@ -163,6 +166,17 @@ void ACastleDirector::TickSmokeTest()
     }
     if(Floor==1)
     {
+        FString ProjectileFailure;
+        if(!CastleCheckEnemyProjectiles(this,P,ProjectileFailure))
+        {Fail(*ProjectileFailure);return;}
+        P->ResetRun();
+        P->GrantRelic(0);P->GrantRelic(0);P->Shield=0;P->GrantRelic(1);P->Health=1;P->GrantRelic(2);
+        if(P->Relics!=4 || P->CollectibleStacks!=TArray<int32>({2,1,1}) || P->BulletDamage!=34 ||
+            P->MaxShield!=85 || P->Shield!=85 || P->MaxHealth!=125 || P->Health!=125)
+        {Fail(TEXT("Collectible stack ledger and refill effects"));return;}
+        P->ResetRun();
+        if(P->Relics || P->CollectibleStacks!=TArray<int32>({0,0,0}) || P->LastCollectibleKind!=INDEX_NONE || P->MemoryNoticeUntil!=0)
+        {Fail(TEXT("New run must clear collectible ledger and memory notice"));return;}
         P->ResetRun(); P->TakeDamage(80,FDamageEvent(),nullptr,nullptr);
         if(P->Shield!=0 || P->Health!=80) {Fail(TEXT("Shield absorption is incorrect"));return;}
         P->ResetRun();
@@ -171,6 +185,10 @@ void ACastleDirector::TickSmokeTest()
         P->Coins=30; Shop->Use(P); if(P->WeaponLevel!=2 || P->Coins!=0 || P->BulletDamage!=30) {Fail(TEXT("Weapon upgrade transaction"));return;}
         auto* Chest=FindItem(ECastleInteract::Chest); Chest->Use(P); int32 Relics=P->Relics,Coins=P->Coins;
         Chest->Use(P); if(P->Relics!=Relics || P->Coins!=Coins) {Fail(TEXT("Chest reward can be duplicated"));return;}
+        int32 StackTotal=0;for(int32 Count:P->CollectibleStacks)StackTotal+=Count;
+        if(StackTotal!=P->Relics || !Chest->ChestLid->IsVisible() || Chest->MemoryLight->IsVisible())
+        {Fail(TEXT("Memory chest open state or collectible ledger"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_COLLECTIBLES_OK: stacks, refill, reset, one-time chest and open visual verified."));
         auto* Rest=FindItem(ECastleInteract::Rest); if(!Rest){Fail(TEXT("Rest room missing"));return;}
         P->Health=50; P->Shield=10; P->Reserve=0; Rest->Use(P);
         if(!Rest->bUsed || P->Health!=85 || P->Shield!=40 || P->Reserve!=48){Fail(TEXT("Rest room recovery"));return;}
@@ -226,6 +244,8 @@ void ACastleDirector::TickSmokeTest()
         P->ResetRun(); P->GrantRelic(0); SmokeDamageBeforeTravel=P->BulletDamage;
     }
     else if(P->BulletDamage!=SmokeDamageBeforeTravel) {Fail(TEXT("Attributes not preserved across floors"));return;}
+    else if(P->CollectibleStacks.Num()!=3 || P->CollectibleStacks[0]!=1 || P->Relics!=1)
+    {Fail(TEXT("Collectible ledger not preserved across floors"));return;}
     if(Floor==1)
     {
         if(FindItem(ECastleInteract::BossEnter) || FindItem(ECastleInteract::CaveEnter)) {Fail(TEXT("Boss or cave appeared on first floor"));return;}
@@ -330,10 +350,13 @@ void ACastleDirector::TickCapture()
     if(!bReady)return;
     auto* P=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0)); if(!P)return;
     const float Now=GetWorld()->GetTimeSeconds();
-    if(NextCaptureAt==0)NextCaptureAt=Now+20;
+    const bool MemoryCapture=FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryCapture"));
+    if(NextCaptureAt==0)NextCaptureAt=Now+(MemoryCapture?8:20);
     if(Now<NextCaptureAt)return;
     if(!PendingCaptureName.IsEmpty())
     {
+        if(MemoryCapture && ((CaptureStage==2 && !P->bCollectionOpen) || (CaptureStage==4 && P->bCollectionOpen)))
+        {UE_LOG(LogTemp,Error,TEXT("CASTLE_MEMORY_CAPTURE_FAILED: real Tab input did not toggle collection"));FPlatformMisc::RequestExitWithStatus(false,1);return;}
         FString Filename=FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/TEXT("Screenshots/Demo")/PendingCaptureName+TEXT(".png"));
         FScreenshotRequest::RequestScreenshot(Filename,false,false);
         UE_LOG(LogTemp,Display,TEXT("CASTLE_CAPTURE %s"),*Filename);
@@ -343,6 +366,46 @@ void ACastleDirector::TickCapture()
     for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It) { It->SetActorTickEnabled(false); if(auto* AI=Cast<AAIController>(It->GetController()))AI->StopMovement(); }
     P->bDead=false; P->bHelp=false; P->Health=P->MaxHealth; P->Shield=P->MaxShield;
     FString Name;
+    if(MemoryCapture)
+    {
+        auto Key=[&](const FKey& Input)
+        {
+            if(auto* PC=Cast<APlayerController>(P->GetController()))
+            {
+                PC->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),Input,IE_Pressed,1.f,false,FPlatformTime::Cycles64()));
+                PC->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),Input,IE_Released,0.f,false,FPlatformTime::Cycles64()));
+            }
+        };
+        if(CaptureStage==0)
+        {
+            for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)if(auto* AI=Cast<AAIController>(It->GetController()))if(AI->GetBrainComponent())AI->GetBrainComponent()->StopLogic(TEXT("Memory screenshot capture"));
+            for(int32 I=0;I<Rooms.Num();++I)if(Rooms[I].bActive && Rooms[I].Type==ECastleRoom::Chest)
+            {Travel(P,Rooms[I].Center+FVector(-620,-420,110),25);RevealRoom(I);break;}
+            Name=TEXT("MemoryRoom");
+        }
+        else if(CaptureStage==1)
+        {
+            ACastleInteractable* NearestChest=nullptr;
+            float NearestDistance=MAX_flt;
+            for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==ECastleInteract::Chest && !It->bUsed)
+            {
+                const float Distance=FVector::DistSquared(It->GetActorLocation(),P->GetActorLocation());
+                if(Distance<NearestDistance){NearestDistance=Distance;NearestChest=*It;}
+            }
+            if(NearestChest)
+            {
+                NearestChest->Use(P);
+                UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_CAPTURE_CHEST Name=%s Location=%s Open=%d"),*NearestChest->GetName(),*NearestChest->GetActorLocation().ToString(),NearestChest->bUsed);
+            }
+            if(P->Relics!=1){UE_LOG(LogTemp,Error,TEXT("CASTLE_MEMORY_CAPTURE_FAILED: chest did not grant collectible"));FPlatformMisc::RequestExitWithStatus(false,1);return;}
+            Name=TEXT("MemoryRecovered");
+        }
+        else if(CaptureStage==2){Key(EKeys::Tab);Name=TEXT("MemoryCollection");}
+        else if(CaptureStage==3){Key(EKeys::F2);Name=TEXT("MemoryCollectionOtherLanguage");}
+        else if(CaptureStage==4){Key(EKeys::F2);Key(EKeys::Tab);Name=TEXT("MemoryCollectionClosed");}
+        else {UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_CAPTURE_OK: room, chest, real collection input and bilingual display captured."));FPlatformMisc::RequestExitWithStatus(false,0);return;}
+        PendingCaptureName=Name;NextCaptureAt=Now+2;return;
+    }
     if(CaptureStage==0)
     {
         Travel(P,FVector(-620,-430,110),20);

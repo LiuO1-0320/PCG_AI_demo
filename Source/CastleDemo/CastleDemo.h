@@ -73,11 +73,15 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Reserve = 144;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Coins = 35;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Relics = 0;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> CollectibleStacks = {0,0,0};
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 WeaponLevel = 1;
     bool bReloading = false, bDead = false, bHelp = true;
     float HitMarkerUntil = 0, HurtUntil = 0, ReloadEnd = 0;
     FString Notice;
     float NoticeUntil = 0;
+    float MemoryNoticeUntil = 0;
+    bool bCollectionOpen = false;
+    int32 LastCollectibleKind = INDEX_NONE;
     ACastleDirector* Director() const;
     class ACastleInteractable* Focused() const;
     void Tell(const FString& Message);
@@ -103,6 +107,7 @@ private:
     void Pause();
     void Help();
     void ToggleLanguage();
+    void ToggleCollection();
 };
 
 UCLASS()
@@ -114,6 +119,9 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> Mesh;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UTextRenderComponent> Label;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> ChestLid;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> ChestBand;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> MemoryLight;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) ECastleInteract Kind = ECastleInteract::Chest;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) FString Title;
     UPROPERTY() TObjectPtr<ACastleDirector> Director;
@@ -280,6 +288,7 @@ private:
     bool bCaveRequested = false, bBossRequested = false;
     void AddBox(FVector Pos, FVector Size, int32 Material, bool Collision = true, FRotator Rotation = FRotator::ZeroRotator);
     void BuildRoom(FVector Center, float HalfSize, int32 Doors, int32 Material);
+    void BuildMemoryRoom(const FCastleRoom& Room, float HalfSize, bool bIntact);
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
     ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss);

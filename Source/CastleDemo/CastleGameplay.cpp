@@ -1,5 +1,6 @@
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
+#include "CastleCollectibles.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
@@ -24,6 +25,9 @@ ACastlePlayer::ACastlePlayer()
     PrimaryActorTick.bCanEverTick = true;
     OverrideInputComponentClass = UInputComponent::StaticClass();
     GetCapsuleComponent()->InitCapsuleSize(32, 88);
+    // Enemy bolts sweep Visibility. The engine's default Pawn profile ignores
+    // that channel, which otherwise lets ranged shots pass through the player.
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     GetCharacterMovement()->MaxWalkSpeed = 620;
     GetCharacterMovement()->JumpZVelocity = 460;
     GetCharacterMovement()->AirControl = 0.3f;
@@ -92,6 +96,7 @@ void ACastlePlayer::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction(TEXT("RestartSame"), IE_Pressed, this, &ACastlePlayer::RestartSame);
     Input->BindAction(TEXT("Help"), IE_Pressed, this, &ACastlePlayer::Help);
     Input->BindKey(EKeys::F2,IE_Pressed,this,&ACastlePlayer::ToggleLanguage).bExecuteWhenPaused=true;
+    Input->BindKey(EKeys::Tab,IE_Pressed,this,&ACastlePlayer::ToggleCollection);
     Input->BindAction(TEXT("Pause"), IE_Pressed, this, &ACastlePlayer::Pause).bExecuteWhenPaused = true;
 }
 
@@ -105,10 +110,17 @@ void ACastlePlayer::MoveForward(float V) { if (!bDead) AddMovementInput(GetActor
 void ACastlePlayer::MoveRight(float V) { if (!bDead) AddMovementInput(GetActorRightVector(), V); }
 void ACastlePlayer::Turn(float V) { if (!bDead) AddControllerYawInput(V); }
 void ACastlePlayer::Look(float V) { if (!bDead) AddControllerPitchInput(V); }
-void ACastlePlayer::FirePressed() { bFiring = true; bHelp = false; Fire(); }
+void ACastlePlayer::FirePressed() { if(bCollectionOpen)return; bFiring = true; bHelp = false; Fire(); }
 void ACastlePlayer::FireReleased() { bFiring = false; }
-void ACastlePlayer::Help() { bHelp = !bHelp; }
+void ACastlePlayer::Help() { bHelp = !bHelp;bCollectionOpen=false; }
 void ACastlePlayer::ToggleLanguage() { CastleSetChinese(!CastleIsChinese()); }
+void ACastlePlayer::ToggleCollection()
+{
+    const auto* D=Director();
+    if(bDead || !D || !D->bReady || D->bWon || UGameplayStatics::IsGamePaused(this))return;
+    bCollectionOpen=!bCollectionOpen;
+    if(bCollectionOpen){bFiring=false;bHelp=false;}
+}
 
 void ACastlePlayer::Tick(float Dt)
 {
@@ -177,18 +189,21 @@ ACastleInteractable* ACastlePlayer::Focused() const
     return Best;
 }
 
-void ACastlePlayer::Interact() { if (!bDead) if (auto* Item = Focused()) Item->Use(this); }
+void ACastlePlayer::Interact() { if (!bDead && !bCollectionOpen) if (auto* Item = Focused()) Item->Use(this); }
 void ACastlePlayer::Tell(const FString& Message) { Notice = Message; NoticeUntil = GetWorld()->GetTimeSeconds() + 4.5f; }
 
 void ACastlePlayer::GrantRelic(int32 Kind)
 {
+    const int32 Index=CastleCollectibleIndex(Kind);
+    const auto& Definition=CastleCollectible(Index);
+    if(CollectibleStacks.Num()!=3)CollectibleStacks.SetNumZeroed(3);
+    ++CollectibleStacks[Index];
     ++Relics;
-    switch (Kind % 3)
-    {
-    case 0: BulletDamage += 6; Tell(TEXT("RELIC: Ember Fang | bullet damage +6")); break;
-    case 1: MaxShield += 25; Shield = MaxShield; Tell(TEXT("RELIC: Azure Ward | shield capacity +25")); break;
-    default: MaxHealth += 25; Health = MaxHealth; Tell(TEXT("RELIC: Heart of Stone | maximum health +25")); break;
-    }
+    BulletDamage+=Definition.DamageBonus;
+    if(Definition.ShieldBonus>0){MaxShield+=Definition.ShieldBonus;Shield=MaxShield;}
+    if(Definition.HealthBonus>0){MaxHealth+=Definition.HealthBonus;Health=MaxHealth;}
+    LastCollectibleKind=Index;MemoryNoticeUntil=GetWorld()->GetTimeSeconds()+9;
+    NoticeUntil=0;
 }
 
 float ACastlePlayer::TakeDamage(float Damage, FDamageEvent const& Event, AController* DamageController, AActor* Causer)
@@ -210,6 +225,7 @@ void ACastlePlayer::ResetRun()
 {
     Health = MaxHealth = 100; Shield = MaxShield = 60; BulletDamage = 22;
     Ammo = MagazineSize = 24; Reserve = 144; Coins = 35; Relics = 0; WeaponLevel = 1;
+    CollectibleStacks.Init(0,3);LastCollectibleKind=INDEX_NONE;MemoryNoticeUntil=0;bCollectionOpen=false;NoticeUntil=0;
     bDead = bReloading = bFiring = false; NextShot = 0; LastDamage = -100;
 }
 void ACastlePlayer::Restart() { if (auto* D = Director()) if (bDead || D->bWon) D->NewRun(); }
@@ -227,6 +243,15 @@ ACastleInteractable::ACastleInteractable()
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
     Mesh->SetStaticMesh(Cube.Object); Mesh->SetCollisionProfileName(TEXT("BlockAllDynamic"));
     Mesh->SetRelativeScale3D(FVector(.9f, .9f, .8f));
+    ChestLid=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ChestLid"));
+    ChestBand=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ChestBand"));
+    MemoryLight=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MemoryLight"));
+    for(auto* Detail:{ChestLid.Get(),ChestBand.Get(),MemoryLight.Get()})
+    {
+        Detail->SetupAttachment(Mesh);Detail->SetStaticMesh(Cube.Object);
+        Detail->SetCollisionEnabled(ECollisionEnabled::NoCollision);Detail->SetCanEverAffectNavigation(false);
+        Detail->SetVisibility(false);
+    }
     Label = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Label")); Label->SetupAttachment(Mesh);
     Label->SetRelativeLocation(FVector(0, 0, 100)); Label->SetWorldSize(25);
     Label->SetHorizontalAlignment(EHTA_Center);
@@ -240,6 +265,17 @@ void ACastleInteractable::Configure(ECastleInteract InKind, const FString& InTit
     Mesh->SetWorldScale3D(Portal ? FVector(.22f, 1.8f, 2.6f) : FVector(.9f, .9f, .8f));
     const TCHAR* MatName = Portal ? TEXT("M_Portal") : Kind == ECastleInteract::Shop ? TEXT("M_Teal") : Kind == ECastleInteract::Event ? TEXT("M_Purple") : TEXT("M_Gold");
     Mesh->SetMaterial(0, CastleMaterial(MatName));
+    const bool IsChest=Kind==ECastleInteract::Chest;
+    for(auto* Detail:{ChestLid.Get(),ChestBand.Get(),MemoryLight.Get()})Detail->SetVisibility(IsChest);
+    if(IsChest)
+    {
+        Mesh->SetWorldScale3D(FVector(1.05f,.78f,.60f));Mesh->SetMaterial(0,CastleMaterial(TEXT("M_Metal")));
+        ChestLid->SetRelativeLocation(FVector(0,0,62));ChestLid->SetRelativeScale3D(FVector(1.05f,1.05f,.24f));
+        ChestLid->SetMaterial(0,CastleMaterial(TEXT("M_Gold")));
+        ChestBand->SetRelativeScale3D(FVector(.16f,1.02f,1.05f));ChestBand->SetMaterial(0,CastleMaterial(TEXT("M_Gold")));
+        MemoryLight->SetRelativeLocation(FVector(0,0,135));MemoryLight->SetRelativeScale3D(FVector(.18f,.18f,.3f));
+        MemoryLight->SetRelativeRotation(FRotator(0,45,0));MemoryLight->SetMaterial(0,CastleMaterial(TEXT("M_Purple")));
+    }
     Label->SetText(FText::FromString(Title)); Label->SetTextRenderColor(Portal ? FColor(150, 210, 255) : FColor(255, 215, 120));
     Label->SetAbsolute(false, true, true); Label->SetWorldScale3D(FVector(1));
     Label->SetWorldLocation(GetActorLocation() + FVector(0, 0, Portal ? 175 : 95));
@@ -256,8 +292,8 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
 {
     switch (Kind)
     {
-    case ECastleInteract::Chest: return TEXT("E  Open chest: coins, ammo and a relic");
-    case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("E 升级武器并补给 | %d 金币"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("E  Upgrade weapon + supplies | %d coins"), 30 + (P->WeaponLevel - 1) * 20));
+    case ECastleInteract::Chest: return CastleIsChinese()?TEXT("E 打开记忆匣：记忆碎片、弹药与宫廷旧物"):TEXT("E  Open memory chest: fragments, ammo and a collectible");
+    case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("E 升级武器并补给 | %d 记忆碎片"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("E  Upgrade + supplies | %d memory fragments"), 30 + (P->WeaponLevel - 1) * 20));
     case ECastleInteract::Event: return TEXT("E  Make an offering: 15 health for a relic");
     case ECastleInteract::CaveEnter: return TEXT("E  Enter the treasure cave");
     case ECastleInteract::CaveReturn: return TEXT("E  Return to exploration");
@@ -265,7 +301,7 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
     case ECastleInteract::NextFloor: return Director && Director->Floor == 3 ? TEXT("E  Claim victory") : TEXT("E  Ascend to the next floor");
     case ECastleInteract::Weapon: return TEXT("E  Acquire reinforced carbine: +10 damage, +4 magazine");
     case ECastleInteract::Rest: return TEXT("E  Rest once: health, shield and reserve ammo");
-    default: return TEXT("E  Collect ammo and coins");
+    default: return TEXT("E  Collect ammo and memory fragments");
     }
 }
 
@@ -279,7 +315,7 @@ void ACastleInteractable::Use(ACastlePlayer* P)
     case ECastleInteract::Shop:
     {
         const int32 Cost = 30 + (P->WeaponLevel - 1) * 20;
-        if (P->Coins < Cost) { P->Tell(TEXT("Not enough coins. Search chests or defeat sentinels.")); return; }
+        if (P->Coins < Cost) { P->Tell(TEXT("Not enough memory fragments. Search chests or defeat sentinels.")); return; }
         P->Coins -= Cost; ++P->WeaponLevel; P->BulletDamage += 8; P->MagazineSize += 4;
         P->Ammo = P->MagazineSize; P->Reserve += 96; P->Health = P->MaxHealth; P->Shield = P->MaxShield;
         P->Tell(TEXT("Carbine upgraded: +8 damage, +4 magazine. Health, shield and ammo restored.")); break;
@@ -295,7 +331,7 @@ void ACastleInteractable::Use(ACastlePlayer* P)
         if (Director->Floor == 3) { Director->bWon = true; P->Tell(TEXT("CASTLE CLEARED | Press ENTER for a new seed.")); }
         else Director->RequestFloor(Director->Floor + 1);
         break;
-    case ECastleInteract::Ammo: P->Reserve += 36; P->Coins += 8; P->Tell(TEXT("Supplies collected: +36 ammo, +8 coins")); bUsed = true; break;
+    case ECastleInteract::Ammo: P->Reserve += 36; P->Coins += 8; P->Tell(TEXT("Supplies collected: +36 ammo, +8 memory fragments")); bUsed = true; break;
     case ECastleInteract::Weapon:
         ++P->WeaponLevel; P->BulletDamage+=10; P->MagazineSize+=4; P->Ammo=P->MagazineSize;
         P->Tell(TEXT("WEAPON ACQUIRED: reinforced carbine | +10 damage, +4 magazine")); bUsed=true; break;
@@ -305,7 +341,16 @@ void ACastleInteractable::Use(ACastlePlayer* P)
         P->Reserve+=48;
         P->Tell(TEXT("RESTED: +35 health, +30 shield, +48 reserve ammo")); bUsed=true; break;
     }
-    if (bUsed) { Mesh->SetVisibility(false); Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); Label->SetVisibility(false); }
+    if (bUsed)
+    {
+        if(Kind==ECastleInteract::Chest)
+        {
+            ChestLid->SetRelativeRotation(FRotator(0,0,-55));ChestLid->SetRelativeLocation(FVector(0,-30,92));
+            MemoryLight->SetVisibility(false);
+        }
+        else Mesh->SetVisibility(false,true);
+        Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);Label->SetVisibility(false);
+    }
 }
 
 ACastleTrap::ACastleTrap()

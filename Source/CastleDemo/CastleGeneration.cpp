@@ -229,7 +229,7 @@ void ACastleDirector::Tick(float Dt)
     }
     if (FParse::Param(FCommandLine::Get(),TEXT("CastleAISmokeTest"))) TickAISmokeTest();
     else if (FParse::Param(FCommandLine::Get(),TEXT("CastleSmokeTest"))) TickSmokeTest();
-    if (FParse::Param(FCommandLine::Get(),TEXT("CastleCapture"))) TickCapture();
+    if (FParse::Param(FCommandLine::Get(),TEXT("CastleCapture")) || FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryCapture"))) TickCapture();
     if (FParse::Param(FCommandLine::Get(),TEXT("CastleAICapture"))) TickAICapture();
 }
 
@@ -421,7 +421,8 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
             for(int32 E=0;E<2+Floor;++E) AddEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100),false);
             AddBox(C+FVector(-430,-350,90),FVector(160,260,180),8); AddBox(C+FVector(430,350,90),FVector(160,260,180),8); break;
         case ECastleRoom::Chest:
-            AddInteract(C+FVector(230,0,45),ECastleInteract::Chest,TEXT("RELIC CHEST"),R.RandRange(0,2));
+            BuildMemoryRoom(Room,900,false);
+            AddInteract(C+FVector(230,0,45),ECastleInteract::Chest,TEXT("PALACE MEMORY CHEST"),R.RandRange(0,2));
             AddInteract(C+FVector(-250,250,45),ECastleInteract::Weapon,TEXT("REINFORCED CARBINE")); break;
         case ECastleRoom::Event: AddInteract(C+FVector(230,0,45),ECastleInteract::Event,TEXT("BLOOD OFFERING"),R.RandRange(0,2)); break;
         case ECastleRoom::Cave: AddInteract(C+FVector(400,0,135),ECastleInteract::CaveEnter,TEXT("TREASURE CAVE")); break;
@@ -497,6 +498,18 @@ void ACastleDirector::CompleteFloorGeneration()
         P->Shield=P->MaxShield; P->Health=FMath::Min(P->MaxHealth,P->Health+35); P->Reserve+=48;
         P->Tell(Floor==1 ? TEXT("Floor 1 | Fight, explore side rooms, then find the ASCEND portal.")
                          : (CastleIsChinese()?FString::Printf(TEXT("第 %d 层 | 探索房间、收集藏品，然后寻找首领入口。"),Floor):FString::Printf(TEXT("Floor %d | Explore rooms, collect relics, then find the BOSS GATE."),Floor)));
+        if(Floor==1 && FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryPreview")))
+        {
+            for(int32 I=0;I<Rooms.Num();++I)if(Rooms[I].bActive && Rooms[I].Type==ECastleRoom::Chest)
+            {
+                Travel(P,Rooms[I].Center+FVector(-420,-260,110),20);
+                RevealRoom(I);P->bHelp=false;
+                P->Tell(CastleIsChinese()?TEXT("记忆房测试：靠近记忆匣按 E，Tab 查看宫廷旧物。"):
+                    TEXT("Memory room preview: E at the chest. Tab opens your court collectibles."));
+                UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_PREVIEW Room=%d Seed=%d"),I,RunSeed);
+                break;
+            }
+        }
     }
     if(auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld())) Nav->Build();
 }

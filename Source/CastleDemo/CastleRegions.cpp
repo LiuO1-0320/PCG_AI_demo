@@ -94,6 +94,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     {
         const auto& Room=CaveRooms[CaveRoute[Order]]; const FVector C=Room.Center;
         BuildRoom(C,800,Room.Doors,6); AddLight(C+FVector(0,0,390),FLinearColor(.2f,.55f,1));
+        BuildMemoryRoom(Room,800,true);
         AddSign(C+FVector(680,0,330),Order==0?TEXT("VAULT ENTRANCE"):Order==3?TEXT("VAULT EXIT"):TEXT("GUARDED RELIQUARY"),FColor(120,210,255));
         if(Order>0)
             AddInteract(C+FVector(420,400,45),ECastleInteract::Chest,TEXT("VAULT RELIC"),R.RandRange(0,2));

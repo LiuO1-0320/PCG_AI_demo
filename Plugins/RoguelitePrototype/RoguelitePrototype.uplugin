@@ -8,6 +8,9 @@
     "EnabledByDefault": true,
     "CanContainContent": false,
     "IsExperimentalVersion": true,
+    "Plugins": [
+        { "Name": "EnhancedInput", "Enabled": true }
+    ],
     "Modules": [
         {
             "Name": "RoguelitePrototype",
