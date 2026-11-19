@@ -1,14 +1,18 @@
 # 古堡射击 Demo — The Hollow Citadel
 
-这是已在 UE 5.8.3 上编译和验证的单人第一人称 Roguelite 原型。使用引擎基础网格、自制纯色材质和程序化场景，不依赖付费素材。场景采用可读性优先的占位美术；角色目前是几何体骑士，武器是占位卡宾枪。第一层地图 PCG 的设计依据见 [`output/pdf/first_floor_pcg_design.pdf`](output/pdf/first_floor_pcg_design.pdf)。
+这是使用 UE 5.8.4 的单人第一人称 Roguelite 原型。第一层地图 PCG 的设计依据见 [`output/pdf/first_floor_pcg_design.pdf`](output/pdf/first_floor_pcg_design.pdf)。
 
 ## 启动
 
 打开 `testfordemo.uproject`，地图为 `/Game/Demo/L_CastleDemo`，点击 Play。也可以右键 `Scripts/PlayDemo.ps1` → 使用 PowerShell 运行，启动独立游戏窗口。游戏先显示主界面：输入 1–2147483647 的数字种子后点击 **START GAME**；留空开始则自动选择随机种子，也可点 **RANDOM SEED** 先查看随机数。启动参数 `-CastleSeed=12345` 可跳过菜单，便于自动验证。
 
-地图已保存一份可见的编辑器预览。选中 `Castle PCG Director`，在 PCG 组件上点 Generate 可重新预览；运行时会清理预览并通过 PCG 重新生成。
+### 安装探索区的 Fab 模型
 
-如果编辑器提示编译模块，允许编译。第一次编译需要 Visual Studio C++ 工具链和 Windows SDK。本机已检测到 UE 5.8.3 和 MSVC 14.44。脚本自动查找本机安装路径，也可设置 `CASTLE_UE_ROOT` 指向引擎目录。
+1. 在 Epic Games Launcher 的 Fab 库，把 **Medieval Dungeon** 添加到本工程。资源路径应包括 `/Game/Dungeon/Meshes/Props/SM_Wall_00`、`SM_Ground`、`SM_Pillar`，以及 `/Game/Dungeon/Candles/Meshes/` 下的烛台和蜡烛。
+2. 关闭编辑器，先在项目目录运行 `./Scripts/BuildDemo.ps1`，再运行 `./Scripts/SetupFabCourtArt.ps1`。脚本会用本机的 Fab 模型生成三个网格副本并绑定项目材质。点击 Play 时会生成完整的室内场景。主界面默认预览种子 1337，可以输入别的种子或者点击随机种子。
+3. 如果希望打开关卡时也看到室内预览，运行 `./Scripts/SetupFabCourtArt.ps1 -UpdateEditorPreview`。脚本会先备份地图再保存预览。公开仓库保留基础地图，Fab 包、网格副本和包含 Fab 预览的地图在本机生成。
+
+项目关联 Epic Games Launcher 的 UE 5.8 系列，本机验证用 5.8.4。脚本根据项目关联和 Epic 安装清单找到引擎，也可设置 `CASTLE_UE_ROOT` 指向本机引擎目录。需要直接启动编辑器时，在项目目录运行 `./Scripts/PlayDemo.ps1 -Editor`。合并代码后首次编译需要 Visual Studio C++ 工具链和 Windows SDK，可以在编辑器启动提示中编译，或运行 `./Scripts/BuildDemo.ps1`。
 
 ## 操作和游玩流程
 

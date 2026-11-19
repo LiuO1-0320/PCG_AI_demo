@@ -12,6 +12,7 @@
 #include "CastleDemo.generated.h"
 
 class UCameraComponent;
+class ACameraActor;
 class UStaticMeshComponent;
 class UInstancedStaticMeshComponent;
 class UPCGComponent;
@@ -278,6 +279,12 @@ public:
     FString BossName() const;
     ACastleInteractable* AddInteract(FVector Pos, ECastleInteract Kind, const FString& Title, int32 Reward = 0);
 private:
+    static constexpr int32 StartPreviewSeed = 1337;
+    void BuildStartPreview(APlayerController* Controller);
+    void EndStartPreview();
+    void PositionPlayerAtEntrance(ACastlePlayer* Player);
+    UPROPERTY() TObjectPtr<ACameraActor> StartPreviewCamera;
+    bool bStartPreview = false;
     void ClearGenerated();
     void ClearGeneratedRegion(ECastlePCGRegion InRegion);
     void CompleteFloorGeneration();
@@ -287,7 +294,11 @@ private:
     bool bExplorationGenerated = false, bCaveGenerated = false, bBossGenerated = false;
     bool bCaveRequested = false, bBossRequested = false;
     void AddBox(FVector Pos, FVector Size, int32 Material, bool Collision = true, FRotator Rotation = FRotator::ZeroRotator);
-    void BuildRoom(FVector Center, float HalfSize, int32 Doors, int32 Material);
+    void BuildRoom(FVector Center, float HalfSize, int32 Doors, int32 Material, bool bMemoryArt = false);
+    bool BuildMedievalMemoryRoom(const FCastleRoom& Room, float HalfSize);
+    AActor* MemoryCollisionDuringBuild = nullptr;
+    // Scoped to one exploration shell or corridor; all physics still use the original AddBox transforms.
+    UInstancedStaticMeshComponent* CourtShellDuringBuild = nullptr;
     void BuildMemoryRoom(const FCastleRoom& Room, float HalfSize, bool bIntact);
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);

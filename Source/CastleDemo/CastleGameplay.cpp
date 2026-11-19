@@ -38,10 +38,9 @@ ACastlePlayer::ACastlePlayer()
     Camera->FieldOfView = 95;
     Gun = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Carbine"));
     Gun->SetupAttachment(Camera);
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    Gun->SetStaticMesh(Cube.Object);
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CarbineMesh(TEXT("/Game/Demo/CastleCarbine/SM_ArchiveCarbine/StaticMeshes/SM_ArchiveCarbine.SM_ArchiveCarbine"));
+    Gun->SetStaticMesh(CarbineMesh.Object);
     Gun->SetRelativeLocation(FVector(48, 19, -18));
-    Gun->SetRelativeScale3D(FVector(.55f, .10f, .13f));
     Gun->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Gun->SetCastShadow(false);
     Muzzle = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MuzzleFlash"));
@@ -75,7 +74,6 @@ void ACastlePlayerController::BeginPlay()
 void ACastlePlayer::BeginPlay()
 {
     Super::BeginPlay();
-    Gun->SetMaterial(0,CastleMaterial(TEXT("M_Metal")));
     Muzzle->SetMaterial(0,CastleMaterial(TEXT("M_Gold")));
 }
 

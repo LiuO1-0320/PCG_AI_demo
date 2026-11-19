@@ -35,6 +35,7 @@ void ACastleHUD::DrawHUD()
     Super::DrawHUD();
     auto* P=Cast<ACastlePlayer>(GetOwningPawn()); if(!P || !Canvas)return;
     auto* D=P->Director(); if(!D)return;
+    if(IsValid(D->StartMenu) && D->StartMenu->IsInViewport())return;
     const float UIScale=FMath::Max(.1f,FMath::Min(Canvas->ClipX/1440.f,Canvas->ClipY/900.f));
     Canvas->Canvas->PushRelativeTransform(FScaleMatrix(FVector(UIScale,UIScale,1)));
     const float W=Canvas->ClipX/UIScale,H=Canvas->ClipY/UIScale,Now=GetWorld()->GetTimeSeconds();

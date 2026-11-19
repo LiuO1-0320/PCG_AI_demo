@@ -1,6 +1,8 @@
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
 #include "Blueprint/WidgetTree.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
@@ -8,7 +10,95 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/World.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+
+namespace
+{
+    struct FEntranceView
+    {
+        FVector Viewpoint;
+        FRotator Rotation;
+    };
+
+    FEntranceView GetEntranceView(const FCastleRoom& Entrance, bool bMenu)
+    {
+        static const FVector Sides[]={FVector::ForwardVector,FVector::RightVector,
+            -FVector::ForwardVector,-FVector::RightVector};
+        int32 Wall=0;
+        for(int32 Side=0;Side<4;++Side)
+        {
+            if(!(Entrance.Doors&(1<<Side))) {Wall=Side;break;}
+        }
+        int32 Door=INDEX_NONE;
+        for(int32 Distance : {1,3,2})
+        {
+            const int32 Candidate=(Wall+Distance)%4;
+            if(Entrance.Doors&(1<<Candidate)) {Door=Candidate;break;}
+        }
+        const FVector AlongDoor=Door!=INDEX_NONE?Sides[Door]:FVector::ZeroVector;
+        const FVector AlongWall=Sides[Wall];
+        const FVector Viewpoint=Entrance.Center-AlongWall*(bMenu?600.:530.)-AlongDoor*(bMenu?600.:510.);
+        const FVector Aim=Entrance.Center+AlongWall*(bMenu?435.:350.)+AlongDoor*(bMenu?385.:335.);
+        FRotator Rotation=(Aim-Viewpoint).Rotation();
+        Rotation.Pitch=bMenu?10.:4.;
+        return {Viewpoint,Rotation};
+    }
+}
+
+void ACastleDirector::BuildStartPreview(APlayerController* Controller)
+{
+    // The menu uses the actual generated entrance, with the gameplay gates kept closed.
+    bStartPreview=true;
+    ClearGenerated();
+    TGuardValue<int32> PreviewSeed(RunSeed,StartPreviewSeed);
+    GenerateLayout(nullptr);
+    if(!Rooms.IsValidIndex(0))return;
+
+    const FEntranceView View=GetEntranceView(Rooms[0],true);
+    StartPreviewCamera=GetWorld()->SpawnActor<ACameraActor>(View.Viewpoint+FVector(0,0,174),View.Rotation);
+    if(!StartPreviewCamera)return;
+    StartPreviewCamera->GetCameraComponent()->SetFieldOfView(104.f);
+    Controller->SetViewTarget(StartPreviewCamera);
+    if(auto* Player=Cast<ACastlePlayer>(Controller->GetPawn()))
+    {
+        Player->GetCharacterMovement()->DisableMovement();
+        Player->SetActorHiddenInGame(true);
+    }
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_START_PREVIEW Seed=%d Room=Entrance Doors=%d"),StartPreviewSeed,Rooms[0].Doors);
+}
+
+void ACastleDirector::EndStartPreview()
+{
+    if(!bStartPreview)return;
+    bStartPreview=false;
+    if(auto* Controller=UGameplayStatics::GetPlayerController(this,0))
+    {
+        if(APawn* Player=Controller->GetPawn())
+        {
+            Player->SetActorHiddenInGame(false);
+            Controller->SetViewTarget(Player);
+        }
+    }
+    if(IsValid(StartPreviewCamera))StartPreviewCamera->Destroy();
+    StartPreviewCamera=nullptr;
+}
+
+void ACastleDirector::PositionPlayerAtEntrance(ACastlePlayer* Player)
+{
+    AController* Controller=Player->GetController();
+    if(!Controller || !Rooms.IsValidIndex(0))
+    {
+        Travel(Player,FVector(-400,0,110));
+        return;
+    }
+
+    const FEntranceView Entrance=GetEntranceView(Rooms[0],false);
+    Travel(Player,Entrance.Viewpoint+FVector(0,0,110),Entrance.Rotation.Yaw);
+    Controller->SetControlRotation(Entrance.Rotation);
+    Player->bHelp=false;
+}
 
 bool UCastleStartMenu::ParseSeed(const FString& Text, int32& OutSeed)
 {
@@ -26,15 +116,21 @@ void UCastleStartMenu::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
     if(WidgetTree->RootWidget) return;
-    auto* Background=WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-    Background->SetBrushColor(FLinearColor(.014f,.024f,.038f,1.f));
-    Background->SetHorizontalAlignment(HAlign_Center);
-    Background->SetVerticalAlignment(VAlign_Center);
-    WidgetTree->RootWidget=Background;
+    auto* Layout=WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+    Layout->SetBrushColor(FLinearColor::Transparent);
+    Layout->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    Layout->SetHorizontalAlignment(HAlign_Right);
+    Layout->SetVerticalAlignment(VAlign_Center);
+    Layout->SetPadding(FMargin(28.f));
+    WidgetTree->RootWidget=Layout;
 
+    auto* Panel=WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+    Panel->SetBrushColor(FLinearColor(.028f,.019f,.028f,.88f));
+    Panel->SetPadding(FMargin(22,18));
+    Layout->SetContent(Panel);
     auto* Width=WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-    Width->SetWidthOverride(520);
-    Background->SetContent(Width);
+    Width->SetWidthOverride(340);
+    Panel->SetContent(Width);
     auto* Column=WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
     Width->SetContent(Column);
     auto AddText=[&](const FString& Value, float Size, FLinearColor Color)
@@ -50,9 +146,9 @@ void UCastleStartMenu::NativeOnInitialized()
         return Label;
     };
     AddText(TEXT("THE HOLLOW CITADEL"),32,FLinearColor(.96f,.72f,.36f));
-    AddText(TEXT("THREE FLOORS  |  NODE EXPEDITION"),18,FLinearColor(.36f,.88f,.85f));
     AddText(TEXT("Enter a seed to repeat a map, or leave it blank for a random run."),14,FLinearColor(.84f,.88f,.91f));
     SeedInput=WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass());
+    SeedInput->SetSelectAllTextWhenFocused(true);
     FEditableTextBoxStyle InputStyle=SeedInput->GetWidgetStyle();
     InputStyle.SetBackgroundColor(FSlateColor(FLinearColor(.04f,.07f,.11f,1.f)));
     InputStyle.SetForegroundColor(FSlateColor(FLinearColor(.94f,.96f,.97f)));
@@ -67,13 +163,14 @@ void UCastleStartMenu::NativeOnInitialized()
     auto AddButton=[&](const FString& Caption)
     {
         auto* Button=WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-        Button->SetBackgroundColor(FLinearColor(.08f,.31f,.35f,1.f));
+        Button->SetBackgroundColor(FLinearColor(.32f,.14f,.18f,1.f));
         auto* Text=WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
         MenuLabels.Add(Text); MenuLabelSources.Add(Caption);
         Text->SetText(FText::FromString(CastleText(Caption)));
         Text->SetJustification(ETextJustify::Center);
+        Text->SetAutoWrapText(true);
         Text->SetColorAndOpacity(FSlateColor(FLinearColor(.94f,.96f,.97f)));
-        Text->SetFont(CastleUIFont(19));
+        Text->SetFont(CastleUIFont(Caption.StartsWith(TEXT("Language:"))?15.f:19.f));
         Button->AddChild(Text);
         Column->AddChildToVerticalBox(Button)->SetPadding(FMargin(8,6));
         return Button;

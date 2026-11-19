@@ -1,5 +1,6 @@
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
+#include "CastleMemoryArtChecks.h"
 #include "CastleProjectileChecks.h"
 #include "Components/StaticMeshComponent.h"
 #include "Camera/CameraComponent.h"
@@ -9,7 +10,10 @@
 #include "EngineUtils.h"
 #include "Engine/DamageEvents.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/FileManager.h"
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "Misc/Guid.h"
 #include "Misc/Paths.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
@@ -78,6 +82,35 @@ void ACastleDirector::TickSmokeTest()
     {
         if(!Room.bActive)continue;
         ++TypeCount[static_cast<int32>(Room.Type)];
+        const FName VaultTag(TEXT("CastleVaultMasonry"));
+        const FCollisionQueryParams VaultQuery(NAME_None,false,P);
+        FHitResult Masonry;
+        // Probe the crown, the shoulders, and the two upper end walls. These checks also cover the chest room.
+        for(const FVector& Offset : {FVector::ZeroVector,FVector(650,650,0),FVector(-650,-650,0)})
+        {
+            const FVector Start=Room.Center+Offset+FVector(0,0,612);
+            if(!GetWorld()->LineTraceSingleByChannel(Masonry,Start,Start+FVector(0,0,720),ECC_Visibility,VaultQuery) ||
+                !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag))
+            { Fail(TEXT("Exploration room is missing overhead masonry"));return; }
+        }
+        for(int32 Side=0;Side<2;++Side)
+        {
+            const FVector Normal=Side==0?FVector::ForwardVector:FVector::RightVector;
+            const FVector Start=Room.Center+FVector(0,0,617);
+            if(!GetWorld()->LineTraceSingleByChannel(Masonry,Start,Start+Normal*1100,ECC_Visibility,VaultQuery) ||
+                !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag))
+            {
+                UE_LOG(LogTemp,Error,TEXT("Vault wall Floor=%d Room=%s Side=%d Hit=%s"),Floor,*Room.Center.ToString(),Side,*GetNameSafe(Masonry.GetComponent()));
+                Fail(TEXT("Exploration room has an open upper wall"));return;
+            }
+            if(Room.Doors&(1<<Side))
+            {
+                const FVector Passage=Room.Center+Normal*1200+FVector(0,0,340);
+                if(!GetWorld()->LineTraceSingleByChannel(Masonry,Passage,Passage+FVector(0,0,310),ECC_Visibility,VaultQuery) ||
+                    !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag))
+                { Fail(TEXT("Exploration corridor is missing a roof"));return; }
+            }
+        }
         auto* Path=UNavigationSystemV1::FindPathToLocationSynchronously(this,FVector(-400,0,100),Room.Center+FVector(0,0,100));
         if(!Path || !Path->IsValid() || Path->IsPartial())
         {
@@ -347,9 +380,167 @@ void ACastleDirector::TickSmokeTest()
 
 void ACastleDirector::TickCapture()
 {
+    const bool bCourtCapture=FParse::Param(FCommandLine::Get(),TEXT("CastleCourtCapture"));
+    auto FailCourt=[&](const TCHAR* Reason)
+    {
+        CaptureStage=-1;
+        UE_LOG(LogTemp,Error,TEXT("CASTLE_COURT_CAPTURE_FAILED Seed=%d: %s"),RunSeed,Reason);
+        FPlatformMisc::RequestExitWithStatus(false,1);
+    };
+    if(bCourtCapture && CaptureStage<0)return;
+    if(bCourtCapture && (!bReady || !UGameplayStatics::GetPlayerPawn(this,0)) && GetWorld()->GetTimeSeconds()>90)
+    {FailCourt(TEXT("Timed out waiting for a generated floor and player (supply -CastleSeed=N)"));return;}
     if(!bReady)return;
     auto* P=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0)); if(!P)return;
     const float Now=GetWorld()->GetTimeSeconds();
+    if(bCourtCapture)
+    {
+        static constexpr ECastleRoom Types[]={ECastleRoom::Entrance,ECastleRoom::Combat,ECastleRoom::Rest};
+        static const TCHAR* const Names[]={TEXT("Entrance"),TEXT("Combat"),TEXT("Rest")};
+        static const FVector Sides[]={FVector::ForwardVector,FVector::RightVector,-FVector::ForwardVector,-FVector::RightVector};
+        const int32 Shot=CaptureStage/3, Phase=CaptureStage%3;
+        auto* PC=Cast<APlayerController>(P->GetController());
+        if(!PC || !P->Camera || PC->GetViewTarget()!=P || !GEngine || !GEngine->GameViewport)
+        {FailCourt(TEXT("Missing first-person viewport"));return;}
+        const int32 Index=Rooms.IndexOfByPredicate([&](const FCastleRoom& R){return R.bActive && R.Type==Types[Shot];});
+        if(!Rooms.IsValidIndex(Index)){FailCourt(TEXT("Required room missing"));return;}
+        const FCastleRoom& Room=Rooms[Index];
+        const FString Folder=FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/TEXT("Screenshots/MainCourt"));
+        const FString Stem=FString::Printf(TEXT("Seed%d_%s"),RunSeed,Names[Shot]);
+        IFileManager& Files=IFileManager::Get();
+        if(Phase==0)
+        {
+            if(Shot==0)
+            {
+                if(!Files.DirectoryExists(*Folder) && !Files.MakeDirectory(*Folder,true)){FailCourt(TEXT("Cannot create screenshot folder"));return;}
+                for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)
+                {
+                    It->bActive=false; It->SetActorTickEnabled(false);
+                    It->GetCharacterMovement()->StopMovementImmediately();
+                    if(auto* AI=Cast<AAIController>(It->GetController()))
+                    {AI->StopMovement();if(auto* Brain=AI->GetBrainComponent())Brain->StopLogic(TEXT("Court screenshot capture"));}
+                }
+                for(TActorIterator<ACastleBolt> It(GetWorld());It;++It)It->Destroy();
+            }
+            // Aim between a doorway and an adjacent wall, favoring the entrance banners on +X.
+            int32 Door=INDEX_NONE,Wall=INDEX_NONE,Best=-1;
+            for(int32 D=0;D<4;++D)if(Room.Doors&(1<<D))
+                for(const int32 Offset : {1,3})
+                {
+                    const int32 W=(D+Offset)%4;
+                    if(Room.Doors&(1<<W))continue;
+                    const int32 Score=(Shot==0 && (D==0 || W==0)?10:0)+(4-W);
+                    if(Score>Best){Best=Score;Door=D;Wall=W;}
+                }
+            if(Door==INDEX_NONE)
+            {
+                for(int32 D=0;D<4;++D)if(Room.Doors&(1<<D)){Door=D;break;}
+                if(Door==INDEX_NONE){FailCourt(TEXT("Selected room has no door"));return;}
+                Wall=(Door+1)%4; // Four-way junction: show two neighboring arches.
+            }
+            FVector Cam=Room.Center-Sides[Wall]*560-Sides[Door]*570+FVector(0,0,100);
+            const FVector Focus=Room.Center+Sides[Wall]*340+Sides[Door]*335+FVector(0,0,160);
+            if(Room.Type==ECastleRoom::Combat) {
+                // Some seeds put a full-height plinth immediately in front of this camera corner.
+                // Choose a clear first-person sightline without changing the actual placement of cover or enemies.
+                const FVector Candidates[]={Cam,Room.Center-Sides[Wall]*460+FVector(0,0,100),Room.Center-Sides[Door]*460+FVector(0,0,100),Room.Center+FVector(0,0,100)};
+                for(const FVector& Candidate:Candidates) {
+                    const FVector Eye=Candidate+FVector(0,0,64);const FVector Aim=(Focus-Eye).GetSafeNormal();
+                    if(!GetWorld()->LineTraceTestByChannel(Eye,Eye+Aim*550,ECC_Visibility,FCollisionQueryParams(NAME_None,false,P))) {Cam=Candidate;break;}
+                }
+            }
+            Travel(P,Cam,(Focus-Cam).Rotation().Yaw);
+            const FVector ArchitectureFocus=Focus+FVector(0,0,235);
+            PC->SetControlRotation((ArchitectureFocus-P->Camera->GetComponentLocation()).Rotation());
+            P->bHelp=false;P->bCollectionOpen=false;P->NoticeUntil=0;P->MemoryNoticeUntil=0;P->HurtUntil=0;
+            RevealRoom(Index);
+            ++CaptureStage;NextCaptureAt=Now+(Shot==0?5.f:3.f);return;
+        }
+        if(Phase==1)
+        {
+            if(Now<NextCaptureAt)return;
+            // A fresh filename prevents a previous run's screenshots from passing a failed capture.
+            PendingCaptureName=Folder/(Stem+TEXT("_")+FGuid::NewGuid().ToString(EGuidFormats::Digits)+TEXT(".png"));
+            FScreenshotRequest::RequestScreenshot(PendingCaptureName,false,false);
+            ++CaptureStage;NextCaptureAt=Now+15.f;return;
+        }
+        if(Files.FileSize(*PendingCaptureName)<=0 || FScreenshotRequest::IsScreenshotRequested())
+        {if(Now>NextCaptureAt)FailCourt(TEXT("Renderer did not write the requested PNG"));return;}
+        const FString Final=Folder/(Stem+TEXT(".png"));
+        if(!Files.Move(*Final,*PendingCaptureName,true)){FailCourt(TEXT("Cannot finalize screenshot"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_COURT_FRAME Seed=%d Room=%s Node=%d File=%s"),RunSeed,Names[Shot],Index,*Final);
+        PendingCaptureName.Empty();++CaptureStage;
+        if(CaptureStage==9)
+        {
+            CaptureStage=-1;
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_COURT_CAPTURE_OK Seed=%d Frames=3"),RunSeed);
+            FPlatformMisc::RequestExitWithStatus(false,0);
+        }
+        return;
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryArtTest")))
+    {
+        if(NextCaptureAt==0)NextCaptureAt=Now+6;
+        if(Now<NextCaptureAt)return;
+        auto FailArt=[&](const FString& Why){UE_LOG(LogTemp,Error,TEXT("CASTLE_MEMORY_ART_FAILED Seed=%d %s"),RunSeed,*Why);FPlatformMisc::RequestExitWithStatus(false,1);};
+        auto* PlayerController=Cast<APlayerController>(P->GetController());
+        if(!PlayerController){FailArt(TEXT("Missing player controller"));return;}
+        const FCastleRoom* Target=nullptr;
+        for(const auto& Room:Rooms)if(Room.bActive && Room.Type==ECastleRoom::Chest){Target=&Room;break;}
+        if(!Target){FailArt(TEXT("Missing treasure room"));return;}
+        ACastleInteractable* Chest=nullptr;
+        for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==ECastleInteract::Chest && FVector::DistSquared(It->GetActorLocation(),Target->Center+FVector(230,0,45))<1){Chest=*It;break;}
+        if(!Chest){FailArt(TEXT("Missing original chest"));return;}
+        if(CaptureStage==0)
+        {
+            auto* Navigation=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+            if(!Navigation || Navigation->IsNavigationBuildInProgress())return;
+            FString Reason;if(!CastleCheckMemoryRoomArt(this,P,Reason)){FailArt(Reason);return;}
+            for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)
+            {It->bActive=false;if(auto* AI=Cast<AAIController>(It->GetController())){AI->StopMovement();if(AI->GetBrainComponent())AI->GetBrainComponent()->StopLogic(TEXT("Art validation"));}}
+            // Physically cross each door with the player's real collision, then return.
+            const FVector Directions[]={FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
+            for(int32 Side=0;Side<4;++Side)if(Target->Doors&(1<<Side))
+            {
+                Travel(P,Target->Center+Directions[Side]*550+FVector(0,0,100));
+                const FVector Destination=Target->Center+Directions[Side]*1400+FVector(0,0,100);
+                FHitResult Hit;P->SetActorLocation(Destination,true,&Hit,ETeleportType::TeleportPhysics);
+                if(Hit.bBlockingHit || FVector::Dist(P->GetActorLocation(),Destination)>2){FailArt(TEXT("Physical player traversal blocked"));return;}
+                UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_DOOR_WALK_OK Seed=%d Side=%d"),RunSeed,Side);
+            }
+            Travel(P,Target->Center+FVector(-600,-590,110),43);
+            P->bHelp=false;P->NoticeUntil=0;RevealRoom(int32(Target-Rooms.GetData()));
+            const FString ClosedFile=FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/FString::Printf(TEXT("Screenshots/MemoryRoomArt/MemoryRoom_Seed%d_Closed.png"),RunSeed));
+            FScreenshotRequest::RequestScreenshot(ClosedFile,false,false);
+            CaptureStage=10;NextCaptureAt=Now+2;return;
+        }
+        if(CaptureStage==10)
+        {
+            Travel(P,Target->Center+FVector(0,0,100));
+            PlayerController->SetControlRotation((Chest->GetActorLocation()-P->Camera->GetComponentLocation()).Rotation());
+            P->Camera->SetWorldRotation(PlayerController->GetControlRotation());P->Camera->UpdateComponentToWorld();
+            if(P->Focused()!=Chest){FailArt(TEXT("Player cannot focus the chest"));return;}
+            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::E,IE_Pressed,1.f,false,FPlatformTime::Cycles64()));
+            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::E,IE_Released,0.f,false,FPlatformTime::Cycles64()));
+            CaptureStage=1;NextCaptureAt=Now+.3f;return;
+        }
+        if(CaptureStage==1)
+        {
+            if(!Chest->bUsed || P->Relics!=1 || FMath::Abs(Chest->ChestLid->GetRelativeRotation().Roll)<40 || Chest->MemoryLight->IsVisible())
+            {FailArt(TEXT("Real E input did not open the chest exactly once"));return;}
+            Chest->Use(P);if(P->Relics!=1){FailArt(TEXT("Chest repeats reward"));return;}
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_CHEST_OK Seed=%d RealInput=E Open=1 RewardCount=1"),RunSeed);
+            Travel(P,Target->Center+FVector(-600,-590,110),43);
+            P->MemoryNoticeUntil=0;P->NoticeUntil=0;CaptureStage=2;NextCaptureAt=Now+3;return;
+        }
+        if(CaptureStage==2)
+        {
+            const FString File=FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/FString::Printf(TEXT("Screenshots/MemoryRoomArt/MemoryRoom_Seed%d.png"),RunSeed));
+            FScreenshotRequest::RequestScreenshot(File,false,false);
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_SCREENSHOT %s"),*File);CaptureStage=3;NextCaptureAt=Now+2;return;
+        }
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_OK Seed=%d"),RunSeed);FPlatformMisc::RequestExitWithStatus(false,0);return;
+    }
     const bool MemoryCapture=FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryCapture"));
     if(NextCaptureAt==0)NextCaptureAt=Now+(MemoryCapture?8:20);
     if(Now<NextCaptureAt)return;

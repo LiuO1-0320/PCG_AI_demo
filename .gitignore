@@ -35,6 +35,7 @@
 *.xcodeproj
 *.xcworkspace
 *.sln
+*.slnx
 *.suo
 *.opensdf
 *.sdf
@@ -45,6 +46,12 @@
 # Precompiled Assets
 SourceArt/**/*.png
 SourceArt/**/*.tga
+!SourceArt/MemoryRoom/faceless_courtier.png
+
+# Locally installed Fab packages and variants built from their meshes.
+/Content/Dungeon/
+/Content/Fab/
+/Content/Demo/CourtArt/Masonry/
 
 # Binary Files
 Binaries/*

@@ -1,12 +1,16 @@
 #include "CastleDemo.h"
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/UnrealEdTypes.h"
+#include "EngineUtils.h"
 #include "FileHelpers.h"
 #include "Builders/CubeBuilder.h"
 #include "Model.h"
 #include "Engine/Polys.h"
 #include "Components/BrushComponent.h"
 #include "BSPOps.h"
+#include "Engine/Level.h"
+#include "Engine/StaticMesh.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
@@ -16,6 +20,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/PostProcessVolume.h"
 #include "Components/DirectionalLightComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/Material.h"
@@ -27,6 +32,72 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PCGGraph.h"
 #include "PCGComponent.h"
+
+namespace
+{
+int32 UpdateEditorPreview()
+{
+    const FString MapPath=TEXT("/Game/Demo/L_CastleDemo");
+    const FString Filename=FPackageName::LongPackageNameToFilename(MapPath,FPackageName::GetMapPackageExtension());
+    auto Fail=[](const TCHAR* Reason)
+    {
+        UE_LOG(LogTemp,Error,TEXT("CASTLE_EDITOR_PREVIEW_FAILED: %s"),Reason);
+        return 5;
+    };
+    if(!FEditorFileUtils::LoadMap(Filename,false,false))return Fail(TEXT("Cannot open the existing map."));
+    UWorld* World=GEditor->GetEditorWorldContext().World();
+    if(!World || World->GetOutermost()->GetName()!=MapPath)return Fail(TEXT("The requested map was not loaded."));
+    if(World->PersistentLevel->IsUsingExternalActors())return Fail(TEXT("The map uses separate actor packages."));
+
+    TActorIterator<ACastleDirector> It(World);
+    if(!It)return Fail(TEXT("The map has no PCG director."));
+    ACastleDirector* Director=*It;
+    ++It;
+    if(It)return Fail(TEXT("The map has more than one PCG director."));
+
+    Director->bReady=false;
+    {
+        TGuardValue<int32> Seed(Director->RunSeed,1337);
+        TGuardValue<int32> Floor(Director->Floor,1);
+        Director->GenerateLayout(nullptr);
+    }
+    Director->bReady=false;
+
+    AActor* Scenery=nullptr;
+    for(TActorIterator<AActor> Actor(World);Actor;++Actor)
+    {
+        if(!Actor->ActorHasTag(TEXT("CastleCourtScenery")))continue;
+        if(Scenery)return Fail(TEXT("More than one court scenery actor remained after regeneration."));
+        Scenery=*Actor;
+    }
+    if(!Scenery)return Fail(TEXT("Court scenery was not generated."));
+
+    int32 VaultPieces=0;
+    int32 Portraits=0;
+    TInlineComponentArray<UInstancedStaticMeshComponent*> Meshes(Scenery);
+    for(const auto* Mesh : Meshes)
+    {
+        if(Mesh->ComponentHasTag(TEXT("CastleVaultMasonry")))VaultPieces+=Mesh->GetInstanceCount();
+        if(Mesh->GetStaticMesh() && Mesh->GetStaticMesh()->GetFName()==TEXT("SM_ShatteredCourtPortrait"))
+            Portraits+=Mesh->GetInstanceCount();
+    }
+    if(VaultPieces<=0 || Portraits<=0)return Fail(TEXT("The new vault or shattered portrait is missing."));
+
+    // Seed 1337 opens to +Y, with the entrance portrait on the +X wall.
+    if(World->EditorViews.IsValidIndex(LVT_Perspective))
+    {
+        FLevelViewportInfo& View=World->EditorViews[LVT_Perspective];
+        View.CamPosition=FVector(-600,-600,170);
+        View.CamRotation=FRotator(10,44,0);
+        View.CamUpdated=true;
+    }
+    World->MarkPackageDirty();
+    if(!FEditorFileUtils::SaveMap(World,Filename))return Fail(TEXT("Failed to save the preview in the existing map."));
+
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_EDITOR_PREVIEW_OK: %s Seed=1337 VaultPieces=%d Portraits=%d"),*MapPath,VaultPieces,Portraits);
+    return 0;
+}
+}
 #endif
 
 UCastleSetupCommandlet::UCastleSetupCommandlet()
@@ -37,6 +108,8 @@ UCastleSetupCommandlet::UCastleSetupCommandlet()
 int32 UCastleSetupCommandlet::Main(const FString& Params)
 {
 #if WITH_EDITOR
+    if(FParse::Param(*Params,TEXT("PreviewOnly")))return UpdateEditorPreview();
+
     auto SaveAsset=[](UObject* Asset)
     {
         UPackage* Package=Asset->GetOutermost(); Package->FullyLoad();
