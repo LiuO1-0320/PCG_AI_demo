@@ -103,22 +103,33 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         FRandomStream G(int32(uint32(RunSeed)^uint32(Floor)*0x5bd1e995u^
             GetTypeHash(FIntPoint(FMath::RoundToInt(C.X),FMath::RoundToInt(C.Y)))^0x6772616eu));
 
-        // 1) 尺度与层高：平面半尺寸 750-900，层高 1000-1480
-        const float Half=750.f+G.FRandRange(0.f,150.f);
-        const float CeilH=1000.f+G.FRandRange(0.f,480.f);
+        // ===== 【核心】记忆深度：0=入口(记忆残存) .. 1=出口(记忆完整) =====
+        // 空间本身在讲故事：越深入，房间越高、越大、陈设越密、光越暖。
+        const float MemDepth=Order/3.f;
+        const float Half=760.f+MemDepth*90.f+G.FRandRange(0.f,50.f);      // 760 -> 900
+        const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
+        const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
         BuildRoom(C,Half,Room.Doors,6);
         AddLight(C+FVector(0,0,390),FLinearColor(.2f,.55f,1));
         BuildMemoryRoom(Room,Half,true);
 
-        // 2) 拱顶样式 0=交叉肋拱 1=连拱筒 2=阶梯穹顶
+        // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
+        const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
+        const FLinearColor Mood = MemDepth>=.66f?Moods[0]:Moods[G.RandRange(0,2)];
+        // 拱顶样式 0=交叉肋拱 1=连拱筒 2=阶梯穹顶
         const int32 VaultStyle=G.RandRange(0,2);
-        // 3) 陈设主题 0=肖像廊 1=乐师厅 2=钟表室 3=礼服室
-        const int32 Theme=G.RandRange(0,3);
-        // 4) 中央柱阵 0-4 根（无碰撞装饰）
-        const int32 Pillars=G.RandRange(0,4);
-        // 5) 陈设开关
-        const bool bTapestry=G.FRand()<.90f;
-        const bool bCandles=G.FRand()<.85f;
+        // 主题规则：入口必为肖像廊，出口必为礼服室，中间随机
+        const int32 Theme = Order==0?0 : Order==3?3 : G.RandRange(0,3);
+        // 中央柱阵 0-4 根（深层更多），柱头三式
+        const int32 Pillars=G.RandRange(0,int32(1.f+MemDepth*3.f));
+        const int32 CapStyle=G.RandRange(0,2);
+        // 每面墙画框 1-3 幅，随密度增加
+        const int32 FramesPerWall=1+int32(Density*2.f*G.FRand());
+        // 挂毯/烛台/壁龛/隔断：随密度递增
+        const bool bTapestry=G.FRand()<FMath::Lerp(.50f,.95f,MemDepth);
+        const bool bCandles=G.FRand()<FMath::Lerp(.40f,.95f,MemDepth);
+        const bool bNiche=G.FRand()<MemDepth*.85f;
+        const int32 Screens=G.RandRange(0,MemDepth>.5f?2:1);
         const int32 GemCount=G.RandRange(1,3);
 
         const FVector NV[4]={FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
@@ -154,13 +165,19 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     for(int32 K=-1;K<=1;++K) Put(Half-60,A+K*60,700,FVector(8,12,480),8);
                 }
             // 主题陈设（由种子决定，四种记忆主题）
-            if(Theme==0)      // 肖像廊：镀金大框 + 紫晶画芯（完整，不破损）
+            if(Theme==0)      // 肖像廊：按记忆密度挂 1-3 幅镀金肖像（完整，不破损）
             {
-                Put(Half-50,0,760,FVector(16,340,420),5);
-                Put(Half-56,-186,760,FVector(24,22,470),3);
-                Put(Half-56, 186,760,FVector(24,22,470),3);
-                Put(Half-56,0,982,FVector(24,394,22),3);
-                Put(Half-56,0,538,FVector(24,394,22),3);
+                for(int32 F=0;F<FramesPerWall;++F)
+                {
+                    const float Span=340.f/FMath::Max(1,FramesPerWall);
+                    const float Off=(F-(FramesPerWall-1)*.5f)*(Span+26.f);
+                    const float W=Span*.74f, H=420.f*(W/340.f);
+                    Put(Half-50,Off,760,FVector(16,W,H),5);
+                    Put(Half-56,Off-W*.5f-11,760,FVector(24,22,H+50),3);
+                    Put(Half-56,Off+W*.5f+11,760,FVector(24,22,H+50),3);
+                    Put(Half-56,Off,760+H*.5f+14,FVector(24,W+44,22),3);
+                    Put(Half-56,Off,760-H*.5f-14,FVector(24,W+44,22),3);
+                }
             }
             else if(Theme==1) // 乐师厅：竖琴轮廓 + 七根金弦
             {
@@ -197,6 +214,15 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     Put(Half-95,A,150,FVector(56,56,300),8);
                     Put(Half-95,A,305,FVector(28,28,110),3);
                     for(int32 K:{-1,0,1}) Put(Half-95,A+K*44,382,FVector(18,18,70),3);
+                }
+            // 壁龛（深层才有）：墙两侧凹龛 + 龛内记忆水晶
+            if(bNiche)
+                for(int32 S:{-1,1})
+                {
+                    const float A=S*(Half*.80f);
+                    Put(Half-28,A,520,FVector(56,26,520),1);
+                    Put(Half-28,A,800,FVector(56,150,26),1);
+                    Put(Half-48,A,430,FVector(34,90,150),5);
                 }
         }
         // 四角束柱 + 金柱头（接续基础房间 520 高角柱）
@@ -241,11 +267,11 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             AddBox(C+FVector( Span*.5f-Rim*.5f,0,CeilH+300.f),FVector(Rim,Span,90),1,false);
             AddBox(C+FVector(-(Span*.5f-Rim*.5f),0,CeilH+300.f),FVector(Rim,Span,90),1,false);
         }
-        // 藏宝洞暖金自主照明：中央 + 四角 + 地面补光，形成殿堂光（明显亮于探索区）
-        AddLight(C+FVector(0,0,CeilH*.55f),FLinearColor(1.f,.82f,.55f));
+        // 藏宝洞自主照明：中央 + 四角 + 地面补光，色调由记忆基调决定
+        AddLight(C+FVector(0,0,CeilH*.55f),Mood);
         for(int32 X:{-1,1}) for(int32 Y:{-1,1})
-            AddLight(C+FVector(X*Half*.45f,Y*Half*.45f,320.f),FLinearColor(1.f,.74f,.45f));
-        AddLight(C+FVector(0,0,180.f),FLinearColor(1.f,.78f,.50f));
+            AddLight(C+FVector(X*Half*.45f,Y*Half*.45f,320.f),Mood);
+        AddLight(C+FVector(0,0,180.f),Mood);
         // 中央柱阵（随机 0-4 根，落在对角线象限，避开中轴视线与通道）
         for(int32 P=0;P<Pillars;++P)
         {
@@ -253,7 +279,10 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             const float Rad=Half*.60f;
             const FVector B=C+FVector(FMath::Cos(Ang)*Rad,FMath::Sin(Ang)*Rad,0);
             AddBox(B+FVector(0,0,330),FVector(58,58,660),2,false);
-            AddBox(B+FVector(0,0,672),FVector(84,84,34),3,false);
+            // 柱头三式：方冠 / 圆冠 / 尖冠
+            if(CapStyle==0) AddBox(B+FVector(0,0,672),FVector(84,84,34),3,false);
+            else if(CapStyle==1) AddBox(B+FVector(0,0,676),FVector(74,74,42),3,false);
+            else { AddBox(B+FVector(0,0,666),FVector(80,80,26),3,false); AddBox(B+FVector(0,0,690),FVector(54,54,30),3,false); }
         }
         // 紫水晶记忆簇（随机数量与朝向）
         for(int32 Gi=0;Gi<GemCount;++Gi)
@@ -264,6 +293,25 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             AddBox(Gem+FVector(0,0,95),FVector(72,72,190),5,false,FRotator(0,Tilt,14.f));
             AddBox(Gem+FVector(44,44,0)+FVector(0,0,135),FVector(52,52,270),5,false,FRotator(9,-26.f,Tilt));
             AddBox(Gem+FVector(-40,-40,0)+FVector(0,0,72),FVector(46,46,145),5,false,FRotator(-11,28.f,-Tilt));
+        }
+        // 隔断屏风（无碰撞，划分空间层次；深层更多）
+        for(int32 Sc=0;Sc<Screens;++Sc)
+        {
+            const float Ang=G.FRandRange(0.f,360.f)*3.14159265f/180.f;
+            const float Rad=Half*.58f;
+            const FVector P=C+FVector(FMath::Cos(Ang)*Rad,FMath::Sin(Ang)*Rad,0);
+            const FRotator Rot(0,Ang*57.2958f+90.f,0);
+            AddBox(P+FVector(0,0,130),FVector(22,240,260),1,false,Rot);
+            AddBox(P+FVector(0,0,268),FVector(30,256,16),3,false,Rot);
+        }
+        // 叙事铭文：每房抽取一条记忆碎片文案（叙事程序化）
+        {
+            static const TCHAR* Epitaphs[]={
+                TEXT("THE COURT REMEMBERED"),TEXT("A FEAST NO ONE LEFT"),
+                TEXT("SHE PAINTED EVERY FACE HERE"),TEXT("THE HOURS STOPPED AT DUSK"),
+                TEXT("A GOWN FOR A QUEEN LONG GONE"),TEXT("THE HARP STILL HOLDS ITS NOTE"),
+                TEXT("NO ONE LEFT TO WEAR THE CROWN")};
+            AddSign(C+FVector(0,-Half*.60f,430),Epitaphs[G.RandRange(0,6)],FColor(205,190,240));
         }
         // 终点房：记忆圣坛（规则驱动，每局必有）
         if(Order==3)
