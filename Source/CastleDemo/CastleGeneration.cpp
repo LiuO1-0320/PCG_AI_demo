@@ -373,11 +373,32 @@ ACastleInteractable* ACastleDirector::AddInteract(FVector Pos, ECastleInteract K
     Item->Configure(Kind, Title, this, Reward); TrackGenerated(Item); return Item;
 }
 
-ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss)
+ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass)
 {
-    FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    auto* Enemy = GetWorld()->SpawnActor<ACastleEnemy>(Pos, FRotator::ZeroRotator, P);
-    Enemy->Configure(IsBoss, Floor, this); TrackGenerated(Enemy); return Enemy;
+    UClass* SpawnClass = EnemyClass.Get();
+    if (!SpawnClass || SpawnClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+    {
+        SpawnClass = ACastleEnemy::StaticClass();
+    }
+
+    FActorSpawnParameters P;
+    P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    UWorld* World = GetWorld();
+    auto* Enemy = World ? World->SpawnActor<ACastleEnemy>(SpawnClass, Pos, FRotator::ZeroRotator, P) : nullptr;
+    if (!IsValid(Enemy))
+    {
+        UE_LOG(LogTemp, Error, TEXT("CASTLE_ENEMY_SPAWN_FAILED Class=%s Floor=%d Seed=%d Position=%s Boss=%d"),
+            *GetNameSafe(SpawnClass), Floor, RunSeed, *Pos.ToCompactString(), IsBoss);
+        return nullptr;
+    }
+    Enemy->Configure(IsBoss, Floor, this);
+    TrackGenerated(Enemy);
+    return Enemy;
+}
+
+ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos)
+{
+    return AddEnemy(Pos, false, OrdinaryEnemyClass);
 }
 
 void ACastleDirector::StartRun(int32 Seed)
@@ -464,7 +485,7 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
             CastleDressCourtProp(AddInteract(C+FVector(220,-400,45),ECastleInteract::Ammo,TEXT("STARTER SUPPLIES"))); break;
         case ECastleRoom::Shop: CastleDressCourtProp(AddInteract(C+FVector(250,0,45),ECastleInteract::Shop,TEXT("ARMORY"))); break;
         case ECastleRoom::Combat:
-            for(int32 E=0;E<2+Floor;++E) AddEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100),false);
+            for(int32 E=0;E<2+Floor;++E) AddOrdinaryEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100));
             Cover(FVector(-430,-350,90),FVector(160,260,180)); Cover(FVector(430,350,90),FVector(160,260,180)); break;
         case ECastleRoom::Chest:
             if(!NewMemoryArt)BuildMemoryRoom(Room,900,false);
@@ -482,9 +503,11 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         case ECastleRoom::Rest: CastleDressCourtProp(AddInteract(C+FVector(230,0,45),ECastleInteract::Rest,TEXT("FIELD CAMP"))); break;
         case ECastleRoom::Elite:
         {
-            auto* Elite = AddEnemy(C+FVector(0,0,100),false);
-            Elite->bElite = true; Elite->MaxHealth *= 1.8f; Elite->Health = Elite->MaxHealth; Elite->AttackDamage *= 1.25f;
-            Elite->Label->SetText(FText::FromString(TEXT("ELITE SENTINEL")));
+            if (auto* Elite = AddEnemy(C+FVector(0,0,100),false))
+            {
+                Elite->bElite = true; Elite->MaxHealth *= 1.8f; Elite->Health = Elite->MaxHealth; Elite->AttackDamage *= 1.25f;
+                Elite->Label->SetText(FText::FromString(TEXT("ELITE SENTINEL")));
+            }
             Cover(FVector(-350,300,100),FVector(180,220,200));
             Cover(FVector(350,-300,100),FVector(180,220,200));
             break;

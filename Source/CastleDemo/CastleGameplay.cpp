@@ -413,11 +413,12 @@ void ACastleEnemy::Configure(bool InBoss, int32 InFloor, ACastleDirector* D)
     if (auto* AI = Cast<ACastleAIController>(GetController())) AI->StartCastleBehavior();
 }
 
-void ACastleEnemy::ShootAt(ACastlePlayer* P, int32 Count)
+bool ACastleEnemy::ShootAt(ACastlePlayer* P, int32 Count)
 {
     AILastVolley = Count;
     const FVector Start = GetActorLocation() + FVector(65, 0, 35);
     const FVector Aim = (P->GetActorLocation() + FVector(0, 0, 20) - Start).GetSafeNormal();
+    bool bSpawnedBolt = false;
     for (int32 I = 0; I < Count; ++I)
     {
         FActorSpawnParameters Params; Params.Owner = this; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -425,8 +426,10 @@ void ACastleEnemy::ShootAt(ACastlePlayer* P, int32 Count)
         {
             Bolt->Shooter = this; Bolt->Damage = AttackDamage;
             Bolt->Velocity = Aim.RotateAngleAxis((I - (Count - 1) * .5f) * 9, FVector::UpVector) * (bBoss ? 1000 : 850);
+            bSpawnedBolt = true;
         }
     }
+    return bSpawnedBolt;
 }
 
 void ACastleEnemy::Tick(float Dt)
@@ -487,8 +490,17 @@ void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
     {
         ++AIAttackEvents;
         NextAttack = Now + (bBoss ? (Health < MaxHealth * .5f ? .85f : 1.35f) : 1.9f);
-        if (Dist < 140) UGameplayStatics::ApplyDamage(P, AttackDamage, GetController(), this, nullptr);
-        else ShootAt(P, bBoss ? (Health < MaxHealth * .5f ? 5 : 3) : 1);
+        const bool bMelee = Dist < 140;
+        bool bAttackCommitted = bMelee;
+        if (bMelee)
+        {
+            UGameplayStatics::ApplyDamage(P, AttackDamage, GetController(), this, nullptr);
+        }
+        else
+        {
+            bAttackCommitted = ShootAt(P, bBoss ? (Health < MaxHealth * .5f ? 5 : 3) : 1);
+        }
+        if (bAttackCommitted && !bBoss && !bElite && !bDead) BP_OnAttackVisual(bMelee);
     }
 }
 
@@ -512,13 +524,19 @@ void ACastleEnemy::UpdateGroundSlam(ACastlePlayer* P)
 float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*)
 {
     if (bDead || !bActive) return 0;
+    const float PreviousHealth = Health;
     Health = FMath::Max(0.f, Health - Damage);
     if (Health <= 0)
     {
         bDead = true; Telegraph->SetVisibility(false);
         if (auto* AI = Cast<AAIController>(GetController())) { AI->StopMovement(); AI->UnPossess(); AI->Destroy(); }
         if (Director) Director->EnemyKilled(this);
+        if (!bBoss && !bElite) BP_OnDeathVisual();
         Destroy();
+    }
+    else if (!bBoss && !bElite && Health < PreviousHealth)
+    {
+        BP_OnHitVisual(PreviousHealth - Health);
     }
     return Damage;
 }
