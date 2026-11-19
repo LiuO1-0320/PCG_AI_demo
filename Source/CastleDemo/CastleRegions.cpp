@@ -1,6 +1,9 @@
 #include "CastleDemo.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "EngineUtils.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/GameViewportClient.h"
+#include "HAL/PlatformMisc.h"
 
 namespace
 {
@@ -93,8 +96,186 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     for(int32 Order=0;Order<4;++Order)
     {
         const auto& Room=CaveRooms[CaveRoute[Order]]; const FVector C=Room.Center;
-        BuildRoom(C,800,Room.Doors,6); AddLight(C+FVector(0,0,390),FLinearColor(.2f,.55f,1));
-        BuildMemoryRoom(Room,800,true);
+        // ===== PCG2-藏宝洞：程序化记忆殿堂（仅藏宝洞区域生效）=====
+        // 房间尺度、层高、拱顶样式、陈设主题、柱阵、水晶全部由种子决定。
+        // 独立随机流：不消耗布局/奖励种子 R，不影响探索区、Boss 区与 AI。
+        // 所有装饰均无碰撞（AddBox 第 4 参数 false），不挡门洞、不改导航。
+        FRandomStream G(int32(uint32(RunSeed)^uint32(Floor)*0x5bd1e995u^
+            GetTypeHash(FIntPoint(FMath::RoundToInt(C.X),FMath::RoundToInt(C.Y)))^0x6772616eu));
+
+        // 1) 尺度与层高：平面半尺寸 750-900，层高 1000-1480
+        const float Half=750.f+G.FRandRange(0.f,150.f);
+        const float CeilH=1000.f+G.FRandRange(0.f,480.f);
+        BuildRoom(C,Half,Room.Doors,6);
+        AddLight(C+FVector(0,0,390),FLinearColor(.2f,.55f,1));
+        BuildMemoryRoom(Room,Half,true);
+
+        // 2) 拱顶样式 0=交叉肋拱 1=连拱筒 2=阶梯穹顶
+        const int32 VaultStyle=G.RandRange(0,2);
+        // 3) 陈设主题 0=肖像廊 1=乐师厅 2=钟表室 3=礼服室
+        const int32 Theme=G.RandRange(0,3);
+        // 4) 中央柱阵 0-4 根（无碰撞装饰）
+        const int32 Pillars=G.RandRange(0,4);
+        // 5) 陈设开关
+        const bool bTapestry=G.FRand()<.90f;
+        const bool bCandles=G.FRand()<.85f;
+        const int32 GemCount=G.RandRange(1,3);
+
+        const FVector NV[4]={FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
+        auto Beam=[&](FVector A,FVector B,float Th,int32 Mat)
+        {
+            const FVector D=B-A;
+            AddBox((A+B)*0.5f,FVector(Th,D.Size(),Th),Mat,false,D.Rotation());
+        };
+        for(int32 Side=0;Side<4;++Side)
+        {
+            const FVector N=NV[Side],T(-N.Y,N.X,0);
+            const bool AlongX=Side%2==0;
+            auto Put=[&](float Depth,float Across,float Height,FVector Size,int32 Mat,float Lean=0.f)
+            {
+                const FVector WS=AlongX?Size:FVector(Size.Y,Size.X,Size.Z);
+                AddBox(C+N*Depth+T*Across+FVector(0,0,Height),WS,Mat,false,
+                    AlongX?FRotator(0,0,Lean):FRotator(Lean,0,0));
+            };
+            // 高墙（480 -> CeilH）+ 金檐口 + 墙裙金线
+            Put(Half+45,0,(480.f+CeilH)*.5f,FVector(90,Half*2+180,CeilH-480.f),2);
+            Put(Half+10,0,CeilH+2,FVector(120,Half*2+150,28),3);
+            Put(Half-18,0,492,FVector(46,Half*2,18),3);
+            if(Room.Doors&(1<<Side)) continue;   // 有门墙面不放大件，480cm 门洞永远畅通
+
+            // 挂毯（随机开关）
+            if(bTapestry)
+                for(int32 S:{-1,1})
+                {
+                    const float A=S*(Half*.55f);
+                    Put(Half-55,A,700,FVector(12,200,500),5);
+                    Put(Half-62,A,952,FVector(16,214,18),3);
+                    Put(Half-58,A,452,FVector(14,208,14),3);
+                    for(int32 K=-1;K<=1;++K) Put(Half-60,A+K*60,700,FVector(8,12,480),8);
+                }
+            // 主题陈设（由种子决定，四种记忆主题）
+            if(Theme==0)      // 肖像廊：镀金大框 + 紫晶画芯（完整，不破损）
+            {
+                Put(Half-50,0,760,FVector(16,340,420),5);
+                Put(Half-56,-186,760,FVector(24,22,470),3);
+                Put(Half-56, 186,760,FVector(24,22,470),3);
+                Put(Half-56,0,982,FVector(24,394,22),3);
+                Put(Half-56,0,538,FVector(24,394,22),3);
+            }
+            else if(Theme==1) // 乐师厅：竖琴轮廓 + 七根金弦
+            {
+                Put(Half-54,0,700,FVector(14,300,380),8);
+                for(int32 K=-3;K<=3;++K) Put(Half-60,K*40,700,FVector(10,6,340),3);
+                Put(Half-60,0,880,FVector(16,300,18),3);
+                Put(Half-60,-150,700,FVector(20,20,380),3);
+                Put(Half-60, 150,700,FVector(20,20,380),3);
+            }
+            else if(Theme==2) // 钟表室：十二刻金盘 + 双指针
+            {
+                Put(Half-52,0,760,FVector(12,300,300),8);
+                for(int32 K=0;K<12;++K)
+                {
+                    const float Ang=K*(2.f*3.14159265f/12.f);
+                    Put(Half-58,FMath::Cos(Ang)*170.f,760.f+FMath::Sin(Ang)*170.f,FVector(16,44,44),3);
+                }
+                Put(Half-46,0,790,FVector(10,8,120),3);
+                Put(Half-46,45,770,FVector(10,100,8),3);
+            }
+            else              // 礼服室：紫纱垂坠 + 金腰带
+            {
+                Put(Half-54,0,700,FVector(12,220,460),5);
+                Put(Half-60,0,760,FVector(16,240,30),3);
+                for(int32 K=-2;K<=2;++K) Put(Half-58,K*46,560,FVector(10,10,380),5);
+                Put(Half-62,-120,900,FVector(18,40,40),3);
+                Put(Half-62, 120,900,FVector(18,40,40),3);
+            }
+            // 壁挂金烛台（随机开关）
+            if(bCandles)
+                for(int32 S:{-1,1})
+                {
+                    const float A=S*(Half*.40f);
+                    Put(Half-95,A,150,FVector(56,56,300),8);
+                    Put(Half-95,A,305,FVector(28,28,110),3);
+                    for(int32 K:{-1,0,1}) Put(Half-95,A+K*44,382,FVector(18,18,70),3);
+                }
+        }
+        // 四角束柱 + 金柱头（接续基础房间 520 高角柱）
+        for(int32 X:{-1,1}) for(int32 Y:{-1,1})
+        {
+            const FVector Base=C+FVector(X*(Half-65),Y*(Half-65),0);
+            AddBox(Base+FVector(0,0,(520.f+CeilH-80.f)*.5f),FVector(135,135,CeilH-600.f),2,false);
+            AddBox(Base+FVector(0,0,CeilH-70),FVector(172,172,44),3,false);
+            AddBox(Base+FVector(0,0,CeilH-24),FVector(150,150,48),2,false);
+        }
+        // 拱顶：三种样式由种子决定
+        if(VaultStyle==0) // 交叉肋拱 + 金拱顶石
+        {
+            const FVector Top=C+FVector(0,0,CeilH+230.f);
+            for(int32 X:{-1,1}) for(int32 Y:{-1,1})
+                Beam(C+FVector(X*(Half-65),Y*(Half-65),CeilH-15.f),Top,34,1);
+            AddBox(Top+FVector(0,0,12),FVector(160,160,62),3,false);
+        }
+        else if(VaultStyle==1) // 沿 X 轴三连尖拱券
+        {
+            for(int32 K=-1;K<=1;++K)
+            {
+                const FVector Arc=C+FVector(K*Half*.55f,0,CeilH-10.f);
+                Beam(Arc+FVector(0,-Half*.62f,0),Arc+FVector(0,0,190.f),30,1);
+                Beam(Arc+FVector(0, Half*.62f,0),Arc+FVector(0,0,190.f),30,1);
+                AddBox(Arc+FVector(0,0,200.f),FVector(60,60,50),3,false);
+            }
+        }
+        else // 阶梯穹顶（四层收分，顶层压金）
+        {
+            for(int32 K=0;K<4;++K)
+            {
+                const float S=(Half*1.45f)*(1.f-K*.2f);
+                AddBox(C+FVector(0,0,CeilH+40.f+K*52.f),FVector(S,S,46),K==3?3:1,false);
+            }
+        }
+        // 回字形檐口：四周出檐、中间开天窗，让天光进入并遮住墙顶接缝
+        {
+            const float Span=Half*2+500.f, Rim=Span*.22f;
+            AddBox(C+FVector(0, Span*.5f-Rim*.5f, CeilH+300.f),FVector(Span,Rim,90),1,false);
+            AddBox(C+FVector(0,-(Span*.5f-Rim*.5f),CeilH+300.f),FVector(Span,Rim,90),1,false);
+            AddBox(C+FVector( Span*.5f-Rim*.5f,0,CeilH+300.f),FVector(Rim,Span,90),1,false);
+            AddBox(C+FVector(-(Span*.5f-Rim*.5f),0,CeilH+300.f),FVector(Rim,Span,90),1,false);
+        }
+        // 藏宝洞暖金自主照明：中央 + 四角 + 地面补光，形成殿堂光（明显亮于探索区）
+        AddLight(C+FVector(0,0,CeilH*.55f),FLinearColor(1.f,.82f,.55f));
+        for(int32 X:{-1,1}) for(int32 Y:{-1,1})
+            AddLight(C+FVector(X*Half*.45f,Y*Half*.45f,320.f),FLinearColor(1.f,.74f,.45f));
+        AddLight(C+FVector(0,0,180.f),FLinearColor(1.f,.78f,.50f));
+        // 中央柱阵（随机 0-4 根，落在对角线象限，避开中轴视线与通道）
+        for(int32 P=0;P<Pillars;++P)
+        {
+            const float Ang=(45.f+P*(360.f/FMath::Max(1,Pillars))+G.FRandRange(-10.f,10.f))*3.14159265f/180.f;
+            const float Rad=Half*.60f;
+            const FVector B=C+FVector(FMath::Cos(Ang)*Rad,FMath::Sin(Ang)*Rad,0);
+            AddBox(B+FVector(0,0,330),FVector(58,58,660),2,false);
+            AddBox(B+FVector(0,0,672),FVector(84,84,34),3,false);
+        }
+        // 紫水晶记忆簇（随机数量与朝向）
+        for(int32 Gi=0;Gi<GemCount;++Gi)
+        {
+            const float Ang=G.FRandRange(0.f,360.f)*3.14159265f/180.f;
+            const FVector Gem=C+FVector(FMath::Cos(Ang)*Half*.60f,FMath::Sin(Ang)*Half*.60f,0);
+            const float Tilt=G.FRandRange(-20.f,20.f);
+            AddBox(Gem+FVector(0,0,95),FVector(72,72,190),5,false,FRotator(0,Tilt,14.f));
+            AddBox(Gem+FVector(44,44,0)+FVector(0,0,135),FVector(52,52,270),5,false,FRotator(9,-26.f,Tilt));
+            AddBox(Gem+FVector(-40,-40,0)+FVector(0,0,72),FVector(46,46,145),5,false,FRotator(-11,28.f,-Tilt));
+        }
+        // 终点房：记忆圣坛（规则驱动，每局必有）
+        if(Order==3)
+        {
+            const FVector Alt=C+FVector(-Half*.55f,Half*.55f,0);
+            AddBox(Alt+FVector(0,0,45),FVector(380,240,90),2,false);
+            AddBox(Alt+FVector(0,0,105),FVector(300,190,110),1,false);
+            AddBox(Alt+FVector(0,0,175),FVector(230,150,60),3,false);
+            AddBox(Alt+FVector(0,0,250),FVector(84,84,90),5,false);
+            AddBox(Alt+FVector(0,0,330),FVector(48,48,70),5,false,FRotator(0,45,0));
+        }
+        // ===== 以下功能性物件保持原逻辑，不参与装饰随机 =====
         AddSign(C+FVector(680,0,330),Order==0?TEXT("VAULT ENTRANCE"):Order==3?TEXT("VAULT EXIT"):TEXT("GUARDED RELIQUARY"),FColor(120,210,255));
         if(Order>0)
             AddInteract(C+FVector(420,400,45),ECastleInteract::Chest,TEXT("VAULT RELIC"),R.RandRange(0,2));
