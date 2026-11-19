@@ -81,6 +81,11 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
 {
     ClearGeneratedRegion(ECastlePCGRegion::TreasureCave);
     GeneratingRegion=ECastlePCGRegion::TreasureCave; InitializeMaterials();
+    // 藏宝洞专属石材：索引 6 只在藏宝洞使用（探索区/Boss 区用索引 2），
+    // 换成组员的 M_MemoryStone 后，BuildRoom 的墙与所有 AddBox(...,6) 直接变石材。
+    if (Materials.IsValidIndex(6))
+        Materials[6] = LoadObject<UMaterialInterface>(nullptr,
+            TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
     FRandomStream R(RegionSeed(RunSeed,Floor,0xcabed123u));
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     auto Neighbor=[&](int32 I,int32 Side)
@@ -138,12 +143,13 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         // ===== 【核心】记忆深度：0=入口(记忆残存) .. 1=出口(记忆完整) =====
         // 空间本身在讲故事：越深入，房间越高、越大、陈设越密、光越暖。
         const float MemDepth=Order/3.f;
-        const float Half=760.f+MemDepth*90.f+G.FRandRange(0.f,50.f);      // 760 -> 900
+        // 房间尺寸固定 900：复用组员的 BuildMedievalMemoryRoom（它按 1800x1800 模块化铺设）
+        const float Half=900.f;
         const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
         BuildRoom(C,Half,Room.Doors,6);
-        AddLight(C+FVector(0,0,390),FLinearColor(.2f,.55f,1));
-        BuildMemoryRoom(Room,Half,true);
+        // 组员的完整石材房间：墙/地面/柱/画框/地毯/四角蜡烛/氛围灯
+        BuildMedievalMemoryRoom(Room,Half);
 
         // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
         const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
@@ -186,115 +192,6 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                 AddBox(C+N*Depth+T*Across+FVector(0,0,Height),WS,Mat,false,
                     AlongX?FRotator(0,0,Lean):FRotator(Lean,0,0));
             };
-            // 高墙（480 -> CeilH）+ 金檐口 + 墙裙金线
-            Put(Half+45,0,(480.f+CeilH)*.5f,FVector(90,Half*2+180,CeilH-480.f),2);
-            Put(Half+10,0,CeilH+2,FVector(120,Half*2+150,28),3);
-            Put(Half-18,0,492,FVector(46,Half*2,18),3);
-            if(Room.Doors&(1<<Side))
-            {
-                // 门洞：Kenney 哥特拱门罩在门口（无碰撞，纯装饰）
-                const float ArchYaw=N.Rotation().Yaw;
-                AddDecorMesh(TEXT("/Game/Models/Kenney/tower-square-arch.tower-square-arch"),
-                    C+N*(Half-12),FVector(4.6f,4.6f,4.6f),FRotator(0,ArchYaw,0),-1);
-                // 门洞两侧墙垛
-                for(int32 S:{-1,1})
-                    AddDecorMesh(TEXT("/Game/Models/Kenney/wall-doorway.wall-doorway"),
-                        C+N*(Half-8)+T*(S*300.f),FVector(2.2f,2.2f,2.2f),FRotator(0,ArchYaw,0),-1);
-                continue;   // 有门墙面不放大件，480cm 门洞永远畅通
-            }
-
-            // 挂毯（随机开关）+ Kenney 长旗（深层出现）
-            if(bTapestry)
-            {
-                for(int32 S:{-1,1})
-                {
-                    const float A=S*(Half*.55f);
-                    Put(Half-55,A,700,FVector(12,200,500),5);
-                    Put(Half-62,A,952,FVector(16,214,18),3);
-                    Put(Half-58,A,452,FVector(14,208,14),3);
-                    for(int32 K=-1;K<=1;++K) Put(Half-60,A+K*60,700,FVector(8,12,480),8);
-                }
-                // Kenney 长旗：贴墙垂挂，随记忆深度出现
-                if(MemDepth>.35f)
-                {
-                    const float FlagYaw=N.Rotation().Yaw;
-                    for(int32 S:{-1,1})
-                        AddDecorMesh(TEXT("/Game/Models/Kenney/flag-banner-long.flag-banner-long"),
-                            C+N*(Half-26)+T*(S*Half*.34f)+FVector(0,0,470),
-                            FVector(1.7f,1.7f,1.7f),FRotator(0,FlagYaw,0),-1);
-                }
-            }
-            // 主题陈设（由种子决定，四种记忆主题）
-            if(Theme==0)      // 肖像廊：按记忆密度挂 1-3 幅镀金肖像（完整，不破损）
-            {
-                for(int32 F=0;F<FramesPerWall;++F)
-                {
-                    const float Span=340.f/FMath::Max(1,FramesPerWall);
-                    const float Off=(F-(FramesPerWall-1)*.5f)*(Span+26.f);
-                    const float W=Span*.74f, H=420.f*(W/340.f);
-                    Put(Half-50,Off,760,FVector(16,W,H),5);
-                    Put(Half-56,Off-W*.5f-11,760,FVector(24,22,H+50),3);
-                    Put(Half-56,Off+W*.5f+11,760,FVector(24,22,H+50),3);
-                    Put(Half-56,Off,760+H*.5f+14,FVector(24,W+44,22),3);
-                    Put(Half-56,Off,760-H*.5f-14,FVector(24,W+44,22),3);
-                }
-            }
-            else if(Theme==1) // 乐师厅：竖琴轮廓 + 七根金弦
-            {
-                Put(Half-54,0,700,FVector(14,300,380),8);
-                for(int32 K=-3;K<=3;++K) Put(Half-60,K*40,700,FVector(10,6,340),3);
-                Put(Half-60,0,880,FVector(16,300,18),3);
-                Put(Half-60,-150,700,FVector(20,20,380),3);
-                Put(Half-60, 150,700,FVector(20,20,380),3);
-            }
-            else if(Theme==2) // 钟表室：十二刻金盘 + 双指针
-            {
-                Put(Half-52,0,760,FVector(12,300,300),8);
-                for(int32 K=0;K<12;++K)
-                {
-                    const float Ang=K*(2.f*3.14159265f/12.f);
-                    Put(Half-58,FMath::Cos(Ang)*170.f,760.f+FMath::Sin(Ang)*170.f,FVector(16,44,44),3);
-                }
-                Put(Half-46,0,790,FVector(10,8,120),3);
-                Put(Half-46,45,770,FVector(10,100,8),3);
-            }
-            else              // 礼服室：紫纱垂坠 + 金腰带
-            {
-                Put(Half-54,0,700,FVector(12,220,460),5);
-                Put(Half-60,0,760,FVector(16,240,30),3);
-                for(int32 K=-2;K<=2;++K) Put(Half-58,K*46,560,FVector(10,10,380),5);
-                Put(Half-62,-120,900,FVector(18,40,40),3);
-                Put(Half-62, 120,900,FVector(18,40,40),3);
-            }
-            // 壁挂金烛台（随机开关）
-            if(bCandles)
-                for(int32 S:{-1,1})
-                {
-                    const float A=S*(Half*.40f);
-                    Put(Half-95,A,150,FVector(56,56,300),8);
-                    Put(Half-95,A,305,FVector(28,28,110),3);
-                    for(int32 K:{-1,0,1}) Put(Half-95,A+K*44,382,FVector(18,18,70),3);
-                }
-            // 壁龛（深层才有）：墙两侧凹龛 + 龛内记忆水晶
-            if(bNiche)
-                for(int32 S:{-1,1})
-                {
-                    const float A=S*(Half*.80f);
-                    Put(Half-28,A,520,FVector(56,26,520),1);
-                    Put(Half-28,A,800,FVector(56,150,26),1);
-                    Put(Half-48,A,430,FVector(34,90,150),5);
-                }
-        }
-        // 四角束柱：外部模型柱（无碰撞，按层高动态缩放）+ 金柱头
-        for(int32 X:{-1,1}) for(int32 Y:{-1,1})
-        {
-            const FVector Base=C+FVector(X*(Half-65),Y*(Half-65),0);
-            const int32 PillarSegments=FMath::Max(1,int32((CeilH-60.f)/131.f));
-            for(int32 K=0;K<PillarSegments;++K)
-                AddDecorMesh(TEXT("/Game/Models/Kenney/wall-pillar.wall-pillar"),
-                    Base+FVector(0,0,K*131.f),FVector(1.6f,1.6f,1.f),FRotator::ZeroRotator,2);
-            AddBox(Base+FVector(0,0,CeilH-70),FVector(172,172,44),3,false);
-            AddBox(Base+FVector(0,0,CeilH-24),FVector(150,150,48),2,false);
         }
         // 拱顶：三种样式由种子决定
         if(VaultStyle==0) // 交叉肋拱 + 金拱顶石
@@ -335,37 +232,15 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         for(int32 X:{-1,1}) for(int32 Y:{-1,1})
             AddLight(C+FVector(X*Half*.45f,Y*Half*.45f,320.f),Mood);
         AddLight(C+FVector(0,0,180.f),Mood);
-        // 中央柱阵（随机 0-4 根，落在对角线象限，避开中轴视线与通道）
-        for(int32 P=0;P<Pillars;++P)
-        {
-            const float Ang=(45.f+P*(360.f/FMath::Max(1,Pillars))+G.FRandRange(-10.f,10.f))*3.14159265f/180.f;
-            const float Rad=Half*.60f;
-            const FVector B=C+FVector(FMath::Cos(Ang)*Rad,FMath::Sin(Ang)*Rad,0);
-            AddBox(B+FVector(0,0,330),FVector(58,58,660),2,false);
-            // 柱头三式：方冠 / 圆冠 / 尖冠
-            if(CapStyle==0) AddBox(B+FVector(0,0,672),FVector(84,84,34),3,false);
-            else if(CapStyle==1) AddBox(B+FVector(0,0,676),FVector(74,74,42),3,false);
-            else { AddBox(B+FVector(0,0,666),FVector(80,80,26),3,false); AddBox(B+FVector(0,0,690),FVector(54,54,30),3,false); }
-        }
-        // 紫水晶记忆簇（随机数量与朝向）
+        // 记忆石碑：用组员的 SM_Pillar 缩小当石碑（石材，融入场景），
+        // 保留"记忆标记"的程序化位置，替掉原先突兀的纯色紫方块。
         for(int32 Gi=0;Gi<GemCount;++Gi)
         {
-            const float Ang=G.FRandRange(0.f,360.f)*3.14159265f/180.f;
-            const FVector Gem=C+FVector(FMath::Cos(Ang)*Half*.60f,FMath::Sin(Ang)*Half*.60f,0);
-            const float Tilt=G.FRandRange(-20.f,20.f);
-            AddBox(Gem+FVector(0,0,95),FVector(72,72,190),5,false,FRotator(0,Tilt,14.f));
-            AddBox(Gem+FVector(44,44,0)+FVector(0,0,135),FVector(52,52,270),5,false,FRotator(9,-26.f,Tilt));
-            AddBox(Gem+FVector(-40,-40,0)+FVector(0,0,72),FVector(46,46,145),5,false,FRotator(-11,28.f,-Tilt));
-        }
-        // 隔断屏风（无碰撞，划分空间层次；深层更多）
-        for(int32 Sc=0;Sc<Screens;++Sc)
-        {
-            const float Ang=G.FRandRange(0.f,360.f)*3.14159265f/180.f;
-            const float Rad=Half*.58f;
-            const FVector P=C+FVector(FMath::Cos(Ang)*Rad,FMath::Sin(Ang)*Rad,0);
-            const FRotator Rot(0,Ang*57.2958f+90.f,0);
-            AddBox(P+FVector(0,0,130),FVector(22,240,260),1,false,Rot);
-            AddBox(P+FVector(0,0,268),FVector(30,256,16),3,false,Rot);
+            const float Ang=(45.f+Gi*90.f+G.FRandRange(-12.f,12.f))*3.14159265f/180.f;
+            const FVector Gem=C+FVector(FMath::Cos(Ang)*Half*.86f,FMath::Sin(Ang)*Half*.86f,0);
+            const float Tilt=G.FRandRange(-8.f,8.f);
+            AddDecorMesh(TEXT("/Game/Demo/CourtArt/Masonry/SM_Pillar.SM_Pillar"),
+                Gem,FVector(0.34f,0.34f,0.34f),FRotator(0,Tilt,0),-1);
         }
         // 叙事铭文：与房间主题绑定（肖像说人、乐器说歌、钟表说时间、礼服说身份）
         {
@@ -375,37 +250,6 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                 {TEXT("THE HOURS STOPPED AT DUSK"),TEXT("A CLOCK THAT NEVER STRIKES"),TEXT("TIME RAN OUT FOR ALL OF US")},
                 {TEXT("A GOWN FOR A QUEEN LONG GONE"),TEXT("THE VELVET OUTLIVED ITS WEARER"),TEXT("SHE NEVER CAME BACK FOR IT")}};
             AddSign(C+FVector(0,-Half*.60f,430),Lines[Theme][G.RandRange(0,2)],FColor(205,190,240));
-        }
-        // 主题家具（成套陈设：每个主题不只是墙上一个装饰）
-        {
-            const FVector Corner=C+FVector(Half*.45f,-Half*.50f,0);
-            if(Theme==0)      // 肖像廊：画架 + 颜料箱
-            {
-                AddBox(Corner+FVector(0,0,120),FVector(16,120,240),8,false,FRotator(0,25,0));
-                AddBox(Corner+FVector(0,0,20),FVector(60,70,40),3,false);
-                AddBox(Corner+FVector(0,0,240),FVector(22,130,14),3,false);
-            }
-            else if(Theme==1) // 乐师厅：谱架 + 长凳
-            {
-                AddBox(Corner+FVector(0,0,90),FVector(10,100,180),8,false,FRotator(0,-20,0));
-                AddBox(Corner+FVector(0,0,180),FVector(14,110,12),3,false);
-                AddBox(Corner+FVector(60,0,45),FVector(160,50,90),2,false);
-            }
-            else if(Theme==2) // 钟表室：沙漏 + 齿轮柜
-            {
-                AddBox(Corner+FVector(0,0,60),FVector(60,60,120),8,false);
-                AddBox(Corner+FVector(0,0,130),FVector(80,80,20),3,false);
-                AddBox(Corner+FVector(0,0,150),FVector(50,50,40),5,false);
-                AddBox(Corner+FVector(80,0,140),FVector(120,140,280),1,false);
-                for(int32 K=0;K<3;++K) AddBox(Corner+FVector(80,0,60+K*70),FVector(130,150,16),3,false);
-            }
-            else              // 礼服室：衣箱 + 立镜
-            {
-                AddBox(Corner+FVector(0,0,70),FVector(180,110,140),2,false);
-                AddBox(Corner+FVector(0,0,145),FVector(190,120,18),3,false);
-                AddBox(Corner+FVector(100,-40,180),FVector(30,90,360),8,false);
-                AddBox(Corner+FVector(100,-40,190),FVector(18,78,340),3,false);
-            }
         }
         // 程序化参数标牌（只在入口房，直接展示这次生成了什么）
         if(Order==0)
@@ -426,8 +270,8 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             AddBox(Alt+FVector(0,0,45),FVector(380,240,90),2,false);
             AddBox(Alt+FVector(0,0,105),FVector(300,190,110),1,false);
             AddBox(Alt+FVector(0,0,175),FVector(230,150,60),3,false);
-            AddBox(Alt+FVector(0,0,250),FVector(84,84,90),5,false);
-            AddBox(Alt+FVector(0,0,330),FVector(48,48,70),5,false,FRotator(0,45,0));
+            AddBox(Alt+FVector(0,0,250),FVector(84,84,90),6,false);
+            AddBox(Alt+FVector(0,0,330),FVector(48,48,70),6,false,FRotator(0,45,0));
             // Kenney 石阶：通向圣坛的两级台阶
             for(int32 K=0;K<2;++K)
                 AddDecorMesh(TEXT("/Game/Models/Kenney/stairs-stone.stairs-stone"),

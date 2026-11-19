@@ -444,7 +444,7 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
     {
         const auto& Room = Rooms[I]; const FVector C = Room.Center;
         if(!Room.bActive)continue;
-        const bool NewMemoryArt=Floor==1 && Room.Type==ECastleRoom::Chest && BuildMedievalMemoryRoom(Room,900);
+        const bool NewMemoryArt=Room.Type==ECastleRoom::Chest && BuildMedievalMemoryRoom(Room,900);
         const bool Dressed=Court.Shell && Room.Type!=ECastleRoom::Chest;
         CourtShellDuringBuild=Dressed?Court.Shell:nullptr;
         BuildRoom(C,900,Room.Doors,2,NewMemoryArt);
