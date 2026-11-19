@@ -294,6 +294,8 @@ private:
     bool bExplorationGenerated = false, bCaveGenerated = false, bBossGenerated = false;
     bool bCaveRequested = false, bBossRequested = false;
     void AddBox(FVector Pos, FVector Size, int32 Material, bool Collision = true, FRotator Rotation = FRotator::ZeroRotator);
+    // 藏宝洞专用：放置外部静态网格装饰（无碰撞、随区域清理）
+    void AddDecorMesh(const TCHAR* AssetPath, FVector Pos, FVector Scale, FRotator Rotation, int32 Material);
     void BuildRoom(FVector Center, float HalfSize, int32 Doors, int32 Material, bool bMemoryArt = false);
     bool BuildMedievalMemoryRoom(const FCastleRoom& Room, float HalfSize);
     AActor* MemoryCollisionDuringBuild = nullptr;
