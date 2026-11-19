@@ -190,6 +190,10 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                 const float ArchYaw=N.Rotation().Yaw;
                 AddDecorMesh(TEXT("/Game/Models/Kenney/tower-square-arch.tower-square-arch"),
                     C+N*(Half-12),FVector(4.6f,4.6f,4.6f),FRotator(0,ArchYaw,0),-1);
+                // 门洞两侧墙垛
+                for(int32 S:{-1,1})
+                    AddDecorMesh(TEXT("/Game/Models/Kenney/wall-doorway.wall-doorway"),
+                        C+N*(Half-8)+T*(S*300.f),FVector(2.2f,2.2f,2.2f),FRotator(0,ArchYaw,0),-1);
                 continue;   // 有门墙面不放大件，480cm 门洞永远畅通
             }
 
@@ -379,6 +383,10 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             for(int32 K=0;K<2;++K)
                 AddDecorMesh(TEXT("/Game/Models/Kenney/stairs-stone.stairs-stone"),
                     Alt+FVector(-150.f-K*60.f,0,K*67.f),FVector(2.4f,2.4f,1.f),FRotator(0,0,0),-1);
+            // Kenney 栏杆：圣坛两侧围护
+            for(int32 S:{-1,1})
+                AddDecorMesh(TEXT("/Game/Models/Kenney/wall-narrow-stairs-rail.wall-narrow-stairs-rail"),
+                    Alt+FVector(0,S*150.f,0),FVector(1.6f,1.6f,1.6f),FRotator(0,90.f,0),-1);
         }
         // ===== 以下功能性物件保持原逻辑，不参与装饰随机 =====
         AddSign(C+FVector(680,0,330),Order==0?TEXT("VAULT ENTRANCE"):Order==3?TEXT("VAULT EXIT"):TEXT("GUARDED RELIQUARY"),FColor(120,210,255));
