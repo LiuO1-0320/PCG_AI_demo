@@ -148,10 +148,16 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
         const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
         const FLinearColor Mood = MemDepth>=.66f?Moods[0]:Moods[G.RandRange(0,2)];
-        // 拱顶样式 0=交叉肋拱 1=连拱筒 2=阶梯穹顶
-        const int32 VaultStyle=G.RandRange(0,2);
-        // 主题规则：入口必为肖像廊，出口必为礼服室，中间随机
-        const int32 Theme = Order==0?0 : Order==3?3 : G.RandRange(0,3);
+        // 拱顶：形式服从空间 —— 宽厅配肋拱/连拱，高塔配阶梯穹顶
+        int32 VaultStyle;
+        if(Half>855.f) VaultStyle=G.RandRange(0,1);
+        else if(CeilH>1310.f) VaultStyle=2;
+        else VaultStyle=1;
+        // 主题：按记忆深度递进（人 -> 物 -> 时间 -> 身份），中间两房方向由种子决定
+        int32 Theme;
+        if(Order==0) Theme=0;
+        else if(Order==3) Theme=3;
+        else { const bool bFlip=(RunSeed&1)!=0; Theme = Order==1 ? (bFlip?2:1) : (bFlip?1:2); }
         // 中央柱阵 0-4 根（深层更多），柱头三式
         const int32 Pillars=G.RandRange(0,int32(1.f+MemDepth*3.f));
         const int32 CapStyle=G.RandRange(0,2);
@@ -361,15 +367,58 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             AddBox(P+FVector(0,0,130),FVector(22,240,260),1,false,Rot);
             AddBox(P+FVector(0,0,268),FVector(30,256,16),3,false,Rot);
         }
-        // 叙事铭文：每房抽取一条记忆碎片文案（叙事程序化）
+        // 叙事铭文：与房间主题绑定（肖像说人、乐器说歌、钟表说时间、礼服说身份）
         {
-            static const TCHAR* Epitaphs[]={
-                TEXT("THE COURT REMEMBERED"),TEXT("A FEAST NO ONE LEFT"),
-                TEXT("SHE PAINTED EVERY FACE HERE"),TEXT("THE HOURS STOPPED AT DUSK"),
-                TEXT("A GOWN FOR A QUEEN LONG GONE"),TEXT("THE HARP STILL HOLDS ITS NOTE"),
-                TEXT("NO ONE LEFT TO WEAR THE CROWN")};
-            AddSign(C+FVector(0,-Half*.60f,430),Epitaphs[G.RandRange(0,6)],FColor(205,190,240));
+            static const TCHAR* Lines[4][3]={
+                {TEXT("THE COURT REMEMBERED"),TEXT("SHE PAINTED EVERY FACE HERE"),TEXT("NO ONE LEFT TO WEAR THE CROWN")},
+                {TEXT("THE HARP STILL HOLDS ITS NOTE"),TEXT("A FEAST NO ONE LEFT"),TEXT("THE LAST DANCE NEVER ENDED")},
+                {TEXT("THE HOURS STOPPED AT DUSK"),TEXT("A CLOCK THAT NEVER STRIKES"),TEXT("TIME RAN OUT FOR ALL OF US")},
+                {TEXT("A GOWN FOR A QUEEN LONG GONE"),TEXT("THE VELVET OUTLIVED ITS WEARER"),TEXT("SHE NEVER CAME BACK FOR IT")}};
+            AddSign(C+FVector(0,-Half*.60f,430),Lines[Theme][G.RandRange(0,2)],FColor(205,190,240));
         }
+        // 主题家具（成套陈设：每个主题不只是墙上一个装饰）
+        {
+            const FVector Corner=C+FVector(Half*.45f,-Half*.50f,0);
+            if(Theme==0)      // 肖像廊：画架 + 颜料箱
+            {
+                AddBox(Corner+FVector(0,0,120),FVector(16,120,240),8,false,FRotator(0,25,0));
+                AddBox(Corner+FVector(0,0,20),FVector(60,70,40),3,false);
+                AddBox(Corner+FVector(0,0,240),FVector(22,130,14),3,false);
+            }
+            else if(Theme==1) // 乐师厅：谱架 + 长凳
+            {
+                AddBox(Corner+FVector(0,0,90),FVector(10,100,180),8,false,FRotator(0,-20,0));
+                AddBox(Corner+FVector(0,0,180),FVector(14,110,12),3,false);
+                AddBox(Corner+FVector(60,0,45),FVector(160,50,90),2,false);
+            }
+            else if(Theme==2) // 钟表室：沙漏 + 齿轮柜
+            {
+                AddBox(Corner+FVector(0,0,60),FVector(60,60,120),8,false);
+                AddBox(Corner+FVector(0,0,130),FVector(80,80,20),3,false);
+                AddBox(Corner+FVector(0,0,150),FVector(50,50,40),5,false);
+                AddBox(Corner+FVector(80,0,140),FVector(120,140,280),1,false);
+                for(int32 K=0;K<3;++K) AddBox(Corner+FVector(80,0,60+K*70),FVector(130,150,16),3,false);
+            }
+            else              // 礼服室：衣箱 + 立镜
+            {
+                AddBox(Corner+FVector(0,0,70),FVector(180,110,140),2,false);
+                AddBox(Corner+FVector(0,0,145),FVector(190,120,18),3,false);
+                AddBox(Corner+FVector(100,-40,180),FVector(30,90,360),8,false);
+                AddBox(Corner+FVector(100,-40,190),FVector(18,78,340),3,false);
+            }
+        }
+        // 程序化参数标牌（只在入口房，直接展示这次生成了什么）
+        if(Order==0)
+        {
+            static const TCHAR* ThemeNames[]={TEXT("PORTRAIT"),TEXT("MUSIC"),TEXT("CLOCK"),TEXT("GOWN")};
+            static const TCHAR* VaultNames[]={TEXT("RIB VAULT"),TEXT("BARREL VAULT"),TEXT("STEPPED DOME")};
+            const FString Info=FString::Printf(TEXT("MEMORY %.2f  |  %s  |  %s  |  %.1f x %.1f m"),
+                MemDepth,ThemeNames[Theme],VaultNames[VaultStyle],Half*2.f/100.f,CeilH/100.f);
+            AddSign(C+FVector(-Half*.72f,0,720),Info,FColor(140,220,255));
+        }
+        // 生成统计：可在日志中核对每个房间的实际参数
+        UE_LOG(LogTemp,Display,TEXT("CAVE_ROOM Order=%d Depth=%.2f Theme=%d Vault=%d Half=%.0f Ceil=%.0f"),
+            Order,MemDepth,Theme,VaultStyle,Half,CeilH);
         // 终点房：记忆圣坛（规则驱动，每局必有）
         if(Order==3)
         {
@@ -391,10 +440,16 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         // ===== 以下功能性物件保持原逻辑，不参与装饰随机 =====
         AddSign(C+FVector(680,0,330),Order==0?TEXT("VAULT ENTRANCE"):Order==3?TEXT("VAULT EXIT"):TEXT("GUARDED RELIQUARY"),FColor(120,210,255));
         if(Order>0)
-            AddInteract(C+FVector(420,400,45),ECastleInteract::Chest,TEXT("VAULT RELIC"),R.RandRange(0,2));
+        {
+            // 宝箱奖励分级：深层必出最高级藏品（索引 2）
+            const int32 RelicKind = MemDepth>=.66f ? 2 : R.RandRange(0,2);
+            AddInteract(C+FVector(420,400,45),ECastleInteract::Chest,TEXT("VAULT RELIC"),RelicKind);
+        }
         if(Order==1 || Order==2)
         {
-            for(int32 E=0;E<Floor;++E) AddEnemy(C+FVector(-330+E*220,300,100),false);
+            // 守卫数量随记忆深度递增：Floor .. Floor+2
+            const int32 Guards = Floor + int32(MemDepth*2.f);
+            for(int32 E=0;E<Guards;++E) AddEnemy(C+FVector(-330+E*220,300,100),false);
             AddBox(C+FVector(-440,-420,120),FVector(160,260,240),6);
         }
         for(int32 Side=0;Side<2;++Side) if(Room.Doors&(1<<Side))
@@ -409,6 +464,15 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     // Only the last room contains the return portal; the entry room stays clear.
     AddInteract(CaveExit+FVector(-440,-400,135),ECastleInteract::CaveReturn,TEXT("VAULT EXIT / RETURN"));
     UE_LOG(LogTemp,Display,TEXT("CASTLE_CAVE_ROUTE Floor=%d Seed=%d Route=%d,%d,%d,%d"),Floor,RunSeed,CaveRoute[0],CaveRoute[1],CaveRoute[2],CaveRoute[3]);
+    // 约束校验：统计本区域几何实例数（0 = 生成失败；过大 = 性能风险）
+    {
+        int32 TotalInstances=0;
+        const int32 Base=int32(ECastlePCGRegion::TreasureCave)*18;
+        for(int32 I=Base;I<Base+18;++I)
+            if(Geometry.IsValidIndex(I) && Geometry[I]) TotalInstances+=Geometry[I]->GetInstanceCount();
+        UE_LOG(LogTemp,Display,TEXT("CAVE_GEOMETRY Instances=%d"),TotalInstances);
+        if(TotalInstances==0) UE_LOG(LogTemp,Warning,TEXT("CAVE_GEOMETRY_EMPTY: vault generated no mesh instances"));
+    }
     bCaveGenerated=true;
     if(bExplorationGenerated && bBossGenerated && !bReady)CompleteFloorGeneration();
 }
