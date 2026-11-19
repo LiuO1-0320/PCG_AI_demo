@@ -1,5 +1,7 @@
 #include "CastleDemo.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameViewportClient.h"
@@ -43,6 +45,36 @@ void ACastleDirector::ClearGeneratedRegion(ECastlePCGRegion Area)
     }
     for(int32 I=int32(Area)*18;I<FMath::Min(Geometry.Num(),(int32(Area)+1)*18);++I)
         if(Geometry[I]) {Geometry[I]->DestroyComponent();Geometry[I]=nullptr;}
+}
+
+void ACastleDirector::AddDecorMesh(const TCHAR* AssetPath, FVector Pos, FVector Scale, FRotator Rotation, int32 Material)
+{
+    UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, AssetPath);
+    if (!Mesh) return;
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    auto* Actor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), Pos, Rotation, SpawnParams);
+    if (!Actor) return;
+    auto* Comp = NewObject<UStaticMeshComponent>(Actor);
+    if (!Comp) { Actor->Destroy(); return; }
+    Comp->SetStaticMesh(Mesh);
+    Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Comp->SetCanEverAffectNavigation(false);
+    Comp->SetMobility(EComponentMobility::Movable);
+    // 必须先设为 Root 再注册，否则组件会以世界原点注册，模型全部堆在 (0,0,0)。
+    Actor->SetRootComponent(Comp);
+    Comp->RegisterComponent();
+    Actor->SetActorLocation(Pos);
+    Actor->SetActorRotation(Rotation);
+    Actor->SetActorScale3D(Scale);
+    // 材质必须在注册之后设置，否则不生效（资产本身已由导入脚本写入 M_Stone）。
+    if (Materials.IsValidIndex(Material) && Materials[Material])
+    {
+        const int32 Slots = FMath::Max(1, Comp->GetNumMaterials());
+        for (int32 Slot = 0; Slot < Slots; ++Slot)
+            Comp->SetMaterial(Slot, Materials[Material]);
+    }
+    TrackGenerated(Actor);
 }
 
 void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
@@ -225,11 +257,14 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     Put(Half-48,A,430,FVector(34,90,150),5);
                 }
         }
-        // 四角束柱 + 金柱头（接续基础房间 520 高角柱）
+        // 四角束柱：外部模型柱（无碰撞，按层高动态缩放）+ 金柱头
         for(int32 X:{-1,1}) for(int32 Y:{-1,1})
         {
             const FVector Base=C+FVector(X*(Half-65),Y*(Half-65),0);
-            AddBox(Base+FVector(0,0,(520.f+CeilH-80.f)*.5f),FVector(135,135,CeilH-600.f),2,false);
+            const int32 PillarSegments=FMath::Max(1,int32((CeilH-60.f)/131.f));
+            for(int32 K=0;K<PillarSegments;++K)
+                AddDecorMesh(TEXT("/Game/Models/Kenney/wall-pillar.wall-pillar"),
+                    Base+FVector(0,0,K*131.f),FVector(1.6f,1.6f,1.f),FRotator::ZeroRotator,2);
             AddBox(Base+FVector(0,0,CeilH-70),FVector(172,172,44),3,false);
             AddBox(Base+FVector(0,0,CeilH-24),FVector(150,150,48),2,false);
         }
