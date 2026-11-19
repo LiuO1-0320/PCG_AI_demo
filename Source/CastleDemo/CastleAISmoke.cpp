@@ -1,4 +1,8 @@
 #include "CastleDemo.h"
+#include "CastleQueen.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "Engine/DamageEvents.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -106,16 +110,36 @@ void ACastleDirector::TickAISmokeTest()
         {Fail(TEXT("Dormant boss attacked or wrong tree"));return;}
         E->bActive=true;Next(7);break;
     case 7:
-        if(Elapsed<.4f)return;
-        if(E->AILastVolley!=3 || E->AIPursuitTicks<5 || E->AIAttackTicks<5 || E->AISlamTicks<5)
+        if(Elapsed<1.2f)return;
+        if(E->AILastVolley!=6 || E->AIPursuitTicks<5 || E->AIAttackTicks<5 || E->AISlamTicks<5)
         {Fail(TEXT("Boss parallel tasks/normal volley not running"));return;}
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: pursuit, attack and slam tasks concurrent; 3 bolts"));
+        if(auto* Queen=Cast<ACastleQueen>(E);!Queen || !Queen->ShootAnimation || !Queen->ChargeAnimation || !Queen->FrameGlow)
+        {Fail(TEXT("Queen rig, animations or frame material missing"));return;}
+        if(Cast<ACastleQueen>(E)->QueenMesh->GetMaterial(0)!=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/BossPrototype/QueenDemo/M_QueenDemo.M_QueenDemo")))
+        {Fail(TEXT("Queen body is using the default material instead of its texture"));return;}
+        {
+            FHitResult UpperBody;FCollisionQueryParams ShotQuery(NAME_None,false,P);
+            const FVector Target=E->GetActorLocation()+FVector(0,0,180);
+            if(!GetWorld()->LineTraceSingleByChannel(UpperBody,Target-FVector(500,0,0),Target,ECC_Visibility,ShotQuery) || UpperBody.GetActor()!=E)
+            {Fail(TEXT("Queen upper body is not targetable above movement capsule"));return;}
+        }
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: queen abilities use demo BT; 6 bolts from two muzzles"));
         E->Health=E->MaxHealth*.49f;Next(8);break;
     case 8:
-        if(Elapsed<1.4f)return;
-        if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=5)
-        {Fail(TEXT("Boss enrage/5-bolt fan changed"));return;}
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: half-health state, 5 bolts"));
+        if(Elapsed<.2f)return;
+        if(Elapsed<1.8f)
+        {
+            auto* Queen=Cast<ACastleQueen>(E);
+            if(!Queen || Queen->Action!=3 || Queen->TakeDamage(1,FDamageEvent(),P->GetController(),P)!=0)
+            {Fail(TEXT("Queen transition did not block damage and attacks"));return;}
+            for(TActorIterator<ACastleQueenBolt> It(GetWorld());It;++It) if(It->Shooter==E)
+            {Fail(TEXT("Queen transition retained old projectiles"));return;}
+            return;
+        }
+        if(Elapsed<4.2f)return;
+        if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=10)
+        {Fail(TEXT("Queen phase two did not fire 10-bolt volley"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: invulnerable transition, clean projectiles, 10 bolts"));
         MakeWall();ClearBolts();Next(9);break;
     case 9:
         if(!E->IsChargingBlast())return;

@@ -483,45 +483,54 @@ void ACastleDirector::GenerateBossArena(const UCastleLayoutSettings* Settings)
     GeneratingRegion=ECastlePCGRegion::BossArena; InitializeMaterials();
     BossPlatforms.Reset(); BossCoverPoints.Reset();
     FRandomStream R(RegionSeed(RunSeed,Floor,0xb055a12fu));
-    BuildRoom(BossCenter,2250,0,2);
-    AddSign(BossCenter+FVector(2130,0,430),BossName(),FColor(220,170,255));
+    if (!BuildBossPalaceShell()) BuildRoom(BossCenter,2250,0,2);
+    else AddBox(BossCenter-FVector(0,0,20),FVector(5000,4000,40),2);
     TArray<FIntPoint> Corners{FIntPoint(-1,-1),FIntPoint(1,-1),FIntPoint(-1,1),FIntPoint(1,1)};
     for(int32 I=Corners.Num()-1;I>0;--I)Corners.Swap(I,R.RandRange(0,I));
     const int32 PlatformCount=R.RandRange(2,4);
     for(int32 I=0;I<PlatformCount;++I)
     {
         const auto Corner=Corners[I];
-        const float Height=160+80*R.RandRange(0,2);
-        const FVector Top=BossCenter+FVector(Corner.X*1450,Corner.Y*1250,Height);
-        AddBox(Top-FVector(0,0,Height*.5f),FVector(700,850,Height),2);
+        constexpr float Height=240.f;
+        const FRotator DeckRotation(0,R.FRandRange(-4.f,4.f),0);
+        const float LaneY=Corner.Y*(525+R.FRandRange(-15,15));
+        const float DeckX=Corner.X*(1430+R.FRandRange(-30,30));
+        const FVector Top=BossCenter+FVector(DeckX,LaneY,Height);
+        AddBox(Top-FVector(0,0,Height*.5f),FVector(700,600,Height),2,true,DeckRotation);
+        AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_Plinth.SM_Ruin_Plinth"),Top-FVector(0,0,Height*.5f),FVector(710,610,Height),DeckRotation);
         BossPlatforms.Add(Top);
-        const FVector Start=BossCenter+FVector(Corner.X*150,Corner.Y*1250,0);
-        const FVector End=BossCenter+FVector(Corner.X*1100,Corner.Y*1250,Height);
+        const FVector Start=Top+DeckRotation.RotateVector(FVector(-Corner.X*1300,0,-Height));
+        const FVector End=Top+DeckRotation.RotateVector(FVector(-Corner.X*350,0,0));
         const FRotator Slope=(End-Start).Rotation();
         const FVector Normal=Slope.RotateVector(FVector::UpVector);
         // Extend into both adjoining surfaces to avoid tiny collision/nav seams.
-        AddBox((Start+End)*.5f-Normal*20,FVector((End-Start).Size()+80,600,40),1,true,Slope);
-        AddBox(Top+FVector(Corner.X*210,0,90),FVector(160,340,180),8);
+        AddBox((Start+End)*.5f-Normal*20,FVector((End-Start).Size()+80,500,40),1,true,Slope);
+        AddPalaceMesh(TEXT("/Game/DarkFantasyCastle/Meshes/SM_BrickStairs.SM_BrickStairs"), (Start+End)*.5f,FVector(500,950,Height),FRotator(0,DeckRotation.Yaw+(Corner.X>0?90:-90),0));
         AddLight(Top+FVector(0,0,300),FLinearColor(.6f,.25f,1));
     }
     // Keep the horizontal spawn-to-boss lane and all ramp approaches open.
-    // Cover alternates between short barricades, tall columns and L-shaped walls.
+    // Cover columns use a fixed size and a seeded pose.
     const int32 CoverCount=FMath::Clamp(Settings?Settings->ArenaCoverCount:10,4,18);
     for(int32 I=0;I<CoverCount;++I)
     {
         const int32 Row=I/6,Column=I%6;
         const float YSign=(I%2)?1.f:-1.f;
-        const FVector Pos=BossCenter+FVector(-1500+Column*600+R.FRandRange(-55,55),YSign*(570+Row*130),0);
-        const int32 Kind=R.RandRange(0,2);
-        const float Height=Kind==0?100:Kind==1?R.FRandRange(300,440):220;
-        const float Width=Kind==1?130:R.FRandRange(180,260);
-        AddBox(Pos+FVector(0,0,Height*.5f),FVector(Width,Kind==1?130:180,Height),8);
-        if(Kind==2)AddBox(Pos+FVector(Width*.5f+55,90,Height*.5f),FVector(110,260,Height),8);
+        const FVector Pos=BossCenter+FVector(-1450+Column*490+R.FRandRange(-55,55),YSign*(1350+Row*145),0);
+        constexpr float Height=320.f;
+        const FRotator ColumnRotation(0,R.FRandRange(0,360),0);
+        AddBox(Pos+FVector(0,0,Height*.5f),FVector(130,130,Height),8,true,ColumnRotation);
+        AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_BrokenShaft.SM_Ruin_BrokenShaft"),Pos+FVector(0,0,Height*.5f),FVector(142,142,Height+12),ColumnRotation);
         BossCoverPoints.Add(Pos+FVector(0,0,Height));
+    }
+    // Smooth collision supports navigation; the authored stone meshes supply the visible surfaces.
+    for (int32 Material : {1, 2, 8})
+    {
+        const int32 Slot=int32(ECastlePCGRegion::BossArena)*18+Material;
+        if (Geometry.IsValidIndex(Slot) && Geometry[Slot]) Geometry[Slot]->SetVisibility(false);
     }
     Boss=AddEnemy(BossCenter+FVector(400,0,180),true);
     AddInteract(BossCenter+FVector(-1700,-300,45),ECastleInteract::Ammo,TEXT("ARENA SUPPLIES"));
-    UE_LOG(LogTemp,Display,TEXT("CASTLE_BOSS_SPACE Floor=%d Seed=%d Platforms=%d Cover=%d"),Floor,RunSeed,BossPlatforms.Num(),BossCoverPoints.Num());
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_BOSS_SPACE Floor=%d Seed=%d Platforms=%d Cover=%d Palace=1"),Floor,RunSeed,BossPlatforms.Num(),BossCoverPoints.Num());
     bBossGenerated=true;
     if(bExplorationGenerated && bCaveGenerated && !bReady)CompleteFloorGeneration();
 }
