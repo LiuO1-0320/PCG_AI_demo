@@ -9,7 +9,7 @@
 namespace
 {
     using Generator = FRogueliteRoomGraphGenerator;
-    constexpr auto Flags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+    constexpr auto RoomGraphTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
     FString DescribeResult(const FRogueliteGraphGenerationResult& R)
     {
         FString Text = FString::Printf(TEXT("Seed=%d success=%d fallback=%d used=%d accepted=%d error=%d reason=%s fallbackReason=%s|%s"),
@@ -73,7 +73,7 @@ namespace
     }
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphHundredSeedsTest, "Roguelite.RoomGraph.HundredSeeds", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphHundredSeedsTest, "Roguelite.RoomGraph.HundredSeeds", RoomGraphTestFlags)
 bool FRogueliteGraphHundredSeedsTest::RunTest(const FString&)
 {
     const FRogueliteGraphGenerationSettings S;
@@ -99,7 +99,7 @@ bool FRogueliteGraphHundredSeedsTest::RunTest(const FString&)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphSeedIsolationTest, "Roguelite.RoomGraph.SeedIsolation", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphSeedIsolationTest, "Roguelite.RoomGraph.SeedIsolation", RoomGraphTestFlags)
 bool FRogueliteGraphSeedIsolationTest::RunTest(const FString&)
 {
     const ERogueliteGraphSeedPurpose Purposes[] = {ERogueliteGraphSeedPurpose::Topology, ERogueliteGraphSeedPurpose::RoomType,
@@ -122,7 +122,7 @@ bool FRogueliteGraphSeedIsolationTest::RunTest(const FString&)
     AddInfo(TEXT("B1_SEED_ISOLATION Golden=5 UnrelatedDraws=40000 Passed")); return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphInvalidSettingsTest, "Roguelite.RoomGraph.InvalidSettings", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphInvalidSettingsTest, "Roguelite.RoomGraph.InvalidSettings", RoomGraphTestFlags)
 bool FRogueliteGraphInvalidSettingsTest::RunTest(const FString&)
 {
     const auto Reject = [this](const FRogueliteGraphGenerationSettings& S, ERogueliteGraphError Expected)
@@ -155,7 +155,7 @@ bool FRogueliteGraphInvalidSettingsTest::RunTest(const FString&)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphFallbackTest, "Roguelite.RoomGraph.RetryFallback", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphFallbackTest, "Roguelite.RoomGraph.RetryFallback", RoomGraphTestFlags)
 bool FRogueliteGraphFallbackTest::RunTest(const FString&)
 {
     auto S = TightSettings(); int32 Fixture = INDEX_NONE;
@@ -199,7 +199,7 @@ bool FRogueliteGraphFallbackTest::RunTest(const FString&)
     AddError(TEXT("Required-minimum fallback fixture not found")); return false;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphBudgetsTest, "Roguelite.RoomGraph.DegreeBudgets", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphBudgetsTest, "Roguelite.RoomGraph.DegreeBudgets", RoomGraphTestFlags)
 bool FRogueliteGraphBudgetsTest::RunTest(const FString&)
 {
     for (int32 D=1; D<=4; ++D)
@@ -221,7 +221,7 @@ bool FRogueliteGraphBudgetsTest::RunTest(const FString&)
     AddInfo(TEXT("B1_BUDGETS Degree=1..4 Seeds=100 SignedSeedExtremes=3 Passed")); return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphMutationTest, "Roguelite.RoomGraph.RejectMalformedGraphs", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphMutationTest, "Roguelite.RoomGraph.RejectMalformedGraphs", RoomGraphTestFlags)
 bool FRogueliteGraphMutationTest::RunTest(const FString&)
 {
     const FRogueliteGraphGenerationSettings S; const auto Good=Generator::Generate(1337,S).Graph;
@@ -242,7 +242,7 @@ bool FRogueliteGraphMutationTest::RunTest(const FString&)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphGoldenSummaryTest, "Roguelite.RoomGraph.GoldenSummaryAndQueries", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphGoldenSummaryTest, "Roguelite.RoomGraph.GoldenSummaryAndQueries", RoomGraphTestFlags)
 bool FRogueliteGraphGoldenSummaryTest::RunTest(const FString&)
 {
     FRogueliteGraphGenerationSettings S;
@@ -263,7 +263,7 @@ bool FRogueliteGraphGoldenSummaryTest::RunTest(const FString&)
     AddInfo(TEXT("B1_GOLDEN StableDigest=a78edc8bfc4f1456 Shape=0b88e440b27b2fa2")); return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphWorldIsolationTest, "Roguelite.RoomGraph.NoActorMutation", Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteGraphWorldIsolationTest, "Roguelite.RoomGraph.NoActorMutation", RoomGraphTestFlags)
 bool FRogueliteGraphWorldIsolationTest::RunTest(const FString&)
 {
     TMap<AActor*,FTransform> Before;

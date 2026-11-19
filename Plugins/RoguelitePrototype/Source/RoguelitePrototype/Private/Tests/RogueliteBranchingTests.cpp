@@ -9,7 +9,7 @@
 namespace
 {
 using G=FRogueliteRoomGraphGenerator;
-constexpr auto Flags=EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter;
+constexpr auto BranchingTestFlags=EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter;
 FString ResultText(const FRogueliteGraphGenerationResult& R)
 {
     FString T=FString::Printf(TEXT("%d,%d,%d,%d,%d,%s,%s|%s"),R.bSucceeded,R.bUsedFallback,R.AttemptsUsed,R.AcceptedAttemptIndex,int32(R.Error),*R.Reason,*R.FallbackReason,*G::DescribeGraph(R.Graph));
@@ -42,7 +42,7 @@ bool IndependentTree(FAutomationTestBase& Test,const FRogueliteRoomGraph& Graph,
     FString Reason;Passed&=Test.TestTrue(TEXT("Production V2 metadata validation"),G::ValidateGraph(Graph,S,Reason));if(!Passed)Test.AddError(Reason);return Passed;
 }
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2HundredTest,"Roguelite.BranchingV2.HundredSeeds",Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2HundredTest,"Roguelite.BranchingV2.HundredSeeds",BranchingTestFlags)
 bool FRogueliteV2HundredTest::RunTest(const FString&)
 {
     const auto S=RogueliteBranchingTestSettings().GraphSettings();TSet<FString> Shapes;int32 Fallbacks=0,Rejected=0,MaxLevel=0;
@@ -58,7 +58,7 @@ bool FRogueliteV2HundredTest::RunTest(const FString&)
     TestTrue(TEXT("Multiple seed shapes"),Shapes.Num()>1);TestTrue(TEXT("Actual secondary generation"),MaxLevel>=2);
     AddInfo(FString::Printf(TEXT("B4_V2_STATS Seeds=100 Success=100 UniqueShapes=%d Fallbacks=%d RejectedCandidates=%d MaxGeneration=%d"),Shapes.Num(),Fallbacks,Rejected,MaxLevel));return true;
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2TypesTest,"Roguelite.BranchingV2.TypeQuotasAndCombinations",Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2TypesTest,"Roguelite.BranchingV2.TypeQuotasAndCombinations",BranchingTestFlags)
 bool FRogueliteV2TypesTest::RunTest(const FString&)
 {
     TestEqual(TEXT("Serialized Final remains 3"),StaticEnum<ERogueliteSeedRoomType>()->GetValueByNameString(TEXT("Final")),int64(3));
@@ -91,7 +91,7 @@ bool FRogueliteV2TypesTest::RunTest(const FString&)
     TestTrue(TEXT("Combat to Combat + Combat observed"),AFound);TestTrue(TEXT("Combat to Challenge + Shop observed"),BFound);TestTrue(TEXT("Combat to Combat + Event observed"),CFound);
     AddInfo(FString::Printf(TEXT("B4_TYPES Seeds=%d Combos=%d,%d,%d"),Tested,AFound,BFound,CFound));return true;
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2FailureTest,"Roguelite.BranchingV2.FailureFallbackAndMalformed",Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2FailureTest,"Roguelite.BranchingV2.FailureFallbackAndMalformed",BranchingTestFlags)
 bool FRogueliteV2FailureTest::RunTest(const FString&)
 {
     auto S=RogueliteBranchingTestSettings().GraphSettings();S.MaxAttempts=1;S.RecursiveBranchWeight=0;
@@ -108,7 +108,7 @@ bool FRogueliteV2FailureTest::RunTest(const FString&)
     TArray<TArray<ERogueliteSeedRoomType>> Capacity;Capacity.SetNum(Good.Nodes.Num());for(const auto& N:Good.Nodes)if(N.Degree<=2)Capacity[N.NodeId]={ERogueliteSeedRoomType::Combat,ERogueliteSeedRoomType::Challenge,ERogueliteSeedRoomType::SupplyShop,ERogueliteSeedRoomType::Final,ERogueliteSeedRoomType::Event};
     R=FRogueliteRoomTypeAssigner::Assign(Good,RogueliteBranchingTestSettings().TypeAssignment,Capacity);TestTrue(TEXT("Degree3 without compatible template explicitly refused"),!R.bSucceeded&&R.FailedNodeId!=INDEX_NONE);AddInfo(TEXT("B4_CAPACITY_REJECT ")+R.Reason);return true;
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2IsolationTest,"Roguelite.BranchingV2.VersionAndWorldIsolation",Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRogueliteV2IsolationTest,"Roguelite.BranchingV2.VersionAndWorldIsolation",BranchingTestFlags)
 bool FRogueliteV2IsolationTest::RunTest(const FString&)
 {
     FRogueliteGraphGenerationSettings V1;const auto Before=G::Generate(1337,V1);V1.MinNodes=256;V1.MinDecisionNodes=999;V1.MaxBranchGenerationDepth=-1;V1.RecursiveBranchWeight=0;
