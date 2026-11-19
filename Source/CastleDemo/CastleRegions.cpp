@@ -184,10 +184,18 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             Put(Half+45,0,(480.f+CeilH)*.5f,FVector(90,Half*2+180,CeilH-480.f),2);
             Put(Half+10,0,CeilH+2,FVector(120,Half*2+150,28),3);
             Put(Half-18,0,492,FVector(46,Half*2,18),3);
-            if(Room.Doors&(1<<Side)) continue;   // 有门墙面不放大件，480cm 门洞永远畅通
+            if(Room.Doors&(1<<Side))
+            {
+                // 门洞：Kenney 哥特拱门罩在门口（无碰撞，纯装饰）
+                const float ArchYaw=N.Rotation().Yaw;
+                AddDecorMesh(TEXT("/Game/Models/Kenney/tower-square-arch.tower-square-arch"),
+                    C+N*(Half-12),FVector(4.6f,4.6f,4.6f),FRotator(0,ArchYaw,0),-1);
+                continue;   // 有门墙面不放大件，480cm 门洞永远畅通
+            }
 
-            // 挂毯（随机开关）
+            // 挂毯（随机开关）+ Kenney 长旗（深层出现）
             if(bTapestry)
+            {
                 for(int32 S:{-1,1})
                 {
                     const float A=S*(Half*.55f);
@@ -196,6 +204,16 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     Put(Half-58,A,452,FVector(14,208,14),3);
                     for(int32 K=-1;K<=1;++K) Put(Half-60,A+K*60,700,FVector(8,12,480),8);
                 }
+                // Kenney 长旗：贴墙垂挂，随记忆深度出现
+                if(MemDepth>.35f)
+                {
+                    const float FlagYaw=N.Rotation().Yaw;
+                    for(int32 S:{-1,1})
+                        AddDecorMesh(TEXT("/Game/Models/Kenney/flag-banner-long.flag-banner-long"),
+                            C+N*(Half-26)+T*(S*Half*.34f)+FVector(0,0,470),
+                            FVector(1.7f,1.7f,1.7f),FRotator(0,FlagYaw,0),-1);
+                }
+            }
             // 主题陈设（由种子决定，四种记忆主题）
             if(Theme==0)      // 肖像廊：按记忆密度挂 1-3 幅镀金肖像（完整，不破损）
             {
@@ -357,6 +375,10 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             AddBox(Alt+FVector(0,0,175),FVector(230,150,60),3,false);
             AddBox(Alt+FVector(0,0,250),FVector(84,84,90),5,false);
             AddBox(Alt+FVector(0,0,330),FVector(48,48,70),5,false,FRotator(0,45,0));
+            // Kenney 石阶：通向圣坛的两级台阶
+            for(int32 K=0;K<2;++K)
+                AddDecorMesh(TEXT("/Game/Models/Kenney/stairs-stone.stairs-stone"),
+                    Alt+FVector(-150.f-K*60.f,0,K*67.f),FVector(2.4f,2.4f,1.f),FRotator(0,0,0),-1);
         }
         // ===== 以下功能性物件保持原逻辑，不参与装饰随机 =====
         AddSign(C+FVector(680,0,330),Order==0?TEXT("VAULT ENTRANCE"):Order==3?TEXT("VAULT EXIT"):TEXT("GUARDED RELIQUARY"),FColor(120,210,255));
