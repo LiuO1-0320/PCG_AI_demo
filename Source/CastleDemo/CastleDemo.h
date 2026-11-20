@@ -189,6 +189,9 @@ protected:
 
 private:
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
+    TWeakObjectPtr<ACastlePlayer> PursuitTarget;
+    FVector PursuitRetryOrigin = FVector::ZeroVector;
+    int32 PursuitRequestsRemaining = 0;
     bool bCharging = false;
     bool ShootAt(ACastlePlayer* Player, int32 Count);
 };

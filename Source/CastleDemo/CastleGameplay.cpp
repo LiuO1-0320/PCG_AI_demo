@@ -8,6 +8,7 @@
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "Materials/MaterialInterface.h"
@@ -468,17 +469,62 @@ void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
 {
     ++AIPursuitTicks;
     const float Now = GetWorld()->GetTimeSeconds();
-    const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
-    if (Now >= NextThink)
+    const FVector TargetLocation = P->GetActorLocation();
+    const float Dist = FVector::Dist(TargetLocation, GetActorLocation());
+    auto* AI = Cast<AAIController>(GetController());
+    if (bBoss || bElite)
     {
-        NextThink = Now + .45f;
-        if (auto* AI = Cast<AAIController>(GetController()))
+        if (Now >= NextThink)
         {
-            if (Dist > (bBoss ? 650 : 450) || !CanSee) AI->MoveToActor(P, bBoss ? 500 : 320, true);
-            else AI->StopMovement();
+            NextThink = Now + .45f;
+            if (AI)
+            {
+                if (Dist > (bBoss ? 650 : 450) || !CanSee) AI->MoveToActor(P, bBoss ? 500 : 320, true);
+                else AI->StopMovement();
+            }
         }
+        FRotator Face = (TargetLocation - GetActorLocation()).Rotation();
+        Face.Pitch = Face.Roll = 0;
+        SetActorRotation(Face);
+        return;
     }
-    FRotator Face = (P->GetActorLocation() - GetActorLocation()).Rotation(); Face.Pitch = Face.Roll = 0; SetActorRotation(Face);
+
+    if (!AI) return;
+
+    auto* Movement = GetCharacterMovement();
+    const bool bInFiringPosition = CanSee && Dist <= 450.f;
+    Movement->bOrientRotationToMovement = !bInFiringPosition;
+    Movement->bUseControllerDesiredRotation = bInFiringPosition;
+
+    if (bInFiringPosition)
+    {
+        if (AI->GetMoveStatus() != EPathFollowingStatus::Idle) AI->StopMovement();
+        AI->SetFocalPoint(TargetLocation, EAIFocusPriority::Gameplay);
+        PursuitTarget.Reset();
+        return;
+    }
+
+    AI->ClearFocus(EAIFocusPriority::Gameplay);
+    if (PursuitTarget.Get() != P || FVector::DistSquared(PursuitRetryOrigin, TargetLocation) >= FMath::Square(100.f))
+    {
+        PursuitTarget = P;
+        PursuitRetryOrigin = TargetLocation;
+        PursuitRequestsRemaining = 3;
+    }
+
+    // Path following already updates an active request as its target moves.
+    if (AI->GetMoveStatus() != EPathFollowingStatus::Idle || Now < NextThink || PursuitRequestsRemaining <= 0) return;
+
+    --PursuitRequestsRemaining;
+    NextThink = Now + .45f;
+    // A nearby target behind a wall still needs a path. The firing check above owns the ranged stop.
+    FAIMoveRequest MoveRequest(P);
+    MoveRequest.SetAcceptanceRadius(20.f);
+    MoveRequest.SetReachTestIncludesAgentRadius(false);
+    MoveRequest.SetReachTestIncludesGoalRadius(false);
+    MoveRequest.SetCanStrafe(false);
+    MoveRequest.SetNavigationFilter(AI->GetDefaultNavigationFilterClass());
+    AI->MoveTo(MoveRequest);
 }
 
 void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
