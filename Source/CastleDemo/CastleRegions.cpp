@@ -3,6 +3,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/PointLight.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
@@ -40,10 +41,12 @@ namespace
     {
         if(!Mid) return;
         const float D=FMath::Clamp(MemDepth,0.f,1.f);
-        const FLinearColor Cold=bTile?FLinearColor(.85f,.88f,.98f):FLinearColor(1.00f,1.04f,1.16f);
-        const FLinearColor Warm=bTile?FLinearColor(1.30f,1.24f,1.06f):FLinearColor(1.45f,1.34f,1.12f);
+        // 整条曲线都往暖金推：入口只是"暗一点、旧一点"，不是"变冷"。
+        // 冷暖对比交给灯光和斑驳度，墙面本身保持金色基调。
+        const FLinearColor Cold=bTile?FLinearColor(1.05f,1.02f,1.02f):FLinearColor(1.18f,1.14f,1.10f);
+        const FLinearColor Warm=bTile?FLinearColor(1.52f,1.36f,1.06f):FLinearColor(1.62f,1.46f,1.16f);
         const float RoughCold=bTile?1.10f:1.20f,RoughWarm=bTile?.72f:.84f;
-        const float GrimeCold=bTile?.55f:.62f,GrimeWarm=bTile?.15f:.18f;
+        const float GrimeCold=bTile?.55f:.50f,GrimeWarm=bTile?.15f:.12f;
         Mid->SetVectorParameterValue(TEXT("Tint"),FLinearColor(
             FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f));
         Mid->SetScalarParameterValue(TEXT("RoughnessScale"),FMath::Lerp(RoughCold,RoughWarm,D));
@@ -60,7 +63,6 @@ namespace
         auto* NewTile=CaveBase(true);
         if(!OldStone||!OldTile||!NewStone||!NewTile) return;
 
-        const float D=FMath::Clamp(MemDepth,0.f,1.f);
         auto* StoneMid=UMaterialInstanceDynamic::Create(NewStone,Art);
         auto* TileMid=UMaterialInstanceDynamic::Create(NewTile,Art);
         ApplyCaveGrade(StoneMid,MemDepth,false);
@@ -84,19 +86,33 @@ namespace
             for(int32 Slot=0;Slot<Comp->GetNumMaterials();++Slot) Comp->SetMaterial(Slot,Use);
             bStone?++Walls:++Floors;
         }
-        // 同一批灯，入口压暗偏冷、深处提亮偏暖。房间那盏大范围补光半径最大，
-        // 按半径把它和蜡烛光/记忆光区分开，只调补光，蜡烛保持原来的暖黄。
+        // 组员那 7 盏灯全是无阴影的大半径点光，叠起来把每面墙照得一样亮 —— 这就是
+        // 房间"平"的根因。这里把大范围补光压到 22%、半径砍到 760，让位给吊灯；
+        // 四角烛台收窄成光池，墙脚自然暗下去，明暗交界才立得住。
         int32 LitLamps=0;
         TArray<UPointLightComponent*> Lamps;
         Art->GetComponents<UPointLightComponent>(Lamps);
         for(auto* Lamp:Lamps)
         {
-            if(!Lamp||Lamp->AttenuationRadius<1200.f) continue;
-            Lamp->SetIntensity(Lamp->Intensity*FMath::Lerp(.34f,1.10f,D));
-            Lamp->SetLightColor(FMath::Lerp(FLinearColor(.58f,.66f,.86f),FLinearColor(1.f,.88f,.70f),D));
-            ++LitLamps;
+            if(!Lamp) continue;
+            const float Radius=Lamp->AttenuationRadius;
+            if(Radius>=1200.f)
+            {
+                Lamp->SetIntensity(Lamp->Intensity*.30f);
+                Lamp->SetAttenuationRadius(900.f);
+                Lamp->SetLightColor(FLinearColor(.74f,.74f,.76f));
+                ++LitLamps;
+            }
+            else if(Radius>800.f)
+            {
+                // 四角烛台原本贴着地面、把地板照得跟天花一样亮，这正是"平"的来源。
+                Lamp->SetIntensity(Lamp->Intensity*.45f);
+                Lamp->SetAttenuationRadius(Radius*.75f);
+                ++LitLamps;
+            }
         }
-        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Walls=%d Floors=%d FillLamps=%d"),D,Walls,Floors,LitLamps);
+        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Walls=%d Floors=%d Lamps=%d"),
+            FMath::Clamp(MemDepth,0.f,1.f),Walls,Floors,LitLamps);
     }
 }
 
@@ -164,6 +180,31 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     if (Materials.IsValidIndex(6))
         Materials[6] = LoadObject<UMaterialInterface>(nullptr,
             TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
+    // ===== 金厅构件 =====
+    // 材质槽只有 0-8 可用（非碰撞对象会 +9 落到第二槽区，Material=9 会串到别的区域），
+    // 所以吊灯/金线这类新材质不能塞进 Materials 数组，直接给组件指定材质指针。
+    auto* GoldMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveGold.M_CaveGold"));
+    auto* FlameMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_CandleFlame.M_CandleFlame"));
+    auto CavePart=[&](const TCHAR* Path,FVector Pos,FVector Scale,FRotator Rot,UMaterialInterface* Mat)
+    {
+        auto* Mesh=LoadObject<UStaticMesh>(nullptr,Path);
+        if(!Mesh) return;
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        auto* Actor=GetWorld()->SpawnActor<AActor>(AActor::StaticClass(),Pos,Rot,SpawnParams);
+        if(!Actor) return;
+        auto* Comp=NewObject<UStaticMeshComponent>(Actor);
+        Comp->SetStaticMesh(Mesh);
+        Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetCanEverAffectNavigation(false);
+        Comp->SetMobility(EComponentMobility::Movable);
+        Comp->SetCastShadow(false);
+        Actor->SetRootComponent(Comp);
+        Comp->RegisterComponent();
+        Actor->SetActorLocation(Pos); Actor->SetActorRotation(Rot); Actor->SetActorScale3D(Scale);
+        if(Mat) for(int32 Slot=0;Slot<FMath::Max(1,Comp->GetNumMaterials());++Slot) Comp->SetMaterial(Slot,Mat);
+        TrackGenerated(Actor);
+    };
     FRandomStream R(RegionSeed(RunSeed,Floor,0xcabed123u));
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     auto Neighbor=[&](int32 I,int32 Side)
@@ -227,12 +268,13 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
         // 洞体可见墙面走材质槽 6（只有藏宝洞用这个索引）：每房一份 MID，按深度分级。
+        UMaterialInstanceDynamic* RoomStone=nullptr;
         if(auto* ShellBase=CaveBase(false))
             if(Materials.IsValidIndex(6))
             {
-                auto* ShellMid=UMaterialInstanceDynamic::Create(ShellBase,this);
-                ApplyCaveGrade(ShellMid,MemDepth,false);
-                Materials[6]=ShellMid;
+                RoomStone=UMaterialInstanceDynamic::Create(ShellBase,this);
+                ApplyCaveGrade(RoomStone,MemDepth,false);
+                Materials[6]=RoomStone;
             }
         BuildRoom(C,Half,Room.Doors,6);
         // 组员的完整石材房间：墙/地面/柱/画框/地毯/四角蜡烛/氛围灯
@@ -244,6 +286,98 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         for(TActorIterator<AActor> It(GetWorld());It;++It)
             if(It->ActorHasTag(TEXT("CastleMemoryRoomArt")) && !ArtBefore.Contains(*It))
                 GradeCaveRoomArt(*It,MemDepth);
+
+        // ===== 金厅吊灯 =====
+        // 整间房只有这一盏开阴影：灯下亮成一片、墙脚自然留暗，房间才有纵深。
+        // 深度越深，灯越亮（记忆越完整，厅越"金碧辉煌"）。
+        {
+            const float HangZ=CeilH-250.f;
+            const FVector Hub=C+FVector(0,0,HangZ);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),C+FVector(0,0,(CeilH+HangZ)*.5f),
+                FVector(.10f,.10f,(CeilH-HangZ)/100.f),FRotator::ZeroRotator,GoldMat);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),Hub,FVector(3.4f,3.4f,.12f),FRotator::ZeroRotator,GoldMat);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),Hub+FVector(0,0,30),FVector(1.6f,1.6f,.22f),FRotator::ZeroRotator,GoldMat);
+            for(int32 A=0;A<10;++A)
+            {
+                const float Ang=A*(2.f*PI/10.f);
+                const FVector Arm(FMath::Cos(Ang)*150.f,FMath::Sin(Ang)*150.f,0);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),Hub+Arm*.5f,
+                    FVector(1.5f,.08f,.08f),FRotator(0,Ang*57.2958f,0),GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Sphere.Sphere"),Hub+Arm+FVector(0,0,26),
+                    FVector(.14f,.14f,.30f),FRotator::ZeroRotator,FlameMat);
+            }
+            auto* HeroLight=GetWorld()->SpawnActor<APointLight>(Hub+FVector(0,0,-30),FRotator::ZeroRotator);
+            if(HeroLight)
+            {
+                HeroLight->SetMobility(EComponentMobility::Movable);
+                auto* Bulb=HeroLight->PointLightComponent.Get();
+                if(Bulb)
+                {
+                    Bulb->SetMobility(EComponentMobility::Movable);
+                    // 点光源是平方反比衰减：灯挂在 7 米高，要到地面上跟"地面 1.6 米的
+                    // 蜡烛灯"同量级，强度得差 (7/1.6)^2 ≈ 20 倍，所以是 26 万起。
+                    Bulb->SetIntensity(FMath::Lerp(260000.f,430000.f,MemDepth));
+                    Bulb->SetAttenuationRadius(1900.f);
+                    Bulb->SetLightColor(FLinearColor(1.f,.80f,.50f));
+                    Bulb->SetCastShadows(true);
+                    Bulb->MarkRenderStateDirty();
+                }
+                TrackGenerated(HeroLight);
+                UE_LOG(LogTemp,Display,TEXT("CAVE_CHANDELIER Order=%d Hub=%s Bulb=%d Intensity=%.0f Mobility=%d"),
+                    Order,*Hub.ToCompactString(),Bulb!=nullptr,Bulb?Bulb->Intensity:0.f,
+                    Bulb?int32(Bulb->Mobility):-1);
+            }
+            else UE_LOG(LogTemp,Warning,TEXT("CAVE_CHANDELIER_FAILED Order=%d"),Order);
+            // 金色腰线：沿着四面墙顶一圈，压在门楣上，让"金碧辉煌"从墙面立起来
+            for(int32 Side=0;Side<4;++Side)
+            {
+                const bool bAlongX=(Side==1||Side==3);
+                const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                const FVector T(-N.Y,N.X,0);
+                const FVector Size=bAlongX?FVector(18.2f,.14f,.30f):FVector(.14f,18.2f,.30f);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+N*(Half-52.f)+FVector(0,0,472.f),
+                    Size,FRotator::ZeroRotator,GoldMat);
+                // 镀金壁柱：只放在没有门的那几面墙中间（画框在 ±440，这里不抢位置），
+                // 房间从"一整面砖墙"变成有节奏的厅。
+                if(Room.Doors&(1<<Side)) continue;
+                CavePart(TEXT("/Game/Models/Kenney/wall-pillar.wall-pillar"),
+                    C+N*(Half-58.f),FVector(1.5f,1.5f,4.6f),FRotator(0,Side*90.f,0),GoldMat);
+            }
+            // 地面金线：围着地毯一圈，"宝库"从脚下就有交代
+            for(int32 Sign:{-1,1})
+            {
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(Sign*380,0,2.4f),
+                    FVector(.06f,8.2f,.012f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,Sign*380,2.4f),
+                    FVector(8.2f,.06f,.012f),FRotator::ZeroRotator,GoldMat);
+            }
+            // ===== 补齐上半截 + 封顶 =====
+            // 房间美术的墙只有 480 高，再往上是空的，抬头直接看见天光（画面里天花板发蓝
+            // 就是这个）。用同一份石材 MID 把 480 一直砌到拱顶上方，再压一块顶板：
+            // 房间才真正"关起来"，吊灯的阴影也才有地方落。
+            if(RoomStone)
+            {
+                const float RoofZ=CeilH+300.f;
+                for(int32 Side=0;Side<4;++Side)
+                {
+                    const bool bAlongX=(Side==1||Side==3);
+                    const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+N*Half+FVector(0,0,(480.f+RoofZ)*.5f),
+                        bAlongX?FVector(18.6f,.85f,(RoofZ-480.f)/100.f):FVector(.85f,18.6f,(RoofZ-480.f)/100.f),
+                        FRotator::ZeroRotator,RoomStone);
+                }
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,0,RoofZ),
+                    FVector(18.6f,18.6f,.20f),FRotator::ZeroRotator,RoomStone);
+                // 顶上的金格：抬头看到的不是一块水泥板，而是格子金顶
+                for(int32 Bar=-3;Bar<=3;++Bar)
+                {
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(Bar*265.f,0,RoofZ-14.f),
+                        FVector(.22f,18.2f,.22f),FRotator::ZeroRotator,GoldMat);
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,Bar*265.f,RoofZ-14.f),
+                        FVector(18.2f,.22f,.22f),FRotator::ZeroRotator,GoldMat);
+                }
+            }
+        }
 
         // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
         const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};

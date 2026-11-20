@@ -115,6 +115,45 @@ def build(name, prefix):
 build('M_CaveStone', 'stone_block_wall')
 build('M_CaveTile', 'stone_tiles')
 
+
+def flat(name, hexcode, metallic=0.0, roughness=0.7, emission=0.0):
+    """Single-colour material, used for the chandelier and its inlay."""
+    path = ROOT + '/' + name
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        unreal.log('CASTLE_CAVE_MATERIAL skip ' + path)
+        return
+    m = tools.create_asset(name, ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    m.set_editor_property('two_sided', True)
+
+    def linear(v):
+        v = v / 255.0
+        return v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4
+
+    colour = [linear(int(hexcode[i:i + 2], 16)) for i in (0, 2, 4)]
+
+    def constant(value, prop):
+        node = mel.create_material_expression(m, unreal.MaterialExpressionConstant)
+        node.set_editor_property('r', value)
+        mel.connect_material_property(node, '', prop)
+
+    base = mel.create_material_expression(m, unreal.MaterialExpressionConstant3Vector)
+    base.set_editor_property('constant', unreal.LinearColor(*colour, 1.0))
+    mel.connect_material_property(base, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    constant(metallic, unreal.MaterialProperty.MP_METALLIC)
+    constant(roughness, unreal.MaterialProperty.MP_ROUGHNESS)
+    if emission:
+        glow = mel.create_material_expression(m, unreal.MaterialExpressionConstant3Vector)
+        glow.set_editor_property('constant', unreal.LinearColor(*[c * emission for c in colour], 1.0))
+        mel.connect_material_property(glow, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(m)
+    unreal.EditorAssetLibrary.save_loaded_asset(m, only_if_is_dirty=False)
+    unreal.log('CASTLE_CAVE_MATERIAL ok ' + path)
+
+
+# Warm struck gold for the chandelier frame and the floor inlay. The emissive
+# term keeps it readable in the darker rooms; it is not meant to light anything.
+flat('M_CaveGold', 'E8B96A', metallic=.9, roughness=.22, emission=.30)
+
 for name in ('M_CaveStone', 'M_CaveTile'):
     asset = unreal.load_asset(ROOT + '/' + name)
     params = []
