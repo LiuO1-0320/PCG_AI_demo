@@ -387,7 +387,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         {
             // 守卫数量随记忆深度递增：Floor .. Floor+2
             const int32 Guards = Floor + int32(MemDepth*2.f);
-            for(int32 E=0;E<Guards;++E) AddEnemy(C+FVector(-330+E*220,300,100),false);
+            for(int32 E=0;E<Guards;++E) AddOrdinaryEnemy(C+FVector(-330+E*220,300,100));
             AddBox(C+FVector(-440,-420,120),FVector(160,260,240),6);
         }
         for(int32 Side=0;Side<2;++Side) if(Room.Doors&(1<<Side))

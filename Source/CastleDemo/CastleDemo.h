@@ -177,10 +177,20 @@ public:
     bool IsChargingBlast() const { return bCharging; }
     int32 AIPursuitTicks = 0, AIAttackTicks = 0, AISlamTicks = 0;
     int32 AIAttackEvents = 0, AIBlastEvents = 0, AILastVolley = 0;
+protected:
+    UFUNCTION(BlueprintImplementableEvent, Category="Presentation")
+    void BP_OnAttackVisual(bool bMelee);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Presentation")
+    void BP_OnHitVisual(float HealthLost);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Presentation")
+    void BP_OnDeathVisual();
+
 private:
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
     bool bCharging = false;
-    void ShootAt(ACastlePlayer* Player, int32 Count);
+    bool ShootAt(ACastlePlayer* Player, int32 Count);
 };
 
 UCLASS()
@@ -238,6 +248,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> CavePCG;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> BossPCG;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation") int32 RunSeed = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Generation") TSubclassOf<ACastleEnemy> OrdinaryEnemyClass;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Floor = 1;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FCastleRoom> Rooms;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> FirstFloorRoute;
@@ -304,7 +315,8 @@ private:
     void BuildMemoryRoom(const FCastleRoom& Room, float HalfSize, bool bIntact);
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
-    ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss);
+    ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass = {});
+    ACastleEnemy* AddOrdinaryEnemy(FVector Pos);
     ACastleTrap* AddTrap(FVector Pos);
     float PendingFloorAt = 0;
     int32 PendingFloor = 0;
