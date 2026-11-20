@@ -42,7 +42,7 @@ ACastleQueen::ACastleQueen()
 void ACastleQueen::Configure(bool InBoss,int32 Floor,ACastleDirector* InDirector)
 {
     LeaveCover();
-    ThreatUntil = -1; NextCover = 0;
+    LastCoverIndex = INDEX_NONE; NextCover = 0;
     Super::Configure(InBoss,Floor,InDirector);
     SetActorScale3D(FVector(1));
     Label->SetVisibility(false);
@@ -81,7 +81,7 @@ void ACastleQueen::Configure(bool InBoss,int32 Floor,ACastleDirector* InDirector
         auto* Light=NewObject<UPointLightComponent>(this);AddInstanceComponent(Light);Light->SetupAttachment(GetRootComponent());
         Light->SetLightColor(FLinearColor(.62f,.35f,1));Light->SetAttenuationRadius(160);Light->SetCastShadows(false);Light->SetVisibility(false);Light->RegisterComponent();Lights.Add(Light);
     }
-    const float Now=GetWorld()->GetTimeSeconds();NextVolley=Now;NextGround=Now+5;Action=0;bPhaseTwo=false;
+    const float Now=GetWorld()->GetTimeSeconds();NextVolley=Now;NextGround=Now;Action=0;bPhaseTwo=false;
     UE_LOG(LogTemp,Display,TEXT("CASTLE_QUEEN_READY Rig=%d Animations=%d FrameGlow=%d Floor=%d Health=%.0f"),Skin!=nullptr,ShootAnimation&&ChargeAnimation,FrameGlow!=nullptr,Floor,Health);
 }
 
@@ -111,10 +111,10 @@ void ACastleQueen::Tick(float Dt)
     const bool Active=CanRunAI(Player);const float Now=GetWorld()->GetTimeSeconds();
     if (bSeekingCover && (!Active || !IsInDecisionRange(Player) || Action==3)) LeaveCover();
     if(!Active) {Action=0;FlashUntil=0;Telegraph->SetVisibility(false);QueenMesh->Stop();ClearQueenBolts();}
-    constexpr float StrafeSpeed = 320.f;
-    const bool bRunningToCover = bPhaseTwo && bSeekingCover && HoldUntil == 0.f;
-    const float CombatSpeed = bRunningToCover ? StrafeSpeed * 1.2f : StrafeSpeed;
-    GetCharacterMovement()->MaxWalkSpeed = !Active || Action == 3 ? 0.f : (Action == 2 ? 80.f : CombatSpeed);
+    constexpr float TravelSpeed = 320.f;
+    const bool bRunningToCover = bPhaseTwo && bSeekingCover && !bAtCover;
+    const float CombatSpeed = bRunningToCover ? TravelSpeed * 1.2f : TravelSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = !Active || Action == 3 || Action == 2 || bAtCover ? 0.f : CombatSpeed;
     if(FrameGlow)
     {
         const float Progress=FMath::Clamp(1-(Due-Now)/1.4f,0.f,1.f);
@@ -163,22 +163,23 @@ void ACastleQueen::ResolvePendingBlast(ACastlePlayer* Player)
         const float Feet=Player->GetActorLocation().Z-Player->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
         if(FVector::Dist2D(Player->GetActorLocation(),BlastCenter)<280 && FMath::Abs(Feet-BlastCenter.Z)<160)
             UGameplayStatics::ApplyDamage(Player,AttackDamage*2.4f,GetController(),this,nullptr);
-        Telegraph->SetVisibility(false);NextGround=Now+7;NextVolley=FMath::Max(NextVolley,Now+.9f);Recovery=Now+.5f;
+        Telegraph->SetVisibility(false);LastCoverIndex=CoverIndex; LeaveCover(); NextGround=Now+2.5f;NextVolley=FMath::Max(NextVolley,Now+.9f);Recovery=Now+.5f;
     }
-    else {NextVolley=Now+1;NextGround=Now+4;Recovery=Now;}
+    else {NextVolley=Now+1;NextGround=Now;Recovery=Now;}
     Action=0;
 }
 
 void ACastleQueen::UpdateAttack(ACastlePlayer* Player,bool CanSee)
 {
     ++AIAttackTicks;const float Now=GetWorld()->GetTimeSeconds();
-    if(CanSee && Action==0 && Now>=Recovery && Now>=NextVolley && Now<NextGround) BeginAction(1,.7f);
+    if(CanSee && !bAtCover && Action==0 && Now>=Recovery && Now>=NextVolley) BeginAction(1,.7f);
 }
 
 void ACastleQueen::UpdateGroundSlam(ACastlePlayer* Player)
 {
     ++AISlamTicks;const float Now=GetWorld()->GetTimeSeconds();
-    if(Action!=0 || Now<Recovery || Now<NextGround)return;
+    if(!bAtCover || Action!=0 || Now<Recovery || Now<NextGround)return;
+    GetCharacterMovement()->StopMovementImmediately();
     FHitResult Hit;FCollisionQueryParams Query(NAME_None,false,this);Query.AddIgnoredActor(Player);
     const FVector Start=Player->GetActorLocation()+FVector(0,0,60);
     GetWorld()->LineTraceSingleByChannel(Hit,Start,Start-FVector(0,0,900),ECC_Visibility,Query);
@@ -200,35 +201,7 @@ void ACastleQueen::UpdatePursuit(ACastlePlayer* Player, bool CanSee)
     const FVector Delta = Player->GetActorLocation() - Center;
     const FVector Toward = Delta.GetSafeNormal2D();
     SetActorRotation(Toward.Rotation());
-    if (UpdateCover(Player) || !Movement->IsMovingOnGround()) return;
-
-    const float Range = Delta.Size2D();
-    const float Radial = Range < 850.f ? -1.f : (Range > 1150.f ? .35f : -.15f);
-    const float Side = FMath::Fmod(GetWorld()->GetTimeSeconds(), 3.2f) < 1.6f ? 1.f : -1.f;
-    const FVector Desired = (Toward * Radial + FVector::CrossProduct(FVector::UpVector, Toward) * (.85f * Side)).GetSafeNormal();
-    const auto* Capsule = GetCapsuleComponent();
-    const FVector Feet = Center - FVector(0, 0, Capsule->GetScaledCapsuleHalfHeight());
-    const auto Shape = FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius()-3, Capsule->GetScaledCapsuleHalfHeight()-3);
-    FCollisionQueryParams Query(SCENE_QUERY_STAT(QueenStrafe), false, this);
-    float BestScore = -BIG_NUMBER;
-    FVector Best = FVector::ZeroVector;
-    for (float Angle : {0.f,35.f,-35.f,70.f,-70.f,110.f,-110.f,150.f,-150.f,180.f})
-    {
-        const FVector Dir = Desired.RotateAngleAxis(Angle, FVector::UpVector);
-        FHitResult Obstacle, Ground;
-        const bool Blocked = GetWorld()->SweepSingleByChannel(Obstacle, Center, Center + Dir*180.f,
-            FQuat::Identity, ECC_Pawn, Shape, Query);
-        const float Clear = Blocked ? Obstacle.Time : 1.f;
-        const float Score = FVector::DotProduct(Dir, Desired)*2.f + Clear;
-        if (Clear < .12f || Score <= BestScore) continue;
-        const FVector Ahead = Feet + Dir*55.f;
-        if (!GetWorld()->LineTraceSingleByChannel(Ground, Ahead+FVector(0,0,55), Ahead-FVector(0,0,55), ECC_Pawn, Query)
-            || !Movement->IsWalkable(Ground)) continue;
-        BestScore = Score;
-        Best = Dir;
-        if (!Blocked && Angle == 0.f) break;
-    }
-    AddMovementInput(Best);
+    if (Action != 2) UpdateCover(Player);
 }
 
 void ACastleQueen::LeaveCover()
@@ -236,7 +209,8 @@ void ACastleQueen::LeaveCover()
     if (bSeekingCover)
         if (auto* AI = Cast<AAIController>(GetController())) AI->StopMovement();
     bSeekingCover = false;
-    HoldUntil = 0;
+    bAtCover = false;
+    CoverIndex = INDEX_NONE;
 }
 
 bool ACastleQueen::UpdateCover(ACastlePlayer* Player)
@@ -256,26 +230,31 @@ bool ACastleQueen::UpdateCover(ACastlePlayer* Player)
     };
     if (bSeekingCover)
     {
-        if (Now < CoverDeadline && Protected(CoverGoal))
+        if ((bAtCover || Now < CoverDeadline) && Protected(CoverGoal))
         {
             if (FVector::Dist2D(GetActorLocation(), CoverGoal) <= 35.f)
             {
-                if (!HoldUntil) { AI->StopMovement(); HoldUntil = Now + 1.25f; }
-                if (Now < HoldUntil && Protected(GetCharacterMovement()->GetActorFeetLocation())) return true;
+                if (Protected(GetCharacterMovement()->GetActorFeetLocation()))
+                {
+                    if (!bAtCover) { AI->StopMovement(); GetCharacterMovement()->StopMovementImmediately(); }
+                    bAtCover = true;
+                    return true;
+                }
             }
             else if (AI->GetMoveStatus() != EPathFollowingStatus::Idle) return true;
         }
         LeaveCover();
-        NextCover = Now + 1.5f;
+        NextCover = Now + .15f;
         return false;
     }
-    if (Now > ThreatUntil || Now < NextCover || !GetCharacterMovement()->IsMovingOnGround()) return false;
+    if (Now < NextCover || !GetCharacterMovement()->IsMovingOnGround()) return false;
     NextCover = Now + .5f;
     auto* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
     if (!Nav) return false;
     float BestLength = MAX_flt;
-    for (const FVector& Top : Director->BossCoverPoints)
+    for (int32 I = 0; I < Director->BossCoverPoints.Num(); ++I)
     {
+        const FVector& Top = Director->BossCoverPoints[I];
         const FVector Behind = (Top-Eye).GetSafeNormal2D();
         FNavLocation Goal;
         if (!Nav->ProjectPointToNavigation(Top-FVector(0,0,320)+Behind*165, Goal, FVector(55,55,110))) continue;
@@ -283,12 +262,13 @@ bool ACastleQueen::UpdateCover(ACastlePlayer* Player)
         auto* Path = UNavigationSystemV1::FindPathToLocationSynchronously(this, GetActorLocation(), Goal.Location, this);
         if (!Path || !Path->IsValid() || Path->IsPartial()) continue;
         const float Length = Path->GetPathLength();
-        if (Length < BestLength) { BestLength = Length; CoverGoal = Goal.Location; }
+        // Prefer changing positions after a slam, retaining the last pillar as a fallback.
+        const float Score = Length + (I == LastCoverIndex ? 20000.f : 0.f);
+        if (Score < BestLength) { BestLength = Score; CoverGoal = Goal.Location; CoverIndex = I; CoverDeadline = Now + Length/240.f + 3.f; }
     }
     UE_LOG(LogTemp,Verbose,TEXT("Cover search Phase=%d Start=%s Count=%d Length=%f Goal=%s"),bPhaseTwo,*GetActorLocation().ToString(),Director->BossCoverPoints.Num(),BestLength,*CoverGoal.ToString());
     if (BestLength == MAX_flt || AI->MoveToLocation(CoverGoal,15.f,false,true,false,true,nullptr,false) == EPathFollowingRequestResult::Failed) return false;
     bSeekingCover = true;
-    CoverDeadline = Now + BestLength/240.f + 3.f;
     return true;
 }
 
@@ -296,7 +276,6 @@ float ACastleQueen::TakeDamage(float Damage,const FDamageEvent& Event,AControlle
 {
     if(Action==3)return 0;
     const float Taken=Super::TakeDamage(Damage,Event,DamageInstigator,Causer);
-    if (Taken > 0 && !bDead && Cast<ACastlePlayer>(Causer)) ThreatUntil = GetWorld()->GetTimeSeconds()+1.f;
     if(bDead) { LeaveCover(); ClearQueenBolts(); }
     return Taken;
 }
@@ -328,7 +307,7 @@ void ACastleQueenBolt::Tick(float Dt)
     if(Hit.bBlockingHit)
     {
         if(auto* Player=Cast<ACastlePlayer>(Hit.GetActor()))
-            if(auto* Queen=Cast<ACastleQueen>(Shooter);Queen&&Queen->AcceptBoltHit()) UGameplayStatics::ApplyDamage(Player,Damage,nullptr,Shooter,nullptr);
+            if(auto* Queen=Cast<ACastleQueen>(Shooter);Queen&&Queen->AcceptBoltHit()) Player->ReceiveBoltHit(Damage,Shooter);
         Destroy();
     }
     else SetActorLocation(End);

@@ -63,15 +63,15 @@ static UBehaviorTree* MakeCastleTree(UBlackboardData* BB, bool bBoss)
         Root->Children[0].Decorators.Add(Gate);
     }
     AddChild(Combat,MakeAction(Tree,bBoss ? ECastleAIAction::EvadeOrPursue : ECastleAIAction::Pursuit,
-        bBoss ? TEXT("Strafe and maintain firing range") : TEXT("Face and chase / stop")));
+        bBoss ? TEXT("Move to firing cover") : TEXT("Face and chase / stop")));
     if (bBoss)
     {
         auto* Abilities = NewObject<UBTComposite_SimpleParallel>(Tree);
         Abilities->NodeName = TEXT("Attack and ground slam independently");
         Abilities->FinishMode = EBTParallelMode::AbortBackground;
         AddChild(Combat,Abilities);
-        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Melee / fan attack + enrage")));
-        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::GroundSlam,TEXT("Ground slam telegraph (no sight required)")));
+        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Fan volley while seeking cover")));
+        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::GroundSlam,TEXT("Charge ground slam from cover")));
     }
     else AddChild(Combat,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Melee / single projectile")));
     AddChild(Root,MakeAction(Tree,ECastleAIAction::Hold,TEXT("Out of range: hold; inactive: stop")));

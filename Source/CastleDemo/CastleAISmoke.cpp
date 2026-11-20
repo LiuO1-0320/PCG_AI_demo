@@ -133,18 +133,9 @@ void ACastleDirector::TickAISmokeTest()
         }
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: queen abilities use demo BT; 6 bolts from two muzzles"));
         E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-        S.Start=E->GetActorLocation();Next(14);break;
-    case 14:
-        if(Elapsed<.45f)return;
-        if(FVector::Dist2D(E->GetActorLocation(),P->GetActorLocation()) < FVector::Dist2D(S.Start,P->GetActorLocation())+25.f)
-        {Fail(TEXT("Normal queen failed to open distance before player fire"));return;}
-        E->SetActorLocation(FVector(200,0,100));
-        E->GetCharacterMovement()->StopMovementImmediately();
+        E->SetActorLocation(FVector(300,80,100));
         MakeCover();
-        Travel(P,FVector(-400,0,110));
-        S.HealthBefore=E->Health;
-        P->Fire();
-        if (E->Health>=S.HealthBefore) {Fail(TEXT("Cover test opening shot missed"));return;}
+        S.SavedAttackEvents=E->AIAttackEvents;
         Next(15);break;
     case 15:
     {
@@ -153,9 +144,10 @@ void ACastleDirector::TickAISmokeTest()
         const FVector Goal=BossCoverPoints.Last()+Behind*165.f;
         if (FVector::Dist2D(E->GetActorLocation(),Goal)>40.f)
         {
-            if (Elapsed>5.f) Fail(TEXT("Queen did not reach back of cover after taking fire"));
+            if (E->IsChargingBlast() || Elapsed>6.f) Fail(TEXT("Queen must reach cover before charging"));
             return;
         }
+        if(!E->IsChargingBlast())return;
         P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
         FHitResult Shot;
         FCollisionQueryParams Query(NAME_None,false,P);
@@ -166,6 +158,13 @@ void ACastleDirector::TickAISmokeTest()
         if (Shot.GetActor()!=S.Wall.Get() || P->Ammo!=Ammo-1 || E->Health!=S.HealthBefore)
         {Fail(TEXT("Column did not block follow-up fire"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_OK: queen reached cover and the column blocked the follow-up shot"));
+        S.Start=E->GetActorLocation(); Next(16);break;
+    }
+    case 16:
+    {
+        if(FVector::Dist(E->GetActorLocation(),S.Start)>1.f){Fail(TEXT("Queen moved during ground charge"));return;}
+        if(E->IsChargingBlast())return;
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_CHARGE_OK: reached cover without player fire and remained stationary through the blast"));
         BossCoverPoints.Pop();S.Wall->Destroy();S.Wall.Reset();
         E->SetActorLocation(FVector(200,0,100));Travel(P,FVector(-400,0,110));
     }
@@ -187,13 +186,9 @@ void ACastleDirector::TickAISmokeTest()
         {Fail(TEXT("Queen phase two did not fire 10-bolt volley"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: invulnerable transition, clean projectiles, 10 bolts"));
         E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-        MakeCover();
+        E->SetActorLocation(FVector(300,80,100));MakeCover();
         S.Start=E->GetActorLocation();
         Travel(P,FVector(-400,0,110));
-        P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
-        S.HealthBefore=E->Health;
-        P->Fire();
-        if(E->Health>=S.HealthBefore){Fail(TEXT("Enraged cover test opening shot missed"));return;}
         Next(13);break;
     case 13:
         S.PeakCoverSpeed=FMath::Max(S.PeakCoverSpeed,float(E->GetVelocity().Size2D()));
@@ -201,12 +196,7 @@ void ACastleDirector::TickAISmokeTest()
         if(S.PeakCoverSpeed<375.f || S.PeakCoverSpeed>385.f)
         {UE_LOG(LogTemp,Error,TEXT("Cover peak %.1f"),S.PeakCoverSpeed);Fail(TEXT("Enraged cover sprint speed"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_SPRINT_OK Peak=%.1f cm/s"),S.PeakCoverSpeed);
-        BossCoverPoints.Pop();S.Wall->Destroy();S.Wall.Reset();
-        if(FVector::Dist2D(E->GetActorLocation(),S.Start)<55.f)
-        {Fail(TEXT("Enraged BT failed to sidestep player fire"));return;}
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_DODGE_OK Travel=%.1f Lateral=%.1f"),FVector::Dist2D(E->GetActorLocation(),S.Start),FMath::Abs(E->GetActorLocation().Y-S.Start.Y));
-        E->GetCharacterMovement()->DisableMovement();E->SetActorLocation(S.Start);
-        MakeWall();ClearBolts();Next(9);break;
+        ClearBolts();Next(9);break;
     case 9:
         if(!E->IsChargingBlast())return;
         if(BB->GetValueAsBool(TEXT("CanSeeTarget"))) {Fail(TEXT("Slam occlusion setup failed"));return;}
@@ -226,6 +216,31 @@ void ACastleDirector::TickAISmokeTest()
         if(Elapsed<1.1f)return;
         if(BB->GetValueAsBool(TEXT("IsOperational")) || E->AIAttackEvents!=S.SavedAttackEvents)
         {Fail(TEXT("Dead player still attacked"));return;}
+        E->bActive=false;P->ResetRun();
+        {
+            auto* Bolt=GetWorld()->SpawnActor<ACastleBolt>(P->GetActorLocation()+FVector(100,0,0),FRotator::ZeroRotator);
+            if(!Bolt){Fail(TEXT("Could not spawn test bolt"));return;}
+            Bolt->Shooter=E;Bolt->Velocity=FVector(-1000,0,0);Bolt->Tick(.15f);
+        }
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=465.f || P->Shield>=P->MaxShield)
+        {Fail(TEXT("Shield hit did not apply projectile slow"));return;}
+        Next(17);break;
+    case 17:
+        if(Elapsed<.4f)return;
+        {
+            auto* Bolt=GetWorld()->SpawnActor<ACastleQueenBolt>(P->GetActorLocation()+FVector(100,0,0),FRotator::ZeroRotator);
+            if(!Bolt){Fail(TEXT("Could not spawn queen test bolt"));return;}
+            Bolt->Shooter=E;Bolt->Velocity=FVector(-1000,0,0);Bolt->Tick(.15f);
+        }
+        Next(18);break;
+    case 18:
+        if(Elapsed<1.3f)return;
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=465.f){Fail(TEXT("Queen hit did not refresh slow without stacking"));return;}
+        Next(19);break;
+    case 19:
+        if(Elapsed<.35f)return;
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=620.f){Fail(TEXT("Projectile slow did not expire"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_BOLT_SLOW_OK guard and queen hits, shield, refresh, expiry"));
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_SMOKE_OK: real guard/boss BTs, shared BB, movement/attack concurrency, sight, home gate, dormancy, enrage, ground slam, death gate."));
         FPlatformMisc::RequestExitWithStatus(true,0);Next(12);break;
     default:break;

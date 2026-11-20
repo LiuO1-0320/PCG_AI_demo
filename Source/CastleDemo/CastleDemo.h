@@ -87,11 +87,14 @@ public:
     class ACastleInteractable* Focused() const;
     void Tell(const FString& Message);
     void GrantRelic(int32 Kind);
+    void ReceiveBoltHit(float Damage, AActor* Shooter);
     void ResetRun();
 private:
     friend class ACastleDirector;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Gun;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Muzzle;
+    float BoltSlowUntil = 0.f, SpeedBeforeBoltHit = 0.f;
+    void ClearBoltSlow();
     bool bFiring = false;
     float NextShot = 0, LastDamage = -100;
     void MoveForward(float Value);

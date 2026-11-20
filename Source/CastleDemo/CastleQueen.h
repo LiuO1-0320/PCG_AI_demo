@@ -31,7 +31,9 @@ private:
     void LeaveCover();
     FVector CoverGoal = FVector::ZeroVector;
     bool bSeekingCover = false;
-    float ThreatUntil = -1, CoverDeadline = 0, HoldUntil = 0, NextCover = 0;
+    bool bAtCover = false;
+    int32 CoverIndex = INDEX_NONE, LastCoverIndex = INDEX_NONE;
+    float CoverDeadline = 0, NextCover = 0;
     float Due=0, NextVolley=0, NextGround=0, Recovery=0, FlashUntil=0, LastHit=-100;
     void BeginAction(int32 NewAction,float Delay);
     void ClearQueenBolts();

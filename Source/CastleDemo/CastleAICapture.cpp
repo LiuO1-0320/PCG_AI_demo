@@ -120,6 +120,7 @@ void ACastleDirector::TickAICapture()
         Capture(TEXT("05_boss_close_volley"),11);break;
     case 11:
         PlayerView();
+        Boss->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
         ClearBolts();Restore();Travel(P,BossCenter+FVector(-550,-100,110));
         P->Camera->SetFieldOfView(95);
         if(auto* PC=Cast<APlayerController>(P->GetController()))
