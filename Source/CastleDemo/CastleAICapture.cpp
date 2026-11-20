@@ -48,7 +48,9 @@ void ACastleDirector::TickAICapture()
     };
     auto Capture=[&](const TCHAR* Name,int32 NextStage)
     {
-        const FString File=FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/TEXT("output/ai_tasks_en_2026-10-14/screenshots")/FString(Name)+TEXT(".png"));
+        FString Folder=TEXT("output/ai_tasks_en_2026-10-14/screenshots");
+        FParse::Value(FCommandLine::Get(),TEXT("CastleAICaptureDir="),Folder);
+        const FString File=FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/Folder/FString(Name)+TEXT(".png"));
         FScreenshotRequest::RequestScreenshot(File,false,false);
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_TASK_CAPTURE: %s Shield=%.1f Health=%.1f"),Name,P->Shield,P->Health);
         S.Stage=NextStage;S.WaitUntil=Now+.8f;S.ObservedAt=0;
@@ -93,7 +95,7 @@ void ACastleDirector::TickAICapture()
         Travel(P,BossCenter+FVector(-700,-420,110));P->Camera->SetFieldOfView(65);
         Aim(Boss->GetActorLocation()+FVector(0,0,65));S.Events=Boss->AIAttackEvents;S.Stage=6;break;
     case 6:
-        if(Boss->AIAttackEvents<=S.Events || Boss->AILastVolley!=3)return;
+        if(Boss->AIAttackEvents<=S.Events || Boss->AILastVolley!=6)return;
         if(S.ObservedAt==0){S.ObservedAt=Now;return;}
         if(Now-S.ObservedAt<.18f)return;
         Capture(TEXT("03_boss_ranged"),7);break;
@@ -101,7 +103,7 @@ void ACastleDirector::TickAICapture()
         ClearBolts();Restore();Boss->Health=Boss->MaxHealth*.49f;
         S.Events=Boss->AIAttackEvents;S.Stage=8;break;
     case 8:
-        if(Boss->AIAttackEvents<=S.Events || Boss->AILastVolley!=5)return;
+        if(Boss->AIAttackEvents<=S.Events || Boss->AILastVolley!=10)return;
         if(S.ObservedAt==0){S.ObservedAt=Now;return;}
         if(Now-S.ObservedAt<.18f)return;
         Capture(TEXT("04_boss_enraged_ranged"),9);break;
@@ -114,8 +116,8 @@ void ACastleDirector::TickAICapture()
         S.Events=Boss->AIAttackEvents;S.ShieldBefore=P->Shield;S.Stage=10;break;
     case 10:
         if(Boss->AIAttackEvents<=S.Events || P->Shield>=S.ShieldBefore)return;
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_CAPTURE_MELEE: Boss Shield %.1f -> %.1f Damage=%.1f"),S.ShieldBefore,P->Shield,Boss->AttackDamage);
-        Capture(TEXT("05_boss_melee"),11);break;
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_CAPTURE_CLOSE_VOLLEY: Queen Shield %.1f -> %.1f Damage=%.1f"),S.ShieldBefore,P->Shield,Boss->AttackDamage);
+        Capture(TEXT("05_boss_close_volley"),11);break;
     case 11:
         PlayerView();
         ClearBolts();Restore();Travel(P,BossCenter+FVector(-550,-100,110));

@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleQueen.h"
 #include "CastleLanguage.h"
 #include "CastleCourtProps.h"
 #include "CastleCourtScenery.h"
@@ -378,7 +379,8 @@ ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<AC
     UClass* SpawnClass = EnemyClass.Get();
     if (!SpawnClass || SpawnClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
     {
-        SpawnClass = ACastleEnemy::StaticClass();
+        // The boss arena asks for a boss without naming a class: that is the queen.
+        SpawnClass = IsBoss ? ACastleQueen::StaticClass() : ACastleEnemy::StaticClass();
     }
 
     FActorSpawnParameters P;
@@ -594,6 +596,11 @@ void ACastleDirector::CompleteFloorGeneration()
         }
     }
     if(auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld())) Nav->Build();
+    if (FParse::Param(FCommandLine::Get(),TEXT("CastleBossPreview")))
+    {
+        if (Floor==1) RequestFloor(2);
+        else if (auto* Player=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0))) EnterBoss(Player);
+    }
 }
 
 FString ACastleDirector::BossName() const
@@ -603,6 +610,7 @@ FString ACastleDirector::BossName() const
 
 void ACastleDirector::Travel(ACastlePlayer* P,FVector Pos,float Yaw)
 {
+    SetBossPalaceEnvironment(Region == TEXT("BOSS ARENA"));
     P->GetCharacterMovement()->StopMovementImmediately(); P->SetActorLocation(Pos,false,nullptr,ETeleportType::TeleportPhysics);
     P->SetActorRotation(FRotator(0,Yaw,0)); if(auto* Controller=P->GetController()) Controller->SetControlRotation(FRotator(0,Yaw,0));
     // Disabling collision during generation makes CharacterMovement enter MOVE_None.

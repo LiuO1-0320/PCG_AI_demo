@@ -155,7 +155,7 @@ public:
     ACastleEnemy();
     virtual void Tick(float DeltaSeconds) override;
     virtual float TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*) override;
-    void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
+    virtual void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBoss = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bElite = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float Health = 75;
@@ -170,11 +170,11 @@ public:
     // Ability execution is reused by BT tasks; decisions no longer run in Character::Tick.
     bool CanRunAI(ACastlePlayer* Player) const;
     bool IsInDecisionRange(ACastlePlayer* Player) const;
-    void ResolvePendingBlast(ACastlePlayer* Player);
-    void UpdatePursuit(ACastlePlayer* Player, bool bCanSee);
-    void UpdateAttack(ACastlePlayer* Player, bool bCanSee);
-    void UpdateGroundSlam(ACastlePlayer* Player);
-    bool IsChargingBlast() const { return bCharging; }
+    virtual void ResolvePendingBlast(ACastlePlayer* Player);
+    virtual void UpdatePursuit(ACastlePlayer* Player, bool bCanSee);
+    virtual void UpdateAttack(ACastlePlayer* Player, bool bCanSee);
+    virtual void UpdateGroundSlam(ACastlePlayer* Player);
+    virtual bool IsChargingBlast() const { return bCharging; }
     int32 AIPursuitTicks = 0, AIAttackTicks = 0, AISlamTicks = 0;
     int32 AIAttackEvents = 0, AIBlastEvents = 0, AILastVolley = 0;
 protected:
@@ -296,6 +296,9 @@ private:
     void PositionPlayerAtEntrance(ACastlePlayer* Player);
     UPROPERTY() TObjectPtr<ACameraActor> StartPreviewCamera;
     bool bStartPreview = false;
+    bool BuildBossPalaceShell();
+    void SetBossPalaceEnvironment(bool bActive);
+    void AddPalaceMesh(const TCHAR* Path, FVector Center, FVector Size, FRotator Rotation = FRotator::ZeroRotator);
     void ClearGenerated();
     void ClearGeneratedRegion(ECastlePCGRegion InRegion);
     void CompleteFloorGeneration();
