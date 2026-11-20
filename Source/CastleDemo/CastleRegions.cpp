@@ -1,8 +1,10 @@
 #include "CastleDemo.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameViewportClient.h"
 #include "HAL/PlatformMisc.h"
@@ -19,6 +21,82 @@ namespace
         uint32 X=uint32(Seed)^(uint32(Floor)*0x9e3779b9u)^Purpose;
         X^=X>>16; X*=0x7feb352du; X^=X>>15; X*=0x846ca68bu; X^=X>>16;
         return int32(X);
+    }
+
+    // ===== PCG2-藏宝洞：石材分级 =====
+    // 洞体的可见墙面来自 BuildRoom 的材质槽 6（M_MemoryStone），房间美术里的
+    // 石材组件大多被洞体挡住。两边都换成带参数的 M_CaveStone / M_CaveTile 动态
+    // 实例，用同一个“记忆深度”驱动色温、粗糙度与斑驳度：
+    //   深度 0（入口）= 冷、潮、粗、脏   深度 1（出口）= 暖、润、净、亮
+    // 新材质缺失时整段跳过，房间保持原来的 M_MemoryStone，不会退化成灰盒。
+    UMaterialInterface* CaveBase(bool bTile)
+    {
+        return LoadObject<UMaterialInterface>(nullptr,bTile
+            ?TEXT("/Game/Demo/CaveArt/M_CaveTile.M_CaveTile")
+            :TEXT("/Game/Demo/CaveArt/M_CaveStone.M_CaveStone"));
+    }
+
+    void ApplyCaveGrade(UMaterialInstanceDynamic* Mid,float MemDepth,bool bTile)
+    {
+        if(!Mid) return;
+        const float D=FMath::Clamp(MemDepth,0.f,1.f);
+        const FLinearColor Cold=bTile?FLinearColor(.85f,.88f,.98f):FLinearColor(1.00f,1.04f,1.16f);
+        const FLinearColor Warm=bTile?FLinearColor(1.30f,1.24f,1.06f):FLinearColor(1.45f,1.34f,1.12f);
+        const float RoughCold=bTile?1.10f:1.20f,RoughWarm=bTile?.72f:.84f;
+        const float GrimeCold=bTile?.55f:.62f,GrimeWarm=bTile?.15f:.18f;
+        Mid->SetVectorParameterValue(TEXT("Tint"),FLinearColor(
+            FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f));
+        Mid->SetScalarParameterValue(TEXT("RoughnessScale"),FMath::Lerp(RoughCold,RoughWarm,D));
+        Mid->SetScalarParameterValue(TEXT("MacroGrime"),FMath::Lerp(GrimeCold,GrimeWarm,D));
+    }
+
+    // 房间美术本身：石材槽和地砖槽各一份 MID，外加那盏大范围补光的色温。
+    void GradeCaveRoomArt(AActor* Art,float MemDepth)
+    {
+        if(!IsValid(Art)) return;
+        auto* OldStone=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
+        auto* OldTile=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryTiles.M_MemoryTiles"));
+        auto* NewStone=CaveBase(false);
+        auto* NewTile=CaveBase(true);
+        if(!OldStone||!OldTile||!NewStone||!NewTile) return;
+
+        const float D=FMath::Clamp(MemDepth,0.f,1.f);
+        auto* StoneMid=UMaterialInstanceDynamic::Create(NewStone,Art);
+        auto* TileMid=UMaterialInstanceDynamic::Create(NewTile,Art);
+        ApplyCaveGrade(StoneMid,MemDepth,false);
+        ApplyCaveGrade(TileMid,MemDepth,true);
+
+        int32 Walls=0,Floors=0;
+        TArray<UStaticMeshComponent*> Meshes;
+        Art->GetComponents<UStaticMeshComponent>(Meshes);
+        for(auto* Comp:Meshes)
+        {
+            if(!Comp) continue;
+            bool bStone=false,bTile=false;
+            for(int32 Slot=0;Slot<Comp->GetNumMaterials();++Slot)
+            {
+                auto* Current=Comp->GetMaterial(Slot);
+                if(Current==OldStone) bStone=true;
+                else if(Current==OldTile) bTile=true;
+            }
+            if(!bStone&&!bTile) continue;
+            auto* Use=bStone?StoneMid:TileMid;
+            for(int32 Slot=0;Slot<Comp->GetNumMaterials();++Slot) Comp->SetMaterial(Slot,Use);
+            bStone?++Walls:++Floors;
+        }
+        // 同一批灯，入口压暗偏冷、深处提亮偏暖。房间那盏大范围补光半径最大，
+        // 按半径把它和蜡烛光/记忆光区分开，只调补光，蜡烛保持原来的暖黄。
+        int32 LitLamps=0;
+        TArray<UPointLightComponent*> Lamps;
+        Art->GetComponents<UPointLightComponent>(Lamps);
+        for(auto* Lamp:Lamps)
+        {
+            if(!Lamp||Lamp->AttenuationRadius<1200.f) continue;
+            Lamp->SetIntensity(Lamp->Intensity*FMath::Lerp(.34f,1.10f,D));
+            Lamp->SetLightColor(FMath::Lerp(FLinearColor(.58f,.66f,.86f),FLinearColor(1.f,.88f,.70f),D));
+            ++LitLamps;
+        }
+        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Walls=%d Floors=%d FillLamps=%d"),D,Walls,Floors,LitLamps);
     }
 }
 
@@ -130,6 +208,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     }
     CaveEntrance=CaveRooms[CaveRoute[0]].Center;
     CaveExit=CaveRooms[CaveRoute[3]].Center;
+    int32 ArtBuilt=0;
     for(int32 Order=0;Order<4;++Order)
     {
         const auto& Room=CaveRooms[CaveRoute[Order]]; const FVector C=Room.Center;
@@ -147,9 +226,24 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         const float Half=900.f;
         const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
+        // 洞体可见墙面走材质槽 6（只有藏宝洞用这个索引）：每房一份 MID，按深度分级。
+        if(auto* ShellBase=CaveBase(false))
+            if(Materials.IsValidIndex(6))
+            {
+                auto* ShellMid=UMaterialInstanceDynamic::Create(ShellBase,this);
+                ApplyCaveGrade(ShellMid,MemDepth,false);
+                Materials[6]=ShellMid;
+            }
         BuildRoom(C,Half,Room.Doors,6);
         // 组员的完整石材房间：墙/地面/柱/画框/地毯/四角蜡烛/氛围灯
-        BuildMedievalMemoryRoom(Room,Half);
+        // 生成前后做一次 tagged actor 差集，拿到本次新建的美术 Actor，再按深度改材质。
+        TSet<AActor*> ArtBefore;
+        for(TActorIterator<AActor> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("CastleMemoryRoomArt"))) ArtBefore.Add(*It);
+        if(BuildMedievalMemoryRoom(Room,Half)) ++ArtBuilt;
+        for(TActorIterator<AActor> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("CastleMemoryRoomArt")) && !ArtBefore.Contains(*It))
+                GradeCaveRoomArt(*It,MemDepth);
 
         // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
         const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
@@ -317,6 +411,21 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         UE_LOG(LogTemp,Display,TEXT("CAVE_GEOMETRY Instances=%d"),TotalInstances);
         if(TotalInstances==0) UE_LOG(LogTemp,Warning,TEXT("CAVE_GEOMETRY_EMPTY: vault generated no mesh instances"));
     }
+    // 洞体的墙面方块和美术模块完全重合，尺寸也一致（都是 85 厚、贴着 Half）。重合面
+    // 谁先画谁留下，所以看到的一直是那个 1800 长的大方块 —— 一张贴图铺 1800 单位，
+    // 细节全糊。地面同理：洞体是一整块 1900 的板，美术是 4x4 的 450 模块。
+    // 四个房间都成功铺了美术模块时，把方块那两层藏掉（只藏可见性，碰撞照旧）。
+    // 少一间没铺上就整层保留，避免屋里出现通透的洞。
+    if(ArtBuilt>=4)
+    {
+        const int32 Base=int32(ECastlePCGRegion::TreasureCave)*18;
+        for(int32 Material:{0,6})
+        {
+            const int32 Slot=Base+Material;
+            if(Geometry.IsValidIndex(Slot) && Geometry[Slot]) Geometry[Slot]->SetVisibility(false);
+        }
+    }
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_CAVE_SHELL ArtRooms=%d Hidden=%d"),ArtBuilt,ArtBuilt>=4?1:0);
     bCaveGenerated=true;
     if(bExplorationGenerated && bBossGenerated && !bReady)CompleteFloorGeneration();
 }
