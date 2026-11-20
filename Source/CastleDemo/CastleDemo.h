@@ -19,6 +19,8 @@ class UPCGComponent;
 class UMaterialInterface;
 class UTextRenderComponent;
 class ACastleDirector;
+class ANavigationData;
+class UNavigationSystemV1;
 class UCastleStartMenu;
 class UEditableTextBox;
 class UButton;
@@ -157,6 +159,7 @@ class CASTLEDEMO_API ACastleEnemy : public ACharacter
 public:
     ACastleEnemy();
     virtual void Tick(float DeltaSeconds) override;
+    virtual void UnPossessed() override;
     virtual float TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*) override;
     virtual void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBoss = false;
@@ -191,10 +194,18 @@ protected:
     void BP_OnDeathVisual();
 
 private:
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    void ClearPursuitNavigationWatch();
+
+    UFUNCTION()
+    void OnPursuitNavigationGenerated(ANavigationData* NavData);
+
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
     TWeakObjectPtr<ACastlePlayer> PursuitTarget;
     FVector PursuitRetryOrigin = FVector::ZeroVector;
     int32 PursuitRequestsRemaining = 0;
+    TWeakObjectPtr<UNavigationSystemV1> PursuitNavigationSystem;
+    TWeakObjectPtr<ANavigationData> PendingPursuitNavigationUpdate;
     bool bCharging = false;
     bool ShootAt(ACastlePlayer* Player, int32 Count);
 };

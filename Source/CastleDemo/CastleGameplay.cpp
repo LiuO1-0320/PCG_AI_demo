@@ -9,12 +9,36 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "NavigationSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/PlayerInput.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCastlePursuit, Log, All);
+
+static bool TakePursuitRecoveryQuerySlot(UNavigationSystemV1& Navigation, double Now)
+{
+    // Navigation broadcasts can wake many stalled enemies at once. Pace them per world.
+    static TMap<TWeakObjectPtr<UNavigationSystemV1>, double> NextQueryTimes;
+    const TWeakObjectPtr<UNavigationSystemV1> Key(&Navigation);
+    double* NextQueryTime = NextQueryTimes.Find(Key);
+    if (!NextQueryTime)
+    {
+        for (auto It = NextQueryTimes.CreateIterator(); It; ++It)
+        {
+            if (!It.Key().IsValid()) It.RemoveCurrent();
+        }
+        NextQueryTimes.Add(Key, Now + 0.10);
+        return true;
+    }
+    if (Now < *NextQueryTime) return false;
+    *NextQueryTime = Now + 0.10;
+    return true;
+}
 
 static UMaterialInterface* CastleMaterial(const TCHAR* Name)
 {
@@ -464,6 +488,44 @@ void ACastleEnemy::Tick(float Dt)
     Label->SetText(FText::FromString(FString::Printf(TEXT("%s  %.0f"), bBoss ? *Director->BossName() : TEXT("SENTINEL"), Health)));
 }
 
+void ACastleEnemy::UnPossessed()
+{
+    ClearPursuitNavigationWatch();
+    PursuitTarget.Reset();
+    PursuitRequestsRemaining = 0;
+    Super::UnPossessed();
+}
+
+void ACastleEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    ClearPursuitNavigationWatch();
+    Super::EndPlay(EndPlayReason);
+}
+
+void ACastleEnemy::ClearPursuitNavigationWatch()
+{
+    if (UNavigationSystemV1* Navigation = PursuitNavigationSystem.Get())
+    {
+        Navigation->OnNavigationGenerationFinishedDelegate.RemoveDynamic(this, &ACastleEnemy::OnPursuitNavigationGenerated);
+    }
+    PursuitNavigationSystem.Reset();
+    PendingPursuitNavigationUpdate.Reset();
+}
+
+void ACastleEnemy::OnPursuitNavigationGenerated(ANavigationData* NavData)
+{
+    UNavigationSystemV1* Navigation = PursuitNavigationSystem.Get();
+    AAIController* AI = Cast<AAIController>(GetController());
+    if (!NavData || !Navigation || !AI || !CanRunAI(PursuitTarget.Get()) || PursuitRequestsRemaining != 0 ||
+        PendingPursuitNavigationUpdate.Get() == NavData ||
+        NavData != Navigation->GetNavDataForProps(AI->GetNavAgentPropertiesRef(), AI->GetNavAgentLocation())) return;
+
+    // An update while the final partial move is still active must survive until it finishes.
+    PendingPursuitNavigationUpdate = NavData;
+    UE_LOG(LogCastlePursuit, VeryVerbose, TEXT("NavUpdated Enemy=%s NavData=%s Time=%.3f"),
+        *GetName(), *NavData->GetName(), GetWorld()->GetTimeSeconds());
+}
+
 bool ACastleEnemy::CanRunAI(ACastlePlayer* P) const
 {
     return P && !bDead && Director && Director->bReady && bActive && !P->bDead && !Director->bWon;
@@ -523,22 +585,23 @@ void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
         if (AI->GetMoveStatus() != EPathFollowingStatus::Idle) AI->StopMovement();
         AI->SetFocalPoint(TargetLocation, EAIFocusPriority::Gameplay);
         PursuitTarget.Reset();
+        ClearPursuitNavigationWatch();
         return;
     }
 
     AI->ClearFocus(EAIFocusPriority::Gameplay);
     if (PursuitTarget.Get() != P || FVector::DistSquared(PursuitRetryOrigin, TargetLocation) >= FMath::Square(100.f))
     {
+        ClearPursuitNavigationWatch();
         PursuitTarget = P;
         PursuitRetryOrigin = TargetLocation;
         PursuitRequestsRemaining = 3;
     }
 
     // Path following already updates an active request as its target moves.
-    if (AI->GetMoveStatus() != EPathFollowingStatus::Idle || Now < NextThink || PursuitRequestsRemaining <= 0) return;
+    if (AI->GetMoveStatus() != EPathFollowingStatus::Idle || Now < NextThink) return;
+    if (PursuitRequestsRemaining == 0 && !PendingPursuitNavigationUpdate.IsValid()) return;
 
-    --PursuitRequestsRemaining;
-    NextThink = Now + .45f;
     // A nearby target behind a wall still needs a path. The firing check above owns the ranged stop.
     FAIMoveRequest MoveRequest(P);
     MoveRequest.SetAcceptanceRadius(20.f);
@@ -546,7 +609,54 @@ void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
     MoveRequest.SetReachTestIncludesGoalRadius(false);
     MoveRequest.SetCanStrafe(false);
     MoveRequest.SetNavigationFilter(AI->GetDefaultNavigationFilterClass());
-    AI->MoveTo(MoveRequest);
+    if (PursuitRequestsRemaining > 0)
+    {
+        --PursuitRequestsRemaining;
+        NextThink = Now + .45f;
+        if (PursuitRequestsRemaining == 0)
+        {
+            PursuitNavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+            if (UNavigationSystemV1* Navigation = PursuitNavigationSystem.Get())
+            {
+                Navigation->OnNavigationGenerationFinishedDelegate.AddUniqueDynamic(this, &ACastleEnemy::OnPursuitNavigationGenerated);
+            }
+        }
+        AI->MoveTo(MoveRequest);
+        return;
+    }
+
+    UNavigationSystemV1* Navigation = PursuitNavigationSystem.Get();
+    if (!Navigation || !TakePursuitRecoveryQuerySlot(*Navigation, Now)) return;
+    const ANavigationData* UpdatedNavData = PendingPursuitNavigationUpdate.Get();
+    PendingPursuitNavigationUpdate.Reset();
+    NextThink = Now + .45f;
+
+    FPathFindingQuery Query;
+    if (!AI->BuildPathfindingQuery(MoveRequest, Query) || Query.NavData.Get() != UpdatedNavData) return;
+
+    const double Started = FPlatformTime::Seconds();
+    FPathFindingResult PathResult;
+    {
+        TRACE_CPUPROFILER_EVENT_SCOPE(CastlePursuitRecoveryPath);
+        PathResult = Navigation->FindPathSync(Query);
+    }
+    const double QueryMilliseconds = (FPlatformTime::Seconds() - Started) * 1000.0;
+    const bool bComplete = PathResult.IsSuccessful() && PathResult.Path.IsValid() &&
+        PathResult.Path->IsValid() && !PathResult.Path->IsPartial();
+    if (!bComplete)
+    {
+        UE_LOG(LogCastlePursuit, VeryVerbose, TEXT("RecoveryQuery Enemy=%s Time=%.3f QueryMs=%.4f Partial=%d Result=%d Complete=0"),
+            *GetName(), Now, QueryMilliseconds, PathResult.IsPartial(), static_cast<int32>(PathResult.Result));
+        return;
+    }
+
+    // Mirror the controller's normal actor-goal setup and reuse the confirmed path.
+    PathResult.Path->SetGoalActorObservation(*P, 100.f);
+    PathResult.Path->EnableRecalculationOnInvalidation(true);
+    const FAIRequestID RequestId = AI->RequestMove(MoveRequest, PathResult.Path);
+    if (RequestId.IsValid()) AI->bAllowStrafe = MoveRequest.CanStrafe();
+    UE_LOG(LogCastlePursuit, VeryVerbose, TEXT("RecoveryQuery Enemy=%s Time=%.3f QueryMs=%.4f Partial=0 Result=%d Complete=1 RequestId=%u Accepted=%d"),
+        *GetName(), Now, QueryMilliseconds, static_cast<int32>(PathResult.Result), RequestId.GetID(), RequestId.IsValid());
 }
 
 void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
