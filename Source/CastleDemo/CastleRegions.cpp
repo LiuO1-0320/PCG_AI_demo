@@ -37,6 +37,12 @@ namespace
             :TEXT("/Game/Demo/CaveArt/M_CaveStone.M_CaveStone"));
     }
 
+    // 墙面专用：同一张贴图，重复次数降到 1.1x1.8，砖纹放大成石块。
+    UMaterialInterface* CaveSlabBase()
+    {
+        return LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveSlab.M_CaveSlab"));
+    }
+
     void ApplyCaveGrade(UMaterialInstanceDynamic* Mid,float MemDepth,bool bTile)
     {
         if(!Mid) return;
@@ -46,7 +52,7 @@ namespace
         const FLinearColor Cold=bTile?FLinearColor(1.05f,1.02f,1.02f):FLinearColor(1.18f,1.14f,1.10f);
         const FLinearColor Warm=bTile?FLinearColor(1.52f,1.36f,1.06f):FLinearColor(1.62f,1.46f,1.16f);
         const float RoughCold=bTile?1.10f:1.20f,RoughWarm=bTile?.72f:.84f;
-        const float GrimeCold=bTile?.55f:.50f,GrimeWarm=bTile?.15f:.12f;
+        const float GrimeCold=bTile?.48f:.34f,GrimeWarm=bTile?.15f:.12f;
         Mid->SetVectorParameterValue(TEXT("Tint"),FLinearColor(
             FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f));
         Mid->SetScalarParameterValue(TEXT("RoughnessScale"),FMath::Lerp(RoughCold,RoughWarm,D));
@@ -59,7 +65,8 @@ namespace
         if(!IsValid(Art)) return;
         auto* OldStone=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
         auto* OldTile=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryTiles.M_MemoryTiles"));
-        auto* NewStone=CaveBase(false);
+        auto* NewStone=CaveSlabBase();
+        if(!NewStone) NewStone=CaveBase(false);
         auto* NewTile=CaveBase(true);
         if(!OldStone||!OldTile||!NewStone||!NewTile) return;
 
@@ -98,7 +105,7 @@ namespace
             const float Radius=Lamp->AttenuationRadius;
             if(Radius>=1200.f)
             {
-                Lamp->SetIntensity(Lamp->Intensity*.30f);
+                Lamp->SetIntensity(Lamp->Intensity*.55f);
                 Lamp->SetAttenuationRadius(900.f);
                 Lamp->SetLightColor(FLinearColor(.74f,.74f,.76f));
                 ++LitLamps;
@@ -185,10 +192,12 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     // 所以吊灯/金线这类新材质不能塞进 Materials 数组，直接给组件指定材质指针。
     auto* GoldMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveGold.M_CaveGold"));
     auto* FlameMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_CandleFlame.M_CandleFlame"));
+    auto* VelvetMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_Velvet.M_Velvet"));
+    auto* GlowMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryGlow.M_MemoryGlow"));
     auto CavePart=[&](const TCHAR* Path,FVector Pos,FVector Scale,FRotator Rot,UMaterialInterface* Mat)
     {
         auto* Mesh=LoadObject<UStaticMesh>(nullptr,Path);
-        if(!Mesh) return;
+        if(!Mesh) { UE_LOG(LogTemp,Warning,TEXT("CAVE_PART_MISSING %s"),Path); return; }
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
         auto* Actor=GetWorld()->SpawnActor<AActor>(AActor::StaticClass(),Pos,Rot,SpawnParams);
@@ -269,7 +278,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
         // 洞体可见墙面走材质槽 6（只有藏宝洞用这个索引）：每房一份 MID，按深度分级。
         UMaterialInstanceDynamic* RoomStone=nullptr;
-        if(auto* ShellBase=CaveBase(false))
+        if(auto* ShellBase=CaveSlabBase())
             if(Materials.IsValidIndex(6))
             {
                 RoomStone=UMaterialInstanceDynamic::Create(ShellBase,this);
@@ -316,7 +325,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     Bulb->SetMobility(EComponentMobility::Movable);
                     // 点光源是平方反比衰减：灯挂在 7 米高，要到地面上跟"地面 1.6 米的
                     // 蜡烛灯"同量级，强度得差 (7/1.6)^2 ≈ 20 倍，所以是 26 万起。
-                    Bulb->SetIntensity(FMath::Lerp(260000.f,430000.f,MemDepth));
+                    Bulb->SetIntensity(FMath::Lerp(380000.f,560000.f,MemDepth));
                     Bulb->SetAttenuationRadius(1900.f);
                     Bulb->SetLightColor(FLinearColor(1.f,.80f,.50f));
                     Bulb->SetCastShadows(true);
@@ -376,6 +385,28 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,Bar*265.f,RoofZ-14.f),
                         FVector(18.2f,.22f,.22f),FRotator::ZeroRotator,GoldMat);
                 }
+            }
+            // ===== 富丽陈设 =====
+            // 壁画之间挂天鹅绒长幅，四角摆金瓶嵌记忆宝石 —— 空厅变成宝库。
+            for(int32 Side=0;Side<4;++Side)
+            {
+                if(Room.Doors&(1<<Side)) continue;
+                const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                const FVector T(-N.Y,N.X,0);
+                for(int32 Sign:{-1,1})
+                    CavePart(TEXT("/Game/Models/Kenney/flag-banner-long.flag-banner-long"),
+                        C+N*(Half-80.f)+T*(Sign*690.f)+FVector(0,0,272.f),
+                        FVector(1.6f,1.6f,1.6f),FRotator(0,Side*90.f+180.f,0),VelvetMat);
+            }
+            for(int32 X:{-1,1}) for(int32 Y:{-1,1})
+            {
+                const FVector P=C+FVector(X*460.f,Y*520.f,0);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),P+FVector(0,0,22),
+                    FVector(.64f,.64f,.44f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),P+FVector(0,0,66),
+                    FVector(.38f,.38f,.72f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Sphere.Sphere"),P+FVector(0,0,116),
+                    FVector(.20f,.20f,.30f),FRotator::ZeroRotator,GlowMat);
             }
         }
 

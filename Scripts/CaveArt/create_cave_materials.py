@@ -37,7 +37,7 @@ def sample(material, texture, uv, sampler, srgb):
     return node
 
 
-def build(name, prefix):
+def build(name, prefix, u=2.0, v=2.0):
     path = ROOT + '/' + name
     if unreal.EditorAssetLibrary.does_asset_exist(path):
         unreal.log('CASTLE_CAVE_MATERIAL skip ' + path)
@@ -46,8 +46,8 @@ def build(name, prefix):
     m.set_editor_property('two_sided', True)
 
     uv = mel.create_material_expression(m, unreal.MaterialExpressionTextureCoordinate)
-    uv.set_editor_property('u_tiling', 2.0)
-    uv.set_editor_property('v_tiling', 2.0)
+    uv.set_editor_property('u_tiling', u)
+    uv.set_editor_property('v_tiling', v)
     # A second, much coarser UV set reuses the same diffuse as a macro mask.
     # Multiplying the fine tiling by the coarse one breaks the visible grid
     # repetition without importing an extra texture.
@@ -114,6 +114,10 @@ def build(name, prefix):
 
 build('M_CaveStone', 'stone_block_wall')
 build('M_CaveTile', 'stone_tiles')
+# Same stone, much larger repeat: the vault wall is one 1800x480 box whose UV
+# covers the whole face, so the default 2.0 tiling reads as small cellar bricks.
+# Dropping the repeat turns the same texture into big ashlar blocks.
+build('M_CaveSlab', 'stone_block_wall', 1.1, 1.8)
 
 
 def flat(name, hexcode, metallic=0.0, roughness=0.7, emission=0.0):
