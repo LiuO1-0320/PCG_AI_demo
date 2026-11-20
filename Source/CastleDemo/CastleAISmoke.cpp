@@ -1,4 +1,9 @@
 #include "CastleDemo.h"
+#include "CastleQueen.h"
+#include "Camera/CameraComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "Engine/DamageEvents.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -17,7 +22,7 @@ void ACastleDirector::TickAISmokeTest()
     struct FTestState
     {
         int32 Stage=0, SavedAttackEvents=0;
-        float StageAt=0, HealthBefore=0;
+        float StageAt=0, HealthBefore=0, PeakCoverSpeed=0;
         FVector Start;
         TWeakObjectPtr<ACastleEnemy> Enemy;
         TWeakObjectPtr<AStaticMeshActor> Wall;
@@ -44,6 +49,13 @@ void ACastleDirector::TickAISmokeTest()
         Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
         Mesh->SetWorldScale3D(FVector(.6f,5,4));Mesh->SetCollisionProfileName(TEXT("BlockAll"));
         Mesh->SetCanEverAffectNavigation(false);S.Wall=Wall;
+    };
+    auto MakeCover = [&]()
+    {
+        MakeWall();
+        S.Wall->SetActorLocation(FVector(60,230,160));
+        S.Wall->GetStaticMeshComponent()->SetWorldScale3D(FVector(1.3f,1.3f,3.2f));
+        BossCoverPoints.Add(FVector(60,230,320));
     };
     if(S.Stage==0)
     {
@@ -106,17 +118,85 @@ void ACastleDirector::TickAISmokeTest()
         {Fail(TEXT("Dormant boss attacked or wrong tree"));return;}
         E->bActive=true;Next(7);break;
     case 7:
-        if(Elapsed<.4f)return;
-        if(E->AILastVolley!=3 || E->AIPursuitTicks<5 || E->AIAttackTicks<5 || E->AISlamTicks<5)
+        if(Elapsed<1.2f)return;
+        if(E->AILastVolley!=6 || E->AIPursuitTicks<5 || E->AIAttackTicks<5 || E->AISlamTicks<5)
         {Fail(TEXT("Boss parallel tasks/normal volley not running"));return;}
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: pursuit, attack and slam tasks concurrent; 3 bolts"));
+        if(auto* Queen=Cast<ACastleQueen>(E);!Queen || !Queen->ShootAnimation || !Queen->ChargeAnimation || !Queen->FrameGlow)
+        {Fail(TEXT("Queen rig, animations or frame material missing"));return;}
+        if(Cast<ACastleQueen>(E)->QueenMesh->GetMaterial(0)!=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/BossPrototype/QueenDemo/M_QueenDemo.M_QueenDemo")))
+        {Fail(TEXT("Queen body is using the default material instead of its texture"));return;}
+        {
+            FHitResult UpperBody;FCollisionQueryParams ShotQuery(NAME_None,false,P);
+            const FVector Target=E->GetActorLocation()+FVector(0,0,180);
+            if(!GetWorld()->LineTraceSingleByChannel(UpperBody,Target-FVector(500,0,0),Target,ECC_Visibility,ShotQuery) || UpperBody.GetActor()!=E)
+            {Fail(TEXT("Queen upper body is not targetable above movement capsule"));return;}
+        }
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: queen abilities use demo BT; 6 bolts from two muzzles"));
+        E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        E->SetActorLocation(FVector(300,80,100));
+        MakeCover();
+        S.SavedAttackEvents=E->AIAttackEvents;
+        Next(15);break;
+    case 15:
+    {
+        if (E->GetCharacterMovement()->MaxWalkSpeed > 320.1f) {Fail(TEXT("Normal queen received cover sprint bonus"));return;}
+        const FVector Behind=(BossCoverPoints.Last()-P->Camera->GetComponentLocation()).GetSafeNormal2D();
+        const FVector Goal=BossCoverPoints.Last()+Behind*165.f;
+        if (FVector::Dist2D(E->GetActorLocation(),Goal)>40.f)
+        {
+            if (E->IsChargingBlast() || Elapsed>6.f) Fail(TEXT("Queen must reach cover before charging"));
+            return;
+        }
+        if(!E->IsChargingBlast())return;
+        P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
+        FHitResult Shot;
+        FCollisionQueryParams Query(NAME_None,false,P);
+        GetWorld()->LineTraceSingleByChannel(Shot,P->Camera->GetComponentLocation(),E->GetActorLocation()+FVector(0,0,75),ECC_Visibility,Query);
+        S.HealthBefore=E->Health;
+        const int32 Ammo=P->Ammo;
+        P->Fire();
+        if (Shot.GetActor()!=S.Wall.Get() || P->Ammo!=Ammo-1 || E->Health!=S.HealthBefore)
+        {Fail(TEXT("Column did not block follow-up fire"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_OK: queen reached cover and the column blocked the follow-up shot"));
+        S.Start=E->GetActorLocation(); Next(16);break;
+    }
+    case 16:
+    {
+        if(FVector::Dist(E->GetActorLocation(),S.Start)>1.f){Fail(TEXT("Queen moved during ground charge"));return;}
+        if(E->IsChargingBlast())return;
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_CHARGE_OK: reached cover without player fire and remained stationary through the blast"));
+        BossCoverPoints.Pop();S.Wall->Destroy();S.Wall.Reset();
+        E->SetActorLocation(FVector(200,0,100));Travel(P,FVector(-400,0,110));
+    }
+        E->GetCharacterMovement()->DisableMovement();
         E->Health=E->MaxHealth*.49f;Next(8);break;
     case 8:
-        if(Elapsed<1.4f)return;
-        if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=5)
-        {Fail(TEXT("Boss enrage/5-bolt fan changed"));return;}
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: half-health state, 5 bolts"));
-        MakeWall();ClearBolts();Next(9);break;
+        if(Elapsed<.2f)return;
+        if(Elapsed<1.8f)
+        {
+            auto* Queen=Cast<ACastleQueen>(E);
+            if(!Queen || Queen->Action!=3 || Queen->TakeDamage(1,FDamageEvent(),P->GetController(),P)!=0)
+            {Fail(TEXT("Queen transition did not block damage and attacks"));return;}
+            for(TActorIterator<ACastleQueenBolt> It(GetWorld());It;++It) if(It->Shooter==E)
+            {Fail(TEXT("Queen transition retained old projectiles"));return;}
+            return;
+        }
+        if(Elapsed<4.2f)return;
+        if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=10)
+        {Fail(TEXT("Queen phase two did not fire 10-bolt volley"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: invulnerable transition, clean projectiles, 10 bolts"));
+        E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        E->SetActorLocation(FVector(300,80,100));MakeCover();
+        S.Start=E->GetActorLocation();
+        Travel(P,FVector(-400,0,110));
+        Next(13);break;
+    case 13:
+        S.PeakCoverSpeed=FMath::Max(S.PeakCoverSpeed,float(E->GetVelocity().Size2D()));
+        if(Elapsed<.55f || (S.PeakCoverSpeed<375.f && Elapsed<2.5f))return;
+        if(S.PeakCoverSpeed<375.f || S.PeakCoverSpeed>385.f)
+        {UE_LOG(LogTemp,Error,TEXT("Cover peak %.1f"),S.PeakCoverSpeed);Fail(TEXT("Enraged cover sprint speed"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_SPRINT_OK Peak=%.1f cm/s"),S.PeakCoverSpeed);
+        ClearBolts();Next(9);break;
     case 9:
         if(!E->IsChargingBlast())return;
         if(BB->GetValueAsBool(TEXT("CanSeeTarget"))) {Fail(TEXT("Slam occlusion setup failed"));return;}
@@ -136,6 +216,31 @@ void ACastleDirector::TickAISmokeTest()
         if(Elapsed<1.1f)return;
         if(BB->GetValueAsBool(TEXT("IsOperational")) || E->AIAttackEvents!=S.SavedAttackEvents)
         {Fail(TEXT("Dead player still attacked"));return;}
+        E->bActive=false;P->ResetRun();
+        {
+            auto* Bolt=GetWorld()->SpawnActor<ACastleBolt>(P->GetActorLocation()+FVector(100,0,0),FRotator::ZeroRotator);
+            if(!Bolt){Fail(TEXT("Could not spawn test bolt"));return;}
+            Bolt->Shooter=E;Bolt->Velocity=FVector(-1000,0,0);Bolt->Tick(.15f);
+        }
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=465.f || P->Shield>=P->MaxShield)
+        {Fail(TEXT("Shield hit did not apply projectile slow"));return;}
+        Next(17);break;
+    case 17:
+        if(Elapsed<.4f)return;
+        {
+            auto* Bolt=GetWorld()->SpawnActor<ACastleQueenBolt>(P->GetActorLocation()+FVector(100,0,0),FRotator::ZeroRotator);
+            if(!Bolt){Fail(TEXT("Could not spawn queen test bolt"));return;}
+            Bolt->Shooter=E;Bolt->Velocity=FVector(-1000,0,0);Bolt->Tick(.15f);
+        }
+        Next(18);break;
+    case 18:
+        if(Elapsed<1.3f)return;
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=465.f){Fail(TEXT("Queen hit did not refresh slow without stacking"));return;}
+        Next(19);break;
+    case 19:
+        if(Elapsed<.35f)return;
+        if(P->GetCharacterMovement()->MaxWalkSpeed!=620.f){Fail(TEXT("Projectile slow did not expire"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_BOLT_SLOW_OK guard and queen hits, shield, refresh, expiry"));
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_SMOKE_OK: real guard/boss BTs, shared BB, movement/attack concurrency, sight, home gate, dormancy, enrage, ground slam, death gate."));
         FPlatformMisc::RequestExitWithStatus(true,0);Next(12);break;
     default:break;

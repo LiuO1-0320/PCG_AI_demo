@@ -331,10 +331,18 @@ void ACastleDirector::TickSmokeTest()
             Fail(TEXT("Vault route is not navigable"));return;
         }
     }
+    for (int32 I = 0; I < BossCoverPoints.Num(); ++I)
+    {
+        if (FMath::Abs(BossCoverPoints[I].Y - BossCenter.Y) < 1200)
+        { Fail(TEXT("Arena cover blocks the central combat lane")); return; }
+        for (int32 J = 0; J < I; ++J)
+            if (FVector::Dist2D(BossCoverPoints[I], BossCoverPoints[J]) < 299)
+            { Fail(TEXT("Arena cover sites overlap")); return; }
+    }
     for(const auto& Top:BossPlatforms)
     {
         auto* RaisedPath=UNavigationSystemV1::FindPathToLocationSynchronously(this,BossCenter+FVector(-1700,0,100),Top+FVector(0,0,100));
-        if(!RaisedPath || !RaisedPath->IsValid() || RaisedPath->IsPartial() || RaisedPath->PathPoints.Last().Z<Top.Z-40){Fail(TEXT("Arena raised platform cannot be reached by ramp"));return;}
+        if(!RaisedPath || !RaisedPath->IsValid() || RaisedPath->IsPartial() || RaisedPath->PathPoints.Last().Z<Top.Z-40){FNavLocation A,B; const bool PA=Nav->ProjectPointToNavigation(BossCenter+FVector(-1700,0,100),A,FVector(200,200,300)); const bool PB=Nav->ProjectPointToNavigation(Top,B,FVector(200,200,300)); UE_LOG(LogTemp,Error,TEXT("ArenaNav Target=%s Project=%d/%d Start=%s End=%s Partial=%d"),*Top.ToString(),PA,PB,*A.Location.ToString(),*B.Location.ToString(),RaisedPath?RaisedPath->IsPartial():0); Fail(TEXT("Arena raised platform cannot be reached by ramp"));return;}
     }
     auto* Cave=FindItem(ECastleInteract::CaveEnter); if(!Cave){Fail(TEXT("Later-floor cave portal missing"));return;}
     const FVector BeforeCave=Cave->GetActorLocation();
@@ -613,6 +621,8 @@ void ACastleDirector::TickCapture()
         EnterBoss(P);
         const FVector Viewpoint=BossPlatforms.IsEmpty()?BossCenter+FVector(-1900,-300,0):BossPlatforms[0];
         Travel(P,Viewpoint+FVector(0,0,110),(BossCenter-Viewpoint).Rotation().Yaw);
+        if (FParse::Param(FCommandLine::Get(),TEXT("CastlePalaceCapture")))
+            Travel(P,BossCenter+FVector(-2200,-50,180),0);
         Name=TEXT("BossArena");
     }
     else if(CaptureStage==3)

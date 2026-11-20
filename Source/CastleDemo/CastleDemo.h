@@ -87,11 +87,14 @@ public:
     class ACastleInteractable* Focused() const;
     void Tell(const FString& Message);
     void GrantRelic(int32 Kind);
+    void ReceiveBoltHit(float Damage, AActor* Shooter);
     void ResetRun();
 private:
     friend class ACastleDirector;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Gun;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Muzzle;
+    float BoltSlowUntil = 0.f, SpeedBeforeBoltHit = 0.f;
+    void ClearBoltSlow();
     bool bFiring = false;
     float NextShot = 0, LastDamage = -100;
     void MoveForward(float Value);
@@ -155,7 +158,7 @@ public:
     ACastleEnemy();
     virtual void Tick(float DeltaSeconds) override;
     virtual float TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*) override;
-    void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
+    virtual void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBoss = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bElite = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float Health = 75;
@@ -170,11 +173,11 @@ public:
     // Ability execution is reused by BT tasks; decisions no longer run in Character::Tick.
     bool CanRunAI(ACastlePlayer* Player) const;
     bool IsInDecisionRange(ACastlePlayer* Player) const;
-    void ResolvePendingBlast(ACastlePlayer* Player);
-    void UpdatePursuit(ACastlePlayer* Player, bool bCanSee);
-    void UpdateAttack(ACastlePlayer* Player, bool bCanSee);
-    void UpdateGroundSlam(ACastlePlayer* Player);
-    bool IsChargingBlast() const { return bCharging; }
+    virtual void ResolvePendingBlast(ACastlePlayer* Player);
+    virtual void UpdatePursuit(ACastlePlayer* Player, bool bCanSee);
+    virtual void UpdateAttack(ACastlePlayer* Player, bool bCanSee);
+    virtual void UpdateGroundSlam(ACastlePlayer* Player);
+    virtual bool IsChargingBlast() const { return bCharging; }
     int32 AIPursuitTicks = 0, AIAttackTicks = 0, AISlamTicks = 0;
     int32 AIAttackEvents = 0, AIBlastEvents = 0, AILastVolley = 0;
 protected:
@@ -232,7 +235,6 @@ public:
 #endif
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle") ECastlePCGRegion GeneratorRegion = ECastlePCGRegion::Exploration;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="8")) int32 ExtraConnections = 2;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="30")) int32 ArenaCoverCount = 10;
 protected:
     virtual TArray<FPCGPinProperties> InputPinProperties() const override;
     virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
@@ -278,7 +280,8 @@ public:
     FString Region = TEXT("EXPLORATION");
     void GenerateLayout(const UCastleLayoutSettings* Settings);
     void GenerateCave(const UCastleLayoutSettings* Settings);
-    void GenerateBossArena(const UCastleLayoutSettings* Settings);
+    void GenerateBossArena(const TArray<FTransform>& Decks, const TArray<FTransform>& Columns);
+    static void ConfigureBossGraph(class UPCGGraph* Graph);
     void RequestFloor(int32 InFloor);
     void StartRun(int32 Seed);
     void NewRun();
@@ -299,6 +302,9 @@ private:
     void PositionPlayerAtEntrance(ACastlePlayer* Player);
     UPROPERTY() TObjectPtr<ACameraActor> StartPreviewCamera;
     bool bStartPreview = false;
+    bool BuildBossPalaceShell();
+    void SetBossPalaceEnvironment(bool bActive);
+    void AddPalaceMesh(const TCHAR* Path, FVector Center, FVector Size, FRotator Rotation = FRotator::ZeroRotator);
     void ClearGenerated();
     void ClearGeneratedRegion(ECastlePCGRegion InRegion);
     void CompleteFloorGeneration();

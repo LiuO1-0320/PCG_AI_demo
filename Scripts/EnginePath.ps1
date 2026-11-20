@@ -18,9 +18,12 @@ if ($CastleAssociation) {
         $CastleCandidates += (Get-ItemProperty -LiteralPath "HKLM:\SOFTWARE\EpicGames\Unreal Engine\$CastleAssociation" -ErrorAction SilentlyContinue).InstalledDirectory
         $CastleCandidates += Join-Path ([Environment]::GetFolderPath('ProgramFiles')) "Epic Games/UE_$CastleAssociation"
     }
-    $CastleCandidates += Get-ItemPropertyValue -LiteralPath 'HKCU:\SOFTWARE\Epic Games\Unreal Engine\Builds' -Name $CastleAssociation -ErrorAction SilentlyContinue
+    try {
+        $CastleCandidates += Get-ItemPropertyValue -LiteralPath 'HKCU:\SOFTWARE\Epic Games\Unreal Engine\Builds' -Name $CastleAssociation -ErrorAction Stop
+    } catch { Write-Verbose "No per-user engine registration for '$CastleAssociation'." }
 }
 
+$CastleCandidates += @('E:\UE5\UE_5.8', 'E:\Epic Games\UE_5.8', 'D:\UE5\UE_5.8')
 $CastleEngineRoot = $null
 foreach ($CastleCandidate in $CastleCandidates | Where-Object { $_ } | Select-Object -Unique) {
     if (!(Test-Path -LiteralPath (Join-Path $CastleCandidate 'Engine/Binaries/Win64/UnrealEditor.exe') -PathType Leaf)) { continue }

@@ -125,6 +125,7 @@ void ACastlePlayer::Tick(float Dt)
 {
     Super::Tick(Dt);
     const float Now = GetWorld()->GetTimeSeconds();
+    if (BoltSlowUntil > 0.f && Now >= BoltSlowUntil) ClearBoltSlow();
     if (bReloading && Now >= ReloadEnd)
     {
         const int32 Taken = FMath::Min(MagazineSize - Ammo, Reserve);
@@ -205,6 +206,25 @@ void ACastlePlayer::GrantRelic(int32 Kind)
     NoticeUntil=0;
 }
 
+void ACastlePlayer::ReceiveBoltHit(float Damage, AActor* Shooter)
+{
+    if (UGameplayStatics::ApplyDamage(this, Damage, nullptr, Shooter, nullptr) <= 0.f || bDead) return;
+    auto* Movement = GetCharacterMovement();
+    if (BoltSlowUntil == 0.f)
+    {
+        SpeedBeforeBoltHit = Movement->MaxWalkSpeed;
+        Movement->MaxWalkSpeed = SpeedBeforeBoltHit * .75f;
+    }
+    BoltSlowUntil = GetWorld()->GetTimeSeconds() + 1.5f;
+}
+
+void ACastlePlayer::ClearBoltSlow()
+{
+    if (BoltSlowUntil == 0.f) return;
+    GetCharacterMovement()->MaxWalkSpeed = SpeedBeforeBoltHit;
+    BoltSlowUntil = 0.f;
+}
+
 float ACastlePlayer::TakeDamage(float Damage, FDamageEvent const& Event, AController* DamageController, AActor* Causer)
 {
     if (bDead || Damage <= 0 || (Director() && Director()->bWon)) return 0;
@@ -213,6 +233,7 @@ float ACastlePlayer::TakeDamage(float Damage, FDamageEvent const& Event, AContro
     LastDamage = GetWorld()->GetTimeSeconds(); HurtUntil = LastDamage + .25f;
     if (Health <= 0)
     {
+        ClearBoltSlow();
         bDead = true; bFiring = false; bReloading = false;
         GetCharacterMovement()->StopMovementImmediately();
         Tell(TEXT("You fell in the castle. Press ENTER to begin a new run."));
@@ -222,6 +243,7 @@ float ACastlePlayer::TakeDamage(float Damage, FDamageEvent const& Event, AContro
 
 void ACastlePlayer::ResetRun()
 {
+    ClearBoltSlow();
     Health = MaxHealth = 100; Shield = MaxShield = 60; BulletDamage = 22;
     Ammo = MagazineSize = 24; Reserve = 144; Coins = 35; Relics = 0; WeaponLevel = 1;
     CollectibleStacks.Init(0,3);LastCollectibleKind=INDEX_NONE;MemoryNoticeUntil=0;bCollectionOpen=false;NoticeUntil=0;
@@ -605,7 +627,7 @@ void ACastleBolt::Tick(float Dt)
     GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(8), Q);
     if (Hit.bBlockingHit)
     {
-        if (auto* P = Cast<ACastlePlayer>(Hit.GetActor())) UGameplayStatics::ApplyDamage(P, Damage, nullptr, Shooter, nullptr);
+        if (auto* P = Cast<ACastlePlayer>(Hit.GetActor())) P->ReceiveBoltHit(Damage, Shooter);
         Destroy();
     }
     else SetActorLocation(End);

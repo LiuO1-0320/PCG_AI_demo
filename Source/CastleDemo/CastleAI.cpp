@@ -103,6 +103,7 @@ FString UBTTask_CastleAction::GetStaticDescription() const
 {
     switch (Action)
     {
+    case ECastleAIAction::EvadeOrPursue: return TEXT("Seek reachable cover, then hold position for the charged ground slam.");
     case ECastleAIAction::Pursuit: return TEXT("Face target each frame; MoveToActor every 0.45s. Guard: 450/320 cm; Boss: 650/500 cm.");
     case ECastleAIAction::Attack: return TEXT("Requires sight. Melee <140 cm, otherwise projectile. Guard: 1.9s/1 bolt. Boss: 1.35s/3 bolts, below half HP: 0.85s/5 bolts.");
     case ECastleAIAction::GroundSlam: return TEXT("Independent of sight. Cooldown 6s, telegraph 1.4s, radius 400 cm, height tolerance 160 cm, damage x2.4. Root service resolves pending hits even outside decision range.");
@@ -133,6 +134,8 @@ void UBTTask_CastleAction::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* No
     const bool bCanSee = BB && BB->GetValueAsBool(TEXT("CanSeeTarget"));
     switch (Action)
     {
+    case ECastleAIAction::EvadeOrPursue:
+
     case ECastleAIAction::Pursuit: Enemy->UpdatePursuit(Player,bCanSee); break;
     case ECastleAIAction::Attack: Enemy->UpdateAttack(Player,bCanSee); break;
     case ECastleAIAction::GroundSlam: Enemy->UpdateGroundSlam(Player); break;

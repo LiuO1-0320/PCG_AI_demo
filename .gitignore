@@ -48,10 +48,12 @@ SourceArt/**/*.png
 SourceArt/**/*.tga
 !SourceArt/MemoryRoom/faceless_courtier.png
 
-# Locally installed Fab packages and variants built from their meshes.
-/Content/Dungeon/
+# Locally installed Fab packages. Content/Dungeon is one of them; the candle
+# meshes and textures are the only part the vault needs, and they ship with the
+# rest of the project art through Git LFS, so that one folder is re-included.
+/Content/Dungeon/*
+!/Content/Dungeon/Candles/
 /Content/Fab/
-/Content/Demo/CourtArt/Masonry/
 
 # Binary Files
 Binaries/*

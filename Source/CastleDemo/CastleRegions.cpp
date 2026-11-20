@@ -1,8 +1,11 @@
 #include "CastleDemo.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/PointLight.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameViewportClient.h"
 #include "HAL/PlatformMisc.h"
@@ -19,6 +22,104 @@ namespace
         uint32 X=uint32(Seed)^(uint32(Floor)*0x9e3779b9u)^Purpose;
         X^=X>>16; X*=0x7feb352du; X^=X>>15; X*=0x846ca68bu; X^=X>>16;
         return int32(X);
+    }
+
+    // ===== PCG2-藏宝洞：石材分级 =====
+    // 洞体的可见墙面来自 BuildRoom 的材质槽 6（M_MemoryStone），房间美术里的
+    // 石材组件大多被洞体挡住。两边都换成带参数的 M_CaveStone / M_CaveTile 动态
+    // 实例，用同一个“记忆深度”驱动色温、粗糙度与斑驳度：
+    //   深度 0（入口）= 冷、潮、粗、脏   深度 1（出口）= 暖、润、净、亮
+    // 新材质缺失时整段跳过，房间保持原来的 M_MemoryStone，不会退化成灰盒。
+    UMaterialInterface* CaveBase(bool bTile)
+    {
+        return LoadObject<UMaterialInterface>(nullptr,bTile
+            ?TEXT("/Game/Demo/CaveArt/M_CaveTile.M_CaveTile")
+            :TEXT("/Game/Demo/CaveArt/M_CaveStone.M_CaveStone"));
+    }
+
+    // 墙面专用：同一张贴图，重复次数降到 1.1x1.8，砖纹放大成石块。
+    UMaterialInterface* CaveSlabBase()
+    {
+        return LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveSlab.M_CaveSlab"));
+    }
+
+    void ApplyCaveGrade(UMaterialInstanceDynamic* Mid,float MemDepth,bool bTile)
+    {
+        if(!Mid) return;
+        const float D=FMath::Clamp(MemDepth,0.f,1.f);
+        // 整条曲线都往暖金推：入口只是"暗一点、旧一点"，不是"变冷"。
+        // 冷暖对比交给灯光和斑驳度，墙面本身保持金色基调。
+        const FLinearColor Cold=bTile?FLinearColor(1.05f,1.02f,1.02f):FLinearColor(1.18f,1.14f,1.10f);
+        const FLinearColor Warm=bTile?FLinearColor(1.52f,1.36f,1.06f):FLinearColor(1.62f,1.46f,1.16f);
+        const float RoughCold=bTile?1.10f:1.20f,RoughWarm=bTile?.72f:.84f;
+        const float GrimeCold=bTile?.48f:.34f,GrimeWarm=bTile?.15f:.12f;
+        Mid->SetVectorParameterValue(TEXT("Tint"),FLinearColor(
+            FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f));
+        Mid->SetScalarParameterValue(TEXT("RoughnessScale"),FMath::Lerp(RoughCold,RoughWarm,D));
+        Mid->SetScalarParameterValue(TEXT("MacroGrime"),FMath::Lerp(GrimeCold,GrimeWarm,D));
+    }
+
+    // 房间美术本身：石材槽和地砖槽各一份 MID，外加那盏大范围补光的色温。
+    void GradeCaveRoomArt(AActor* Art,float MemDepth)
+    {
+        if(!IsValid(Art)) return;
+        auto* OldStone=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
+        auto* OldTile=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryTiles.M_MemoryTiles"));
+        auto* NewStone=CaveSlabBase();
+        if(!NewStone) NewStone=CaveBase(false);
+        auto* NewTile=CaveBase(true);
+        if(!OldStone||!OldTile||!NewStone||!NewTile) return;
+
+        auto* StoneMid=UMaterialInstanceDynamic::Create(NewStone,Art);
+        auto* TileMid=UMaterialInstanceDynamic::Create(NewTile,Art);
+        ApplyCaveGrade(StoneMid,MemDepth,false);
+        ApplyCaveGrade(TileMid,MemDepth,true);
+
+        int32 Walls=0,Floors=0;
+        TArray<UStaticMeshComponent*> Meshes;
+        Art->GetComponents<UStaticMeshComponent>(Meshes);
+        for(auto* Comp:Meshes)
+        {
+            if(!Comp) continue;
+            bool bStone=false,bTile=false;
+            for(int32 Slot=0;Slot<Comp->GetNumMaterials();++Slot)
+            {
+                auto* Current=Comp->GetMaterial(Slot);
+                if(Current==OldStone) bStone=true;
+                else if(Current==OldTile) bTile=true;
+            }
+            if(!bStone&&!bTile) continue;
+            auto* Use=bStone?StoneMid:TileMid;
+            for(int32 Slot=0;Slot<Comp->GetNumMaterials();++Slot) Comp->SetMaterial(Slot,Use);
+            bStone?++Walls:++Floors;
+        }
+        // 组员那 7 盏灯全是无阴影的大半径点光，叠起来把每面墙照得一样亮 —— 这就是
+        // 房间"平"的根因。这里把大范围补光压到 22%、半径砍到 760，让位给吊灯；
+        // 四角烛台收窄成光池，墙脚自然暗下去，明暗交界才立得住。
+        int32 LitLamps=0;
+        TArray<UPointLightComponent*> Lamps;
+        Art->GetComponents<UPointLightComponent>(Lamps);
+        for(auto* Lamp:Lamps)
+        {
+            if(!Lamp) continue;
+            const float Radius=Lamp->AttenuationRadius;
+            if(Radius>=1200.f)
+            {
+                Lamp->SetIntensity(Lamp->Intensity*.55f);
+                Lamp->SetAttenuationRadius(900.f);
+                Lamp->SetLightColor(FLinearColor(.74f,.74f,.76f));
+                ++LitLamps;
+            }
+            else if(Radius>800.f)
+            {
+                // 四角烛台原本贴着地面、把地板照得跟天花一样亮，这正是"平"的来源。
+                Lamp->SetIntensity(Lamp->Intensity*.45f);
+                Lamp->SetAttenuationRadius(Radius*.75f);
+                ++LitLamps;
+            }
+        }
+        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Walls=%d Floors=%d Lamps=%d"),
+            FMath::Clamp(MemDepth,0.f,1.f),Walls,Floors,LitLamps);
     }
 }
 
@@ -86,6 +187,33 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     if (Materials.IsValidIndex(6))
         Materials[6] = LoadObject<UMaterialInterface>(nullptr,
             TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
+    // ===== 金厅构件 =====
+    // 材质槽只有 0-8 可用（非碰撞对象会 +9 落到第二槽区，Material=9 会串到别的区域），
+    // 所以吊灯/金线这类新材质不能塞进 Materials 数组，直接给组件指定材质指针。
+    auto* GoldMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveGold.M_CaveGold"));
+    auto* FlameMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_CandleFlame.M_CandleFlame"));
+    auto* VelvetMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_Velvet.M_Velvet"));
+    auto* GlowMat=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryGlow.M_MemoryGlow"));
+    auto CavePart=[&](const TCHAR* Path,FVector Pos,FVector Scale,FRotator Rot,UMaterialInterface* Mat)
+    {
+        auto* Mesh=LoadObject<UStaticMesh>(nullptr,Path);
+        if(!Mesh) { UE_LOG(LogTemp,Warning,TEXT("CAVE_PART_MISSING %s"),Path); return; }
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        auto* Actor=GetWorld()->SpawnActor<AActor>(AActor::StaticClass(),Pos,Rot,SpawnParams);
+        if(!Actor) return;
+        auto* Comp=NewObject<UStaticMeshComponent>(Actor);
+        Comp->SetStaticMesh(Mesh);
+        Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetCanEverAffectNavigation(false);
+        Comp->SetMobility(EComponentMobility::Movable);
+        Comp->SetCastShadow(false);
+        Actor->SetRootComponent(Comp);
+        Comp->RegisterComponent();
+        Actor->SetActorLocation(Pos); Actor->SetActorRotation(Rot); Actor->SetActorScale3D(Scale);
+        if(Mat) for(int32 Slot=0;Slot<FMath::Max(1,Comp->GetNumMaterials());++Slot) Comp->SetMaterial(Slot,Mat);
+        TrackGenerated(Actor);
+    };
     FRandomStream R(RegionSeed(RunSeed,Floor,0xcabed123u));
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     auto Neighbor=[&](int32 I,int32 Side)
@@ -130,6 +258,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     }
     CaveEntrance=CaveRooms[CaveRoute[0]].Center;
     CaveExit=CaveRooms[CaveRoute[3]].Center;
+    int32 ArtBuilt=0;
     for(int32 Order=0;Order<4;++Order)
     {
         const auto& Room=CaveRooms[CaveRoute[Order]]; const FVector C=Room.Center;
@@ -147,9 +276,139 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         const float Half=900.f;
         const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
+        // 洞体可见墙面走材质槽 6（只有藏宝洞用这个索引）：每房一份 MID，按深度分级。
+        UMaterialInstanceDynamic* RoomStone=nullptr;
+        if(auto* ShellBase=CaveSlabBase())
+            if(Materials.IsValidIndex(6))
+            {
+                RoomStone=UMaterialInstanceDynamic::Create(ShellBase,this);
+                ApplyCaveGrade(RoomStone,MemDepth,false);
+                Materials[6]=RoomStone;
+            }
         BuildRoom(C,Half,Room.Doors,6);
         // 组员的完整石材房间：墙/地面/柱/画框/地毯/四角蜡烛/氛围灯
-        BuildMedievalMemoryRoom(Room,Half);
+        // 生成前后做一次 tagged actor 差集，拿到本次新建的美术 Actor，再按深度改材质。
+        TSet<AActor*> ArtBefore;
+        for(TActorIterator<AActor> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("CastleMemoryRoomArt"))) ArtBefore.Add(*It);
+        if(BuildMedievalMemoryRoom(Room,Half)) ++ArtBuilt;
+        for(TActorIterator<AActor> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("CastleMemoryRoomArt")) && !ArtBefore.Contains(*It))
+                GradeCaveRoomArt(*It,MemDepth);
+
+        // ===== 金厅吊灯 =====
+        // 整间房只有这一盏开阴影：灯下亮成一片、墙脚自然留暗，房间才有纵深。
+        // 深度越深，灯越亮（记忆越完整，厅越"金碧辉煌"）。
+        {
+            const float HangZ=CeilH-250.f;
+            const FVector Hub=C+FVector(0,0,HangZ);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),C+FVector(0,0,(CeilH+HangZ)*.5f),
+                FVector(.10f,.10f,(CeilH-HangZ)/100.f),FRotator::ZeroRotator,GoldMat);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),Hub,FVector(3.4f,3.4f,.12f),FRotator::ZeroRotator,GoldMat);
+            CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),Hub+FVector(0,0,30),FVector(1.6f,1.6f,.22f),FRotator::ZeroRotator,GoldMat);
+            for(int32 A=0;A<10;++A)
+            {
+                const float Ang=A*(2.f*PI/10.f);
+                const FVector Arm(FMath::Cos(Ang)*150.f,FMath::Sin(Ang)*150.f,0);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),Hub+Arm*.5f,
+                    FVector(1.5f,.08f,.08f),FRotator(0,Ang*57.2958f,0),GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Sphere.Sphere"),Hub+Arm+FVector(0,0,26),
+                    FVector(.14f,.14f,.30f),FRotator::ZeroRotator,FlameMat);
+            }
+            auto* HeroLight=GetWorld()->SpawnActor<APointLight>(Hub+FVector(0,0,-30),FRotator::ZeroRotator);
+            if(HeroLight)
+            {
+                HeroLight->SetMobility(EComponentMobility::Movable);
+                auto* Bulb=HeroLight->PointLightComponent.Get();
+                if(Bulb)
+                {
+                    Bulb->SetMobility(EComponentMobility::Movable);
+                    // 点光源是平方反比衰减：灯挂在 7 米高，要到地面上跟"地面 1.6 米的
+                    // 蜡烛灯"同量级，强度得差 (7/1.6)^2 ≈ 20 倍，所以是 26 万起。
+                    Bulb->SetIntensity(FMath::Lerp(380000.f,560000.f,MemDepth));
+                    Bulb->SetAttenuationRadius(1900.f);
+                    Bulb->SetLightColor(FLinearColor(1.f,.80f,.50f));
+                    Bulb->SetCastShadows(true);
+                    Bulb->MarkRenderStateDirty();
+                }
+                TrackGenerated(HeroLight);
+                UE_LOG(LogTemp,Display,TEXT("CAVE_CHANDELIER Order=%d Hub=%s Bulb=%d Intensity=%.0f Mobility=%d"),
+                    Order,*Hub.ToCompactString(),Bulb!=nullptr,Bulb?Bulb->Intensity:0.f,
+                    Bulb?int32(Bulb->Mobility):-1);
+            }
+            else UE_LOG(LogTemp,Warning,TEXT("CAVE_CHANDELIER_FAILED Order=%d"),Order);
+            // 金色腰线：沿着四面墙顶一圈，压在门楣上，让"金碧辉煌"从墙面立起来
+            for(int32 Side=0;Side<4;++Side)
+            {
+                const bool bAlongX=(Side==1||Side==3);
+                const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                const FVector T(-N.Y,N.X,0);
+                const FVector Size=bAlongX?FVector(18.2f,.14f,.30f):FVector(.14f,18.2f,.30f);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+N*(Half-52.f)+FVector(0,0,472.f),
+                    Size,FRotator::ZeroRotator,GoldMat);
+                // 镀金壁柱：只放在没有门的那几面墙中间（画框在 ±440，这里不抢位置），
+                // 房间从"一整面砖墙"变成有节奏的厅。
+                if(Room.Doors&(1<<Side)) continue;
+                CavePart(TEXT("/Game/Models/Kenney/wall-pillar.wall-pillar"),
+                    C+N*(Half-58.f),FVector(1.5f,1.5f,4.6f),FRotator(0,Side*90.f,0),GoldMat);
+            }
+            // 地面金线：围着地毯一圈，"宝库"从脚下就有交代
+            for(int32 Sign:{-1,1})
+            {
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(Sign*380,0,2.4f),
+                    FVector(.06f,8.2f,.012f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,Sign*380,2.4f),
+                    FVector(8.2f,.06f,.012f),FRotator::ZeroRotator,GoldMat);
+            }
+            // ===== 补齐上半截 + 封顶 =====
+            // 房间美术的墙只有 480 高，再往上是空的，抬头直接看见天光（画面里天花板发蓝
+            // 就是这个）。用同一份石材 MID 把 480 一直砌到拱顶上方，再压一块顶板：
+            // 房间才真正"关起来"，吊灯的阴影也才有地方落。
+            if(RoomStone)
+            {
+                const float RoofZ=CeilH+300.f;
+                for(int32 Side=0;Side<4;++Side)
+                {
+                    const bool bAlongX=(Side==1||Side==3);
+                    const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+N*Half+FVector(0,0,(480.f+RoofZ)*.5f),
+                        bAlongX?FVector(18.6f,.85f,(RoofZ-480.f)/100.f):FVector(.85f,18.6f,(RoofZ-480.f)/100.f),
+                        FRotator::ZeroRotator,RoomStone);
+                }
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,0,RoofZ),
+                    FVector(18.6f,18.6f,.20f),FRotator::ZeroRotator,RoomStone);
+                // 顶上的金格：抬头看到的不是一块水泥板，而是格子金顶
+                for(int32 Bar=-3;Bar<=3;++Bar)
+                {
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(Bar*265.f,0,RoofZ-14.f),
+                        FVector(.22f,18.2f,.22f),FRotator::ZeroRotator,GoldMat);
+                    CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),C+FVector(0,Bar*265.f,RoofZ-14.f),
+                        FVector(18.2f,.22f,.22f),FRotator::ZeroRotator,GoldMat);
+                }
+            }
+            // ===== 富丽陈设 =====
+            // 壁画之间挂天鹅绒长幅，四角摆金瓶嵌记忆宝石 —— 空厅变成宝库。
+            for(int32 Side=0;Side<4;++Side)
+            {
+                if(Room.Doors&(1<<Side)) continue;
+                const FVector N(Side==0?1.f:Side==2?-1.f:0.f,Side==1?1.f:Side==3?-1.f:0.f,0.f);
+                const FVector T(-N.Y,N.X,0);
+                for(int32 Sign:{-1,1})
+                    CavePart(TEXT("/Game/Models/Kenney/flag-banner-long.flag-banner-long"),
+                        C+N*(Half-80.f)+T*(Sign*690.f)+FVector(0,0,272.f),
+                        FVector(1.6f,1.6f,1.6f),FRotator(0,Side*90.f+180.f,0),VelvetMat);
+            }
+            for(int32 X:{-1,1}) for(int32 Y:{-1,1})
+            {
+                const FVector P=C+FVector(X*460.f,Y*520.f,0);
+                CavePart(TEXT("/Engine/BasicShapes/Cube.Cube"),P+FVector(0,0,22),
+                    FVector(.64f,.64f,.44f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"),P+FVector(0,0,66),
+                    FVector(.38f,.38f,.72f),FRotator::ZeroRotator,GoldMat);
+                CavePart(TEXT("/Engine/BasicShapes/Sphere.Sphere"),P+FVector(0,0,116),
+                    FVector(.20f,.20f,.30f),FRotator::ZeroRotator,GlowMat);
+            }
+        }
 
         // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
         const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
@@ -317,55 +576,70 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         UE_LOG(LogTemp,Display,TEXT("CAVE_GEOMETRY Instances=%d"),TotalInstances);
         if(TotalInstances==0) UE_LOG(LogTemp,Warning,TEXT("CAVE_GEOMETRY_EMPTY: vault generated no mesh instances"));
     }
+    // 洞体的墙面方块和美术模块完全重合，尺寸也一致（都是 85 厚、贴着 Half）。重合面
+    // 谁先画谁留下，所以看到的一直是那个 1800 长的大方块 —— 一张贴图铺 1800 单位，
+    // 细节全糊。地面同理：洞体是一整块 1900 的板，美术是 4x4 的 450 模块。
+    // 四个房间都成功铺了美术模块时，把方块那两层藏掉（只藏可见性，碰撞照旧）。
+    // 少一间没铺上就整层保留，避免屋里出现通透的洞。
+    if(ArtBuilt>=4)
+    {
+        const int32 Base=int32(ECastlePCGRegion::TreasureCave)*18;
+        for(int32 Material:{0,6})
+        {
+            const int32 Slot=Base+Material;
+            if(Geometry.IsValidIndex(Slot) && Geometry[Slot]) Geometry[Slot]->SetVisibility(false);
+        }
+    }
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_CAVE_SHELL ArtRooms=%d Hidden=%d"),ArtBuilt,ArtBuilt>=4?1:0);
     bCaveGenerated=true;
     if(bExplorationGenerated && bBossGenerated && !bReady)CompleteFloorGeneration();
 }
 
-void ACastleDirector::GenerateBossArena(const UCastleLayoutSettings* Settings)
+void ACastleDirector::GenerateBossArena(const TArray<FTransform>& Decks, const TArray<FTransform>& Columns)
 {
     ClearGeneratedRegion(ECastlePCGRegion::BossArena);
     GeneratingRegion=ECastlePCGRegion::BossArena; InitializeMaterials();
     BossPlatforms.Reset(); BossCoverPoints.Reset();
-    FRandomStream R(RegionSeed(RunSeed,Floor,0xb055a12fu));
-    BuildRoom(BossCenter,2250,0,2);
-    AddSign(BossCenter+FVector(2130,0,430),BossName(),FColor(220,170,255));
-    TArray<FIntPoint> Corners{FIntPoint(-1,-1),FIntPoint(1,-1),FIntPoint(-1,1),FIntPoint(1,1)};
-    for(int32 I=Corners.Num()-1;I>0;--I)Corners.Swap(I,R.RandRange(0,I));
-    const int32 PlatformCount=R.RandRange(2,4);
-    for(int32 I=0;I<PlatformCount;++I)
+    if (!BuildBossPalaceShell()) BuildRoom(BossCenter,2250,0,2);
+    else AddBox(BossCenter-FVector(0,0,20),FVector(5000,4000,40),2);
+    for (const FTransform& Deck : Decks)
     {
-        const auto Corner=Corners[I];
-        const float Height=160+80*R.RandRange(0,2);
-        const FVector Top=BossCenter+FVector(Corner.X*1450,Corner.Y*1250,Height);
-        AddBox(Top-FVector(0,0,Height*.5f),FVector(700,850,Height),2);
+        constexpr float Height = 240.f;
+        const FVector Top = BossCenter + Deck.GetLocation();
+        const FRotator DeckRotation = Deck.Rotator();
+        const float Side = FMath::Sign(Deck.GetLocation().X);
+        AddBox(Top-FVector(0,0,Height*.5f),FVector(700,600,Height),2,true,DeckRotation);
+        AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_Plinth.SM_Ruin_Plinth"),Top-FVector(0,0,Height*.5f),FVector(710,610,Height),DeckRotation);
         BossPlatforms.Add(Top);
-        const FVector Start=BossCenter+FVector(Corner.X*150,Corner.Y*1250,0);
-        const FVector End=BossCenter+FVector(Corner.X*1100,Corner.Y*1250,Height);
+        const FVector Start=Top+DeckRotation.RotateVector(FVector(-Side*1300,0,-Height));
+        const FVector End=Top+DeckRotation.RotateVector(FVector(-Side*350,0,0));
         const FRotator Slope=(End-Start).Rotation();
         const FVector Normal=Slope.RotateVector(FVector::UpVector);
         // Extend into both adjoining surfaces to avoid tiny collision/nav seams.
-        AddBox((Start+End)*.5f-Normal*20,FVector((End-Start).Size()+80,600,40),1,true,Slope);
-        AddBox(Top+FVector(Corner.X*210,0,90),FVector(160,340,180),8);
+        AddBox((Start+End)*.5f-Normal*20,FVector((End-Start).Size()+80,500,40),1,true,Slope);
+        AddPalaceMesh(TEXT("/Game/DarkFantasyCastle/Meshes/SM_BrickStairs.SM_BrickStairs"), (Start+End)*.5f,FVector(500,950,Height),FRotator(0,DeckRotation.Yaw+(Side>0?90:-90),0));
         AddLight(Top+FVector(0,0,300),FLinearColor(.6f,.25f,1));
     }
     // Keep the horizontal spawn-to-boss lane and all ramp approaches open.
-    // Cover alternates between short barricades, tall columns and L-shaped walls.
-    const int32 CoverCount=FMath::Clamp(Settings?Settings->ArenaCoverCount:10,4,18);
-    for(int32 I=0;I<CoverCount;++I)
+    // Cover columns use a fixed size and a seeded pose.
+    for (const FTransform& Column : Columns)
     {
-        const int32 Row=I/6,Column=I%6;
-        const float YSign=(I%2)?1.f:-1.f;
-        const FVector Pos=BossCenter+FVector(-1500+Column*600+R.FRandRange(-55,55),YSign*(570+Row*130),0);
-        const int32 Kind=R.RandRange(0,2);
-        const float Height=Kind==0?100:Kind==1?R.FRandRange(300,440):220;
-        const float Width=Kind==1?130:R.FRandRange(180,260);
-        AddBox(Pos+FVector(0,0,Height*.5f),FVector(Width,Kind==1?130:180,Height),8);
-        if(Kind==2)AddBox(Pos+FVector(Width*.5f+55,90,Height*.5f),FVector(110,260,Height),8);
+        const FVector Pos = BossCenter + Column.GetLocation();
+        constexpr float Height = 320.f;
+        const FRotator ColumnRotation = Column.Rotator();
+        AddBox(Pos+FVector(0,0,Height*.5f),FVector(130,130,Height),8,true,ColumnRotation);
+        AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_BrokenShaft.SM_Ruin_BrokenShaft"),Pos+FVector(0,0,Height*.5f),FVector(142,142,Height+12),ColumnRotation);
         BossCoverPoints.Add(Pos+FVector(0,0,Height));
+    }
+    // Smooth collision supports navigation; the authored stone meshes supply the visible surfaces.
+    for (int32 Material : {1, 2, 8})
+    {
+        const int32 Slot=int32(ECastlePCGRegion::BossArena)*18+Material;
+        if (Geometry.IsValidIndex(Slot) && Geometry[Slot]) Geometry[Slot]->SetVisibility(false);
     }
     Boss=AddEnemy(BossCenter+FVector(400,0,180),true);
     AddInteract(BossCenter+FVector(-1700,-300,45),ECastleInteract::Ammo,TEXT("ARENA SUPPLIES"));
-    UE_LOG(LogTemp,Display,TEXT("CASTLE_BOSS_SPACE Floor=%d Seed=%d Platforms=%d Cover=%d"),Floor,RunSeed,BossPlatforms.Num(),BossCoverPoints.Num());
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_BOSS_SPACE Floor=%d Seed=%d Platforms=%d Cover=%d Palace=1"),Floor,RunSeed,BossPlatforms.Num(),BossCoverPoints.Num());
     bBossGenerated=true;
     if(bExplorationGenerated && bCaveGenerated && !bReady)CompleteFloorGeneration();
 }

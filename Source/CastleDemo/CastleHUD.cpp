@@ -101,7 +101,7 @@ void ACastleHUD::DrawHUD()
     }
     else
     {
-        const float X=W-218,Y=28,Side=180,Scale=Side/4500.f;
+        const float X=W-218,Y=28,Side=180,Scale=Side/6000.f;
         DrawRect(FLinearColor(.018f,.025f,.04f,.88f),X-12,Y-8,210,232);
         Text(TEXT("ARENA MAP"),X,Y,Gold);
         DrawRect(FLinearColor(.14f,.12f,.2f),X,Y+28,Side,Side);

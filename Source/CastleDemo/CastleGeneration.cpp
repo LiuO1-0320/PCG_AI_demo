@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleQueen.h"
 #include "CastleLanguage.h"
 #include "CastleCourtProps.h"
 #include "CastleCourtScenery.h"
@@ -54,7 +55,19 @@ protected:
         const ECastlePCGRegion Area=Settings->GeneratorRegion;
         if(Area==ECastlePCGRegion::Exploration) D->GenerateLayout(Settings);
         else if(Area==ECastlePCGRegion::TreasureCave) D->GenerateCave(Settings);
-        else D->GenerateBossArena(Settings);
+        else
+        {
+            auto ReadTransforms = [Context](FName Pin)
+            {
+                TArray<FTransform> Result;
+                for (const auto& Input : Context->InputData.GetInputsByPin(Pin))
+                    if (const auto* Data = Cast<UPCGBasePointData>(Input.Data))
+                        for (int32 I = 0; I < Data->GetNumPoints(); ++I)
+                            Result.Add(Data->GetTransform(I));
+                return Result;
+            };
+            D->GenerateBossArena(ReadTransforms(TEXT("Platforms")), ReadTransforms(TEXT("Cover")));
+        }
         auto* Points = NewObject<UPCGPointData>();
         auto* RoomType = Points->Metadata->CreateAttribute<int32>(TEXT("RoomType"), 0, false, false);
         auto* Region = Points->Metadata->CreateAttribute<int32>(TEXT("Region"), 0, false, false);
@@ -93,13 +106,23 @@ protected:
     }
 };
 
-TArray<FPCGPinProperties> UCastleLayoutSettings::InputPinProperties() const { return {}; }
+TArray<FPCGPinProperties> UCastleLayoutSettings::InputPinProperties() const
+{
+    if (GeneratorRegion == ECastlePCGRegion::BossArena)
+        return { FPCGPinProperties(TEXT("Platforms"), EPCGDataType::Point), FPCGPinProperties(TEXT("Cover"), EPCGDataType::Point) };
+    return {};
+}
 TArray<FPCGPinProperties> UCastleLayoutSettings::OutputPinProperties() const { return { FPCGPinProperties(TEXT("Out"), EPCGDataType::Point) }; }
 FPCGElementPtr UCastleLayoutSettings::CreateElement() const { return MakeShared<FCastleLayoutElement>(); }
 
 UPCGGraph* ACastleDirector::MakeGraph(UObject* Outer, ECastlePCGRegion GeneratorRegion)
 {
     auto* Graph = NewObject<UPCGGraph>(Outer);
+    if (GeneratorRegion == ECastlePCGRegion::BossArena)
+    {
+        ConfigureBossGraph(Graph);
+        return Graph;
+    }
     UCastleLayoutSettings* Settings = nullptr;
     auto* Node = Graph->AddNodeOfType(Settings);
     Settings->GeneratorRegion=GeneratorRegion;
@@ -378,7 +401,8 @@ ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<AC
     UClass* SpawnClass = EnemyClass.Get();
     if (!SpawnClass || SpawnClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
     {
-        SpawnClass = ACastleEnemy::StaticClass();
+        // The boss arena asks for a boss without naming a class: that is the queen.
+        SpawnClass = IsBoss ? ACastleQueen::StaticClass() : ACastleEnemy::StaticClass();
     }
 
     FActorSpawnParameters P;
@@ -594,6 +618,11 @@ void ACastleDirector::CompleteFloorGeneration()
         }
     }
     if(auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld())) Nav->Build();
+    if (FParse::Param(FCommandLine::Get(),TEXT("CastleBossPreview")))
+    {
+        if (Floor==1) RequestFloor(2);
+        else if (auto* Player=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0))) EnterBoss(Player);
+    }
 }
 
 FString ACastleDirector::BossName() const
@@ -603,6 +632,7 @@ FString ACastleDirector::BossName() const
 
 void ACastleDirector::Travel(ACastlePlayer* P,FVector Pos,float Yaw)
 {
+    SetBossPalaceEnvironment(Region == TEXT("BOSS ARENA"));
     P->GetCharacterMovement()->StopMovementImmediately(); P->SetActorLocation(Pos,false,nullptr,ETeleportType::TeleportPhysics);
     P->SetActorRotation(FRotator(0,Yaw,0)); if(auto* Controller=P->GetController()) Controller->SetControlRotation(FRotator(0,Yaw,0));
     // Disabling collision during generation makes CharacterMovement enter MOVE_None.

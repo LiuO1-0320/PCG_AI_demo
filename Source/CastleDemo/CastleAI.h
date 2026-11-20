@@ -20,7 +20,7 @@ protected:
 };
 
 UENUM()
-enum class ECastleAIAction : uint8 { Pursuit, Attack, GroundSlam, Hold };
+enum class ECastleAIAction : uint8 { Pursuit, Attack, GroundSlam, Hold, EvadeOrPursue };
 
 // Latent tasks run concurrently under native Simple Parallel composites.
 // Runtime timers/state belong to the possessed enemy, never to shared BT template objects.

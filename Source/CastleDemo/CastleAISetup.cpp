@@ -62,15 +62,16 @@ static UBehaviorTree* MakeCastleTree(UBlackboardData* BB, bool bBoss)
         Gate->ConfigureKey(Key); static_cast<UBTNode*>(Gate)->InitializeFromAsset(*Tree);
         Root->Children[0].Decorators.Add(Gate);
     }
-    AddChild(Combat,MakeAction(Tree,ECastleAIAction::Pursuit,TEXT("Face and chase / stop")));
+    AddChild(Combat,MakeAction(Tree,bBoss ? ECastleAIAction::EvadeOrPursue : ECastleAIAction::Pursuit,
+        bBoss ? TEXT("Move to firing cover") : TEXT("Face and chase / stop")));
     if (bBoss)
     {
         auto* Abilities = NewObject<UBTComposite_SimpleParallel>(Tree);
         Abilities->NodeName = TEXT("Attack and ground slam independently");
         Abilities->FinishMode = EBTParallelMode::AbortBackground;
         AddChild(Combat,Abilities);
-        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Melee / fan attack + enrage")));
-        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::GroundSlam,TEXT("Ground slam telegraph (no sight required)")));
+        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Fan volley while seeking cover")));
+        AddChild(Abilities,MakeAction(Tree,ECastleAIAction::GroundSlam,TEXT("Charge ground slam from cover")));
     }
     else AddChild(Combat,MakeAction(Tree,ECastleAIAction::Attack,TEXT("Melee / single projectile")));
     AddChild(Root,MakeAction(Tree,ECastleAIAction::Hold,TEXT("Out of range: hold; inactive: stop")));
@@ -128,6 +129,7 @@ static UBehaviorTree* MakeCastleTree(UBlackboardData* BB, bool bBoss)
         {
             switch(Task->Action)
             {
+            case ECastleAIAction::EvadeOrPursue:
             case ECastleAIAction::Pursuit: BTGraphNode->NodePosX=0;BTGraphNode->NodePosY=1100;break;
             case ECastleAIAction::Hold: BTGraphNode->NodePosX=1700;BTGraphNode->NodePosY=600;break;
             case ECastleAIAction::Attack: BTGraphNode->NodePosX=bBoss?700:900;BTGraphNode->NodePosY=bBoss?1500:1100;break;
@@ -164,7 +166,7 @@ int32 UCastleAISetupCommandlet::Main(const FString& Params)
                 Tree->RootNode->Children[0].Decorators.Num()!=2 || !Tree->BlackboardAsset) return 4;
             for (UBTDecorator* Gate : Tree->RootNode->Children[0].Decorators)
                 if (!Gate || Gate->GetOutermost()!=Tree->GetOutermost()) return 5;
-            int32 Pursuit=0,Attack=0,Slam=0,Hold=0;
+            int32 Evade=0,Pursuit=0,Attack=0,Slam=0,Hold=0;
             TFunction<void(UBTCompositeNode*)> Inspect=[&](UBTCompositeNode* Composite)
             {
                 for (const auto& Child : Composite->Children)
@@ -173,6 +175,7 @@ int32 UCastleAISetupCommandlet::Main(const FString& Params)
                     {
                         switch(Task->Action)
                         {
+                        case ECastleAIAction::EvadeOrPursue: ++Evade;break;
                         case ECastleAIAction::Pursuit: ++Pursuit;break;
                         case ECastleAIAction::Attack: ++Attack;break;
                         case ECastleAIAction::GroundSlam: ++Slam;break;
@@ -183,12 +186,17 @@ int32 UCastleAISetupCommandlet::Main(const FString& Params)
                 }
             };
             Inspect(Tree->RootNode);
-            if (Pursuit!=1 || Attack!=1 || Hold!=1 || Slam!=(Tree->GetFName()==TEXT("BT_CastleBoss")?1:0)) return 6;
+            if (Evade!=(Tree->GetFName()==TEXT("BT_CastleBoss")?1:0) || Pursuit+Evade!=1 || Attack!=1 || Hold!=1 || Slam!=(Tree->GetFName()==TEXT("BT_CastleBoss")?1:0)) return 6;
             UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_EDITOR_VERIFY_OK: %s reopened; gates, service and action branches preserved."),Name);
         }
         return 0;
     }
     const FString Path = TEXT("/Game/Demo/AI/BB_CastleEnemy");
+    if (FParse::Param(*Params,TEXT("BossOnly")))
+    {
+        auto* ExistingBB = LoadObject<UBlackboardData>(nullptr,TEXT("/Game/Demo/AI/BB_CastleEnemy.BB_CastleEnemy"));
+        return ExistingBB && SaveAIAsset(MakeCastleTree(ExistingBB,true)) ? 0 : 2;
+    }
     auto* Package = CreatePackage(*Path); Package->FullyLoad();
     auto* BB = NewObject<UBlackboardData>(Package,TEXT("BB_CastleEnemy"),RF_Public|RF_Standalone);
     auto AddKey = [BB](const TCHAR* Name, UBlackboardKeyType* Type)
