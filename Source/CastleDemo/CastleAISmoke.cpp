@@ -1,5 +1,6 @@
 #include "CastleDemo.h"
 #include "CastleQueen.h"
+#include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Engine/DamageEvents.h"
@@ -21,7 +22,7 @@ void ACastleDirector::TickAISmokeTest()
     struct FTestState
     {
         int32 Stage=0, SavedAttackEvents=0;
-        float StageAt=0, HealthBefore=0;
+        float StageAt=0, HealthBefore=0, PeakCoverSpeed=0;
         FVector Start;
         TWeakObjectPtr<ACastleEnemy> Enemy;
         TWeakObjectPtr<AStaticMeshActor> Wall;
@@ -48,6 +49,13 @@ void ACastleDirector::TickAISmokeTest()
         Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
         Mesh->SetWorldScale3D(FVector(.6f,5,4));Mesh->SetCollisionProfileName(TEXT("BlockAll"));
         Mesh->SetCanEverAffectNavigation(false);S.Wall=Wall;
+    };
+    auto MakeCover = [&]()
+    {
+        MakeWall();
+        S.Wall->SetActorLocation(FVector(60,230,160));
+        S.Wall->GetStaticMeshComponent()->SetWorldScale3D(FVector(1.3f,1.3f,3.2f));
+        BossCoverPoints.Add(FVector(60,230,320));
     };
     if(S.Stage==0)
     {
@@ -124,6 +132,44 @@ void ACastleDirector::TickAISmokeTest()
             {Fail(TEXT("Queen upper body is not targetable above movement capsule"));return;}
         }
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: queen abilities use demo BT; 6 bolts from two muzzles"));
+        E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        S.Start=E->GetActorLocation();Next(14);break;
+    case 14:
+        if(Elapsed<.45f)return;
+        if(FVector::Dist2D(E->GetActorLocation(),P->GetActorLocation()) < FVector::Dist2D(S.Start,P->GetActorLocation())+25.f)
+        {Fail(TEXT("Normal queen failed to open distance before player fire"));return;}
+        E->SetActorLocation(FVector(200,0,100));
+        E->GetCharacterMovement()->StopMovementImmediately();
+        MakeCover();
+        Travel(P,FVector(-400,0,110));
+        S.HealthBefore=E->Health;
+        P->Fire();
+        if (E->Health>=S.HealthBefore) {Fail(TEXT("Cover test opening shot missed"));return;}
+        Next(15);break;
+    case 15:
+    {
+        if (E->GetCharacterMovement()->MaxWalkSpeed > 320.1f) {Fail(TEXT("Normal queen received cover sprint bonus"));return;}
+        const FVector Behind=(BossCoverPoints.Last()-P->Camera->GetComponentLocation()).GetSafeNormal2D();
+        const FVector Goal=BossCoverPoints.Last()+Behind*165.f;
+        if (FVector::Dist2D(E->GetActorLocation(),Goal)>40.f)
+        {
+            if (Elapsed>5.f) Fail(TEXT("Queen did not reach back of cover after taking fire"));
+            return;
+        }
+        P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
+        FHitResult Shot;
+        FCollisionQueryParams Query(NAME_None,false,P);
+        GetWorld()->LineTraceSingleByChannel(Shot,P->Camera->GetComponentLocation(),E->GetActorLocation()+FVector(0,0,75),ECC_Visibility,Query);
+        S.HealthBefore=E->Health;
+        const int32 Ammo=P->Ammo;
+        P->Fire();
+        if (Shot.GetActor()!=S.Wall.Get() || P->Ammo!=Ammo-1 || E->Health!=S.HealthBefore)
+        {Fail(TEXT("Column did not block follow-up fire"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_OK: queen reached cover and the column blocked the follow-up shot"));
+        BossCoverPoints.Pop();S.Wall->Destroy();S.Wall.Reset();
+        E->SetActorLocation(FVector(200,0,100));Travel(P,FVector(-400,0,110));
+    }
+        E->GetCharacterMovement()->DisableMovement();
         E->Health=E->MaxHealth*.49f;Next(8);break;
     case 8:
         if(Elapsed<.2f)return;
@@ -140,6 +186,26 @@ void ACastleDirector::TickAISmokeTest()
         if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=10)
         {Fail(TEXT("Queen phase two did not fire 10-bolt volley"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: invulnerable transition, clean projectiles, 10 bolts"));
+        E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        MakeCover();
+        S.Start=E->GetActorLocation();
+        Travel(P,FVector(-400,0,110));
+        P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
+        S.HealthBefore=E->Health;
+        P->Fire();
+        if(E->Health>=S.HealthBefore){Fail(TEXT("Enraged cover test opening shot missed"));return;}
+        Next(13);break;
+    case 13:
+        S.PeakCoverSpeed=FMath::Max(S.PeakCoverSpeed,float(E->GetVelocity().Size2D()));
+        if(Elapsed<.55f || (S.PeakCoverSpeed<375.f && Elapsed<2.5f))return;
+        if(S.PeakCoverSpeed<375.f || S.PeakCoverSpeed>385.f)
+        {UE_LOG(LogTemp,Error,TEXT("Cover peak %.1f"),S.PeakCoverSpeed);Fail(TEXT("Enraged cover sprint speed"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_COVER_SPRINT_OK Peak=%.1f cm/s"),S.PeakCoverSpeed);
+        BossCoverPoints.Pop();S.Wall->Destroy();S.Wall.Reset();
+        if(FVector::Dist2D(E->GetActorLocation(),S.Start)<55.f)
+        {Fail(TEXT("Enraged BT failed to sidestep player fire"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_DODGE_OK Travel=%.1f Lateral=%.1f"),FVector::Dist2D(E->GetActorLocation(),S.Start),FMath::Abs(E->GetActorLocation().Y-S.Start.Y));
+        E->GetCharacterMovement()->DisableMovement();E->SetActorLocation(S.Start);
         MakeWall();ClearBolts();Next(9);break;
     case 9:
         if(!E->IsChargingBlast())return;

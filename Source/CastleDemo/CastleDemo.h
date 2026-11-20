@@ -229,7 +229,6 @@ public:
 #endif
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle") ECastlePCGRegion GeneratorRegion = ECastlePCGRegion::Exploration;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="8")) int32 ExtraConnections = 2;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Castle", meta=(ClampMin="0", ClampMax="30")) int32 ArenaCoverCount = 10;
 protected:
     virtual TArray<FPCGPinProperties> InputPinProperties() const override;
     virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
@@ -275,7 +274,8 @@ public:
     FString Region = TEXT("EXPLORATION");
     void GenerateLayout(const UCastleLayoutSettings* Settings);
     void GenerateCave(const UCastleLayoutSettings* Settings);
-    void GenerateBossArena(const UCastleLayoutSettings* Settings);
+    void GenerateBossArena(const TArray<FTransform>& Decks, const TArray<FTransform>& Columns);
+    static void ConfigureBossGraph(class UPCGGraph* Graph);
     void RequestFloor(int32 InFloor);
     void StartRun(int32 Seed);
     void NewRun();

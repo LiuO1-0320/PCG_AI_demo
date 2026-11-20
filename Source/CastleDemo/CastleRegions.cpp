@@ -595,47 +595,38 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     if(bExplorationGenerated && bBossGenerated && !bReady)CompleteFloorGeneration();
 }
 
-void ACastleDirector::GenerateBossArena(const UCastleLayoutSettings* Settings)
+void ACastleDirector::GenerateBossArena(const TArray<FTransform>& Decks, const TArray<FTransform>& Columns)
 {
     ClearGeneratedRegion(ECastlePCGRegion::BossArena);
     GeneratingRegion=ECastlePCGRegion::BossArena; InitializeMaterials();
     BossPlatforms.Reset(); BossCoverPoints.Reset();
-    FRandomStream R(RegionSeed(RunSeed,Floor,0xb055a12fu));
     if (!BuildBossPalaceShell()) BuildRoom(BossCenter,2250,0,2);
     else AddBox(BossCenter-FVector(0,0,20),FVector(5000,4000,40),2);
-    TArray<FIntPoint> Corners{FIntPoint(-1,-1),FIntPoint(1,-1),FIntPoint(-1,1),FIntPoint(1,1)};
-    for(int32 I=Corners.Num()-1;I>0;--I)Corners.Swap(I,R.RandRange(0,I));
-    const int32 PlatformCount=R.RandRange(2,4);
-    for(int32 I=0;I<PlatformCount;++I)
+    for (const FTransform& Deck : Decks)
     {
-        const auto Corner=Corners[I];
-        constexpr float Height=240.f;
-        const FRotator DeckRotation(0,R.FRandRange(-4.f,4.f),0);
-        const float LaneY=Corner.Y*(525+R.FRandRange(-15,15));
-        const float DeckX=Corner.X*(1430+R.FRandRange(-30,30));
-        const FVector Top=BossCenter+FVector(DeckX,LaneY,Height);
+        constexpr float Height = 240.f;
+        const FVector Top = BossCenter + Deck.GetLocation();
+        const FRotator DeckRotation = Deck.Rotator();
+        const float Side = FMath::Sign(Deck.GetLocation().X);
         AddBox(Top-FVector(0,0,Height*.5f),FVector(700,600,Height),2,true,DeckRotation);
         AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_Plinth.SM_Ruin_Plinth"),Top-FVector(0,0,Height*.5f),FVector(710,610,Height),DeckRotation);
         BossPlatforms.Add(Top);
-        const FVector Start=Top+DeckRotation.RotateVector(FVector(-Corner.X*1300,0,-Height));
-        const FVector End=Top+DeckRotation.RotateVector(FVector(-Corner.X*350,0,0));
+        const FVector Start=Top+DeckRotation.RotateVector(FVector(-Side*1300,0,-Height));
+        const FVector End=Top+DeckRotation.RotateVector(FVector(-Side*350,0,0));
         const FRotator Slope=(End-Start).Rotation();
         const FVector Normal=Slope.RotateVector(FVector::UpVector);
         // Extend into both adjoining surfaces to avoid tiny collision/nav seams.
         AddBox((Start+End)*.5f-Normal*20,FVector((End-Start).Size()+80,500,40),1,true,Slope);
-        AddPalaceMesh(TEXT("/Game/DarkFantasyCastle/Meshes/SM_BrickStairs.SM_BrickStairs"), (Start+End)*.5f,FVector(500,950,Height),FRotator(0,DeckRotation.Yaw+(Corner.X>0?90:-90),0));
+        AddPalaceMesh(TEXT("/Game/DarkFantasyCastle/Meshes/SM_BrickStairs.SM_BrickStairs"), (Start+End)*.5f,FVector(500,950,Height),FRotator(0,DeckRotation.Yaw+(Side>0?90:-90),0));
         AddLight(Top+FVector(0,0,300),FLinearColor(.6f,.25f,1));
     }
     // Keep the horizontal spawn-to-boss lane and all ramp approaches open.
     // Cover columns use a fixed size and a seeded pose.
-    const int32 CoverCount=FMath::Clamp(Settings?Settings->ArenaCoverCount:10,4,18);
-    for(int32 I=0;I<CoverCount;++I)
+    for (const FTransform& Column : Columns)
     {
-        const int32 Row=I/6,Column=I%6;
-        const float YSign=(I%2)?1.f:-1.f;
-        const FVector Pos=BossCenter+FVector(-1450+Column*490+R.FRandRange(-55,55),YSign*(1350+Row*145),0);
-        constexpr float Height=320.f;
-        const FRotator ColumnRotation(0,R.FRandRange(0,360),0);
+        const FVector Pos = BossCenter + Column.GetLocation();
+        constexpr float Height = 320.f;
+        const FRotator ColumnRotation = Column.Rotator();
         AddBox(Pos+FVector(0,0,Height*.5f),FVector(130,130,Height),8,true,ColumnRotation);
         AddPalaceMesh(TEXT("/Game/BossPalace/Ruins/Meshes/SM_Ruin_BrokenShaft.SM_Ruin_BrokenShaft"),Pos+FVector(0,0,Height*.5f),FVector(142,142,Height+12),ColumnRotation);
         BossCoverPoints.Add(Pos+FVector(0,0,Height));

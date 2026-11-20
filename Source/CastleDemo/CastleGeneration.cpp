@@ -55,7 +55,19 @@ protected:
         const ECastlePCGRegion Area=Settings->GeneratorRegion;
         if(Area==ECastlePCGRegion::Exploration) D->GenerateLayout(Settings);
         else if(Area==ECastlePCGRegion::TreasureCave) D->GenerateCave(Settings);
-        else D->GenerateBossArena(Settings);
+        else
+        {
+            auto ReadTransforms = [Context](FName Pin)
+            {
+                TArray<FTransform> Result;
+                for (const auto& Input : Context->InputData.GetInputsByPin(Pin))
+                    if (const auto* Data = Cast<UPCGBasePointData>(Input.Data))
+                        for (int32 I = 0; I < Data->GetNumPoints(); ++I)
+                            Result.Add(Data->GetTransform(I));
+                return Result;
+            };
+            D->GenerateBossArena(ReadTransforms(TEXT("Platforms")), ReadTransforms(TEXT("Cover")));
+        }
         auto* Points = NewObject<UPCGPointData>();
         auto* RoomType = Points->Metadata->CreateAttribute<int32>(TEXT("RoomType"), 0, false, false);
         auto* Region = Points->Metadata->CreateAttribute<int32>(TEXT("Region"), 0, false, false);
@@ -94,13 +106,23 @@ protected:
     }
 };
 
-TArray<FPCGPinProperties> UCastleLayoutSettings::InputPinProperties() const { return {}; }
+TArray<FPCGPinProperties> UCastleLayoutSettings::InputPinProperties() const
+{
+    if (GeneratorRegion == ECastlePCGRegion::BossArena)
+        return { FPCGPinProperties(TEXT("Platforms"), EPCGDataType::Point), FPCGPinProperties(TEXT("Cover"), EPCGDataType::Point) };
+    return {};
+}
 TArray<FPCGPinProperties> UCastleLayoutSettings::OutputPinProperties() const { return { FPCGPinProperties(TEXT("Out"), EPCGDataType::Point) }; }
 FPCGElementPtr UCastleLayoutSettings::CreateElement() const { return MakeShared<FCastleLayoutElement>(); }
 
 UPCGGraph* ACastleDirector::MakeGraph(UObject* Outer, ECastlePCGRegion GeneratorRegion)
 {
     auto* Graph = NewObject<UPCGGraph>(Outer);
+    if (GeneratorRegion == ECastlePCGRegion::BossArena)
+    {
+        ConfigureBossGraph(Graph);
+        return Graph;
+    }
     UCastleLayoutSettings* Settings = nullptr;
     auto* Node = Graph->AddNodeOfType(Settings);
     Settings->GeneratorRegion=GeneratorRegion;

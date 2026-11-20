@@ -117,6 +117,16 @@ int32 UCastleSetupCommandlet::Main(const FString& Params)
         FSavePackageArgs Args; Args.TopLevelFlags=RF_Public|RF_Standalone;
         return UPackage::SavePackage(Package,Asset,*File,Args);
     };
+    if (FParse::Param(*Params, TEXT("BossGraphOnly")))
+    {
+        auto* Graph = LoadObject<UPCGGraph>(nullptr, TEXT("/Game/Demo/PCG_BossArena.PCG_BossArena"));
+        if (!Graph) return 2;
+        TArray<UPCGNode*> OldNodes;
+        for (auto* Node : Graph->GetNodes()) OldNodes.Add(Node);
+        Graph->RemoveNodes(OldNodes);
+        ACastleDirector::ConfigureBossGraph(Graph);
+        return SaveAsset(Graph) ? 0 : 2;
+    }
     UPCGGraph* RegionGraphs[3]={};
     const TCHAR* GraphNames[]={TEXT("PCG_Exploration"),TEXT("PCG_BossArena"),TEXT("PCG_TreasureCave")};
     for(int32 I=0;I<3;++I)

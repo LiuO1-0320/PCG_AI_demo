@@ -27,6 +27,11 @@ public:
     int32 Action=0; // idle, volley charge, ground charge, phase transition
     bool bPhaseTwo=false;
 private:
+    bool UpdateCover(ACastlePlayer* Player);
+    void LeaveCover();
+    FVector CoverGoal = FVector::ZeroVector;
+    bool bSeekingCover = false;
+    float ThreatUntil = -1, CoverDeadline = 0, HoldUntil = 0, NextCover = 0;
     float Due=0, NextVolley=0, NextGround=0, Recovery=0, FlashUntil=0, LastHit=-100;
     void BeginAction(int32 NewAction,float Delay);
     void ClearQueenBolts();

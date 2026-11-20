@@ -331,6 +331,14 @@ void ACastleDirector::TickSmokeTest()
             Fail(TEXT("Vault route is not navigable"));return;
         }
     }
+    for (int32 I = 0; I < BossCoverPoints.Num(); ++I)
+    {
+        if (FMath::Abs(BossCoverPoints[I].Y - BossCenter.Y) < 1200)
+        { Fail(TEXT("Arena cover blocks the central combat lane")); return; }
+        for (int32 J = 0; J < I; ++J)
+            if (FVector::Dist2D(BossCoverPoints[I], BossCoverPoints[J]) < 299)
+            { Fail(TEXT("Arena cover sites overlap")); return; }
+    }
     for(const auto& Top:BossPlatforms)
     {
         auto* RaisedPath=UNavigationSystemV1::FindPathToLocationSynchronously(this,BossCenter+FVector(-1700,0,100),Top+FVector(0,0,100));
