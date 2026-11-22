@@ -1,3 +1,4 @@
+#include "CastleQueen.h"
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
 #include "CastleCollectibles.h"
@@ -179,6 +180,11 @@ void ACastlePlayer::Fire()
     DrawDebugLine(GetWorld(), Muzzle->GetComponentLocation(), Target, FColor(255, 210, 85), false, .065f, 0, 1.5f);
     if (auto* Enemy = Cast<ACastleEnemy>(Hit.GetActor()))
     {
+        if (auto* Queen=Cast<ACastleQueen>(Enemy); Queen && Queen->Action==3)
+        {
+            if (Queen->HandleShieldShot(Hit,WeaponLevel)) HitMarkerUntil=Now+.15f;
+            return;
+        }
         UGameplayStatics::ApplyDamage(Enemy, BulletDamage, GetController(), this, nullptr);
         HitMarkerUntil = Now + .15f;
     }
@@ -452,7 +458,9 @@ void ACastleEnemy::Configure(bool InBoss, int32 InFloor, ACastleDirector* D)
     AttackDamage = bBoss ? 14 + InFloor * 4 : 7 + InFloor * 3;
     Body->SetMaterial(0, CastleMaterial(bBoss ? TEXT("M_Purple") : TEXT("M_Enemy")));
     TArray<UStaticMeshComponent*> Meshes; GetComponents(Meshes);
-    for (auto* M : Meshes) if (M != Body && M != Telegraph) M->SetMaterial(0, CastleMaterial(TEXT("M_Gold")));
+    for (auto* M : Meshes)
+        if (M->GetFName()==TEXT("Helmet") || M->GetFName()==TEXT("Visor"))
+            M->SetMaterial(0, CastleMaterial(TEXT("M_Gold")));
     Telegraph->SetMaterial(0, CastleMaterial(TEXT("M_Danger")));
     if (bBoss) { SetActorScale3D(FVector(1.8f)); bActive = false; GetCharacterMovement()->MaxWalkSpeed = 220; }
     Label->SetTextRenderColor(bBoss ? FColor(220, 170, 255) : FColor(255, 150, 120));

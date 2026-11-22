@@ -1,3 +1,4 @@
+#include "CastleQueen.h"
 #include "CastleDemo.h"
 #include "CastleMapProjection.h"
 #include "CastleLanguage.h"
@@ -126,9 +127,23 @@ void ACastleHUD::DrawHUD()
     {
         float BW=FMath::Min(W*.42f,620.f),BX=(W-BW)*.5f;
         DrawRect(FLinearColor(.025f,.018f,.045f,.9f),BX-12,25,BW+24,66);
-        Text(CastleText(D->BossName())+(D->Boss->Health<D->Boss->MaxHealth*.5f?CastleText(TEXT("  /  ENRAGED")):FString()),BX,31,FLinearColor(.8f,.6f,1),1.15f);
+        const auto* Queen=Cast<ACastleQueen>(D->Boss);
+        Text(CastleText(D->BossName())+((Queen ? Queen->bPhaseTwo : D->Boss->Health<D->Boss->MaxHealth*.5f)?CastleText(TEXT("  /  ENRAGED")):FString()),BX,31,FLinearColor(.8f,.6f,1),1.15f);
         Bar(BX,60,BW,14,D->Boss->Health,D->Boss->MaxHealth,FLinearColor(.65f,.3f,.9f));
         Text((CastleIsChinese()?FString::Printf(TEXT("%.0f / %.0f"),D->Boss->Health,D->Boss->MaxHealth):FString::Printf(TEXT("%.0f / %.0f"),D->Boss->Health,D->Boss->MaxHealth)),BX+BW*.43f,77,White,.7f);
+        if (Queen && Queen->Action==3)
+        {
+            const bool Chinese=CastleIsChinese();
+            FString Hint;
+            if (Queen->WeakPointsHit==3)
+                Hint=Chinese?TEXT("护盾已破 · 女王即将狂暴"):TEXT("Shield broken - enrage incoming");
+            else if (P->WeaponLevel>=Queen->DirectBreakLevel)
+                Hint=Chinese ? FString::Printf(TEXT("卡宾枪 %d 级 · 射击护盾，一枪击破"),P->WeaponLevel) : FString::Printf(TEXT("Carbine Lv.%d - shoot the shield to break it in one hit"),P->WeaponLevel);
+            else
+                Hint=Chinese ? FString::Printf(TEXT("卡宾枪 %d 级 · %d 级可直接破盾 · 射击发光弱点 %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit) : FString::Printf(TEXT("Carbine Lv.%d - Lv.%d breaks shield directly - hit glowing targets %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit);
+            DrawRect(FLinearColor(.045f,.02f,.08f,.92f),BX-12,94,BW+24,34);
+            Text(Hint,BX,98,Gold,.9f);
+        }
     }
 
     if(!P->bDead && !D->bWon)

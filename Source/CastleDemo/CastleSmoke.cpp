@@ -1,3 +1,4 @@
+#include "CastleQueen.h"
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
 #include "CastleMemoryArtChecks.h"
@@ -63,8 +64,79 @@ void ACastleDirector::TickSmokeTest()
         UE_LOG(LogTemp,Display,TEXT("CASTLE_KEYBOARD_OK Key=%s Distance=%.1f"),*Keys[SmokeMovementStep].ToString(),FVector::DotProduct(Delta,Directions[SmokeMovementStep]));
         ++SmokeMovementStep; SmokeMovementAt=0; return;
     }
+    int32 ActiveCount=0;
+    if (Region==TEXT("BOSS ARENA"))
+    {
+        auto* Queen=Cast<ACastleQueen>(Boss);
+        if (!Queen) {Fail(TEXT("Queen missing during shield check"));return;}
+        if (Queen->Action==3)
+        {
+            if (Queen->Health!=Queen->MaxHealth*.5f)
+            {Fail(TEXT("Shield transition health"));return;}
+            if (Floor==3 && Now-SmokeWaitStart>4.f && FVector::Dist2D(Queen->GetActorLocation(),SmokeMovementStart)<180.f)
+            {UE_LOG(LogTemp,Error,TEXT("Shield patrol Queen=%s Center=%s Player=%s Mode=%d Speed=%.1f Pursuit=%d"),*Queen->GetActorLocation().ToString(),*BossCenter.ToString(),*P->GetActorLocation().ToString(),int32(Queen->GetCharacterMovement()->MovementMode),Queen->GetCharacterMovement()->MaxWalkSpeed,Queen->AIPursuitTicks);Fail(TEXT("Shielded queen did not patrol the arena"));return;}
+            if (Queen->DirectBreakLevel!=(Floor==2?8:10)){Fail(TEXT("Shield threshold"));return;}
+            for (int32 I=0; I<Queen->WeakPoints.Num(); ++I)
+            {
+                const auto* Point=Queen->WeakPoints[I].Get();
+                const bool Visible=I>=Queen->WeakPointsHit;
+                if (Point->IsVisible()!=Visible || Point->GetNumChildrenComponents()!=8)
+                {Fail(TEXT("Shield weak point indicator missing"));return;}
+                for (const USceneComponent* Spark:Point->GetAttachChildren())
+                    if (Spark->IsVisible()!=Visible){Fail(TEXT("Weak point spark visibility mismatch"));return;}
+            }
+            if (Queen->WeakPointsHit<3)
+            {
+                const bool WeakRoute=Floor==3;
+                P->WeaponLevel=WeakRoute?9:8;
+                const bool ProbeBody=WeakRoute && Now-SmokeWaitStart<5.4f;
+                if (ProbeBody && Now-SmokeWaitStart>5.f && !bMenuCaptureRequested &&
+                    FParse::Param(FCommandLine::Get(),TEXT("CastleShieldCapture")))
+                {
+                    const FString File=FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/TEXT("Screenshots/Demo/QueenShield.png"));
+                    FScreenshotRequest::RequestScreenshot(File,false,false);
+                    bMenuCaptureRequested=true;
+                }
+                if (ProbeBody && Queen->WeakPointsHit!=0){Fail(TEXT("Low level body shot broke shield"));return;}
+                auto* Target=WeakRoute && !ProbeBody ? Queen->WeakPoints[Queen->WeakPointsHit].Get() : Queen->ShieldShell.Get();
+                const FRotator Aim=(Target->GetComponentLocation()-P->Camera->GetComponentLocation()).Rotation();
+                P->GetController()->SetControlRotation(Aim);
+                P->Camera->SetWorldRotation(Aim);
+                P->Fire();
+            }
+            return;
+        }
+        if (!Queen->bPhaseTwo || Now-SmokeWaitStart<5.f || Queen->WeakPointsHit!=3)
+        {Fail(TEXT("Queen enraged before animation and shield break"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_SHIELD_OK floor=%d gun=%d threshold=%d"),Floor,P->WeaponLevel,Queen->DirectBreakLevel);
+        Queen->TakeDamage(99999,FDamageEvent(),P->GetController(),P);
+        for(const auto& Room:Rooms) if(Room.bActive)++ActiveCount;
+        if(!bBossDefeated || IsValid(Boss)){Fail(TEXT("Boss victory state"));return;}
+        ACastleInteractable* Exit=nullptr;
+        for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::NextFloor){Exit=*It;break;}
+        if(!Exit){Fail(TEXT("Boss did not unlock exit"));return;}
+        SmokeFloor=Floor; SmokeWaitStart=0;
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_FLOOR_OK Floor=%d Seed=%d ConnectedRooms=%d Navigation=OK"),Floor,RunSeed,ActiveCount);
+        Exit->Use(P);
+        if(Floor==3)
+        {
+            if(!bWon){Fail(TEXT("Three floor victory"));return;}
+            if(FParse::Param(FCommandLine::Get(),TEXT("CastleRetrySmokeTest")) && !bSmokeRetried)
+            {
+                const int32 Before=RunSeed;
+                RetrySameSeed();
+                if(RunSeed!=Before || PendingFloor!=1){Fail(TEXT("Same-seed retry"));return;}
+                SmokeFloor=0;SmokeWaitStart=0;SmokeMovementStep=0;SmokeMovementAt=0;bSmokeRetried=true;
+                UE_LOG(LogTemp,Display,TEXT("CASTLE_RETRY_SMOKE_OK Seed=%d"),RunSeed);
+                return;
+            }
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_OK: PCG, topology, navigation, AI possession, shooting, shield, shop, relics, cave, reload, death and three-floor victory verified."));
+            FPlatformMisc::RequestExitWithStatus(false,0);
+        }
+        return;
+    }
     if(Rooms.Num()!=16 || (Floor!=1 && !IsValid(Boss)) || (Floor==1 && IsValid(Boss))) {Fail(TEXT("Generated room count or boss state"));return;}
-    int32 TypeCount[10]={0},ActiveCount=0; TSet<int32> Seen{0}; TArray<int32> Q{0};
+    int32 TypeCount[10]={0}; TSet<int32> Seen{0}; TArray<int32> Q{0};
     for(const auto& Room:Rooms)if(Room.bActive)++ActiveCount;
     const int32 DX[]={1,0,-1,0},DY[]={0,1,0,-1};
     for(int32 Head=0;Head<Q.Num();++Head)
@@ -363,27 +435,10 @@ void ACastleDirector::TickSmokeTest()
     // Verify the boss has a navigation path around randomized cover.
     auto* BossPath=UNavigationSystemV1::FindPathToLocationSynchronously(this,Boss->GetActorLocation(),P->GetActorLocation());
     if(!BossPath || !BossPath->IsValid() || BossPath->IsPartial()){Fail(TEXT("Boss arena navigation"));return;}
+    SmokeMovementStart=Boss->GetActorLocation();
     Boss->TakeDamage(99999,FDamageEvent(),P->GetController(),P);
-    if(!bBossDefeated || IsValid(Boss)){Fail(TEXT("Boss victory state"));return;}
-    auto* Exit=FindItem(ECastleInteract::NextFloor); if(!Exit){Fail(TEXT("Boss did not unlock exit"));return;}
-    SmokeFloor=Floor; SmokeWaitStart=0;
-    UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_FLOOR_OK Floor=%d Seed=%d ConnectedRooms=%d Navigation=OK"),Floor,RunSeed,ActiveCount);
-    Exit->Use(P);
-    if(Floor==3)
-    {
-        if(!bWon){Fail(TEXT("Three floor victory"));return;}
-        if(FParse::Param(FCommandLine::Get(),TEXT("CastleRetrySmokeTest")) && !bSmokeRetried)
-        {
-            const int32 Before=RunSeed;
-            RetrySameSeed();
-            if(RunSeed!=Before || PendingFloor!=1){Fail(TEXT("Same-seed retry"));return;}
-            SmokeFloor=0;SmokeWaitStart=0;SmokeMovementStep=0;SmokeMovementAt=0;bSmokeRetried=true;
-            UE_LOG(LogTemp,Display,TEXT("CASTLE_RETRY_SMOKE_OK Seed=%d"),RunSeed);
-            return;
-        }
-        UE_LOG(LogTemp,Display,TEXT("CASTLE_SMOKE_OK: PCG, topology, navigation, AI possession, shooting, shield, shop, relics, cave, reload, death and three-floor victory verified."));
-        FPlatformMisc::RequestExitWithStatus(false,0);
-    }
+    Travel(P,BossCenter+FVector(-600,0,110),0);
+    SmokeWaitStart=Now;
 }
 
 void ACastleDirector::TickCapture()

@@ -24,6 +24,8 @@ void ACastleDirector::TickAISmokeTest()
         int32 Stage=0, SavedAttackEvents=0;
         float StageAt=0, HealthBefore=0, PeakCoverSpeed=0;
         FVector Start;
+        FQuat ChestBeforeHit;
+        bool bFacedTravel=false;
         TWeakObjectPtr<ACastleEnemy> Enemy;
         TWeakObjectPtr<AStaticMeshActor> Wall;
     };
@@ -132,6 +134,22 @@ void ACastleDirector::TickAISmokeTest()
             {Fail(TEXT("Queen upper body is not targetable above movement capsule"));return;}
         }
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_BOSS_NORMAL_OK: queen abilities use demo BT; 6 bolts from two muzzles"));
+        {
+            auto* Mesh=CastChecked<ACastleQueen>(E)->QueenMesh.Get();
+            Mesh->Stop();
+            S.ChestBeforeHit=Mesh->GetSocketTransform(TEXT("chest"),RTS_Component).GetRotation();
+            E->TakeDamage(1.f,FDamageEvent(),P->GetController(),P);
+            Next(20);break;
+        }
+    case 20:
+        if(Elapsed<.09f)return;
+        if(FMath::RadiansToDegrees(S.ChestBeforeHit.AngularDistance(CastChecked<ACastleQueen>(E)->QueenMesh->GetSocketTransform(TEXT("chest"),RTS_Component).GetRotation()))<6.f)
+        {Fail(TEXT("Queen chest did not recoil after damage"));return;}
+        Next(21);break;
+    case 21:
+        if(Elapsed<.3f)return;
+        if(FMath::RadiansToDegrees(S.ChestBeforeHit.AngularDistance(CastChecked<ACastleQueen>(E)->QueenMesh->GetSocketTransform(TEXT("chest"),RTS_Component).GetRotation()))>2.f)
+        {Fail(TEXT("Queen hit pose did not recover"));return;}
         E->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
         E->SetActorLocation(FVector(300,80,100));
         MakeCover();
@@ -139,6 +157,8 @@ void ACastleDirector::TickAISmokeTest()
         Next(15);break;
     case 15:
     {
+        if(E->GetVelocity().Size2D()>100 && FVector::DotProduct(E->GetActorForwardVector(),E->GetVelocity().GetSafeNormal2D())>.96)
+            S.bFacedTravel=true;
         if (E->GetCharacterMovement()->MaxWalkSpeed > 320.1f) {Fail(TEXT("Normal queen received cover sprint bonus"));return;}
         const FVector Behind=(BossCoverPoints.Last()-P->Camera->GetComponentLocation()).GetSafeNormal2D();
         const FVector Goal=BossCoverPoints.Last()+Behind*165.f;
@@ -148,6 +168,8 @@ void ACastleDirector::TickAISmokeTest()
             return;
         }
         if(!E->IsChargingBlast())return;
+        if(!S.bFacedTravel){Fail(TEXT("Queen did not face movement on cover route"));return;}
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_QUEEN_POSE_OK movement facing, recoil and recovery"));
         P->Camera->SetWorldRotation((E->GetActorLocation()+FVector(0,0,75)-P->Camera->GetComponentLocation()).Rotation());
         FHitResult Shot;
         FCollisionQueryParams Query(NAME_None,false,P);
@@ -169,10 +191,11 @@ void ACastleDirector::TickAISmokeTest()
         E->SetActorLocation(FVector(200,0,100));Travel(P,FVector(-400,0,110));
     }
         E->GetCharacterMovement()->DisableMovement();
+        BossCenter=FVector(200,0,0);
         E->Health=E->MaxHealth*.49f;Next(8);break;
     case 8:
         if(Elapsed<.2f)return;
-        if(Elapsed<1.8f)
+        if(Elapsed<4.8f)
         {
             auto* Queen=Cast<ACastleQueen>(E);
             if(!Queen || Queen->Action!=3 || Queen->TakeDamage(1,FDamageEvent(),P->GetController(),P)!=0)
@@ -181,7 +204,9 @@ void ACastleDirector::TickAISmokeTest()
             {Fail(TEXT("Queen transition retained old projectiles"));return;}
             return;
         }
-        if(Elapsed<4.2f)return;
+        if (auto* Queen=Cast<ACastleQueen>(E); Queen->Action==3)
+            Queen->HandleShieldShot(FHitResult(),Queen->DirectBreakLevel);
+        if(Elapsed<7.2f)return;
         if(!BB->GetValueAsBool(TEXT("IsEnraged")) || E->AILastVolley!=10)
         {Fail(TEXT("Queen phase two did not fire 10-bolt volley"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_ENRAGE_OK: invulnerable transition, clean projectiles, 10 bolts"));
@@ -205,8 +230,11 @@ void ACastleDirector::TickAISmokeTest()
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_SLAM_TRIGGER_OK: arms without sight, telegraph on floor"));
         S.HealthBefore=P->Health;E->SetActorLocation(FVector(4000,0,100));Next(10);break;
     case 10:
+        // The queen can blink back into decision range immediately after the slam resolves.
+        if(Elapsed>.4f && E->IsChargingBlast() && BB->GetValueAsBool(TEXT("InDecisionRange")))
+        {Fail(TEXT("Slam setup stayed in decision range"));return;}
         if(Elapsed<1.6f)return;
-        if(BB->GetValueAsBool(TEXT("InDecisionRange")) || E->IsChargingBlast() ||
+        if(E->IsChargingBlast() ||
             !FMath::IsNearlyEqual(S.HealthBefore-P->Health,52.8f,.15f))
         {Fail(TEXT("Armed slam did not resolve outside decision range with original damage"));return;}
         UE_LOG(LogTemp,Display,TEXT("CASTLE_AI_SLAM_RESOLVE_OK: 1.4s telegraph, 52.8 damage, resolves outside 3600cm"));

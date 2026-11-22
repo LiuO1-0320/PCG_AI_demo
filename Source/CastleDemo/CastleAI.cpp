@@ -1,4 +1,5 @@
 #include "CastleAI.h"
+#include "CastleQueen.h"
 #include "CastleDemo.h"
 #include "Camera/CameraComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -71,7 +72,8 @@ void ACastleAIController::UpdateCastleBlackboard()
     BB->SetValueAsBool(TEXT("InDecisionRange"), bInRange);
     BB->SetValueAsBool(TEXT("CanSeeTarget"), bCanSee);
     BB->SetValueAsBool(TEXT("IsBoss"), Enemy->bBoss);
-    BB->SetValueAsBool(TEXT("IsEnraged"), Enemy->bBoss && Enemy->Health < Enemy->MaxHealth*.5f);
+    const auto* Queen=Cast<ACastleQueen>(Enemy);
+    BB->SetValueAsBool(TEXT("IsEnraged"), Queen ? Queen->bPhaseTwo : Enemy->bBoss && Enemy->Health < Enemy->MaxHealth*.5f);
     BB->SetValueAsBool(TEXT("IsChargingBlast"), Enemy->IsChargingBlast());
 }
 

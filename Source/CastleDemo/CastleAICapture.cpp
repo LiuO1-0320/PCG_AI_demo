@@ -1,3 +1,4 @@
+#include "CastleQueen.h"
 #include "CastleDemo.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
@@ -103,6 +104,7 @@ void ACastleDirector::TickAICapture()
         ClearBolts();Restore();Boss->Health=Boss->MaxHealth*.49f;
         S.Events=Boss->AIAttackEvents;S.Stage=8;break;
     case 8:
+        if (auto* Queen=Cast<ACastleQueen>(Boss); Queen && Queen->Action==3) Queen->HandleShieldShot(FHitResult(),Queen->DirectBreakLevel);
         if(Boss->AIAttackEvents<=S.Events || Boss->AILastVolley!=10)return;
         if(S.ObservedAt==0){S.ObservedAt=Now;return;}
         if(Now-S.ObservedAt<.18f)return;

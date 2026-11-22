@@ -17,6 +17,11 @@ public:
     virtual void UpdatePursuit(ACastlePlayer* Player,bool CanSee) override;
     virtual bool IsChargingBlast() const override {return Action==2;}
     bool AcceptBoltHit();
+    bool HandleShieldShot(const FHitResult& Hit, int32 GunLevel);
+    int32 DirectBreakLevel = 8;
+    int32 WeakPointsHit = 0;
+    UPROPERTY() TObjectPtr<UStaticMeshComponent> ShieldShell;
+    UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> WeakPoints;
     UPROPERTY() TObjectPtr<class USkeletalMeshComponent> QueenMesh;
     UPROPERTY() TObjectPtr<class UAnimSequence> ShootAnimation;
     UPROPERTY() TObjectPtr<class UAnimSequence> ChargeAnimation;
@@ -27,8 +32,14 @@ public:
     int32 Action=0; // idle, volley charge, ground charge, phase transition
     bool bPhaseTwo=false;
 private:
+    void StartShield(ACastlePlayer* Player);
+    void HideShield();
+    void UpdateShieldPatrol();
+    int32 ShieldWaypoint = 0;
+    float NextShieldMove = 0;
     bool UpdateCover(ACastlePlayer* Player);
     void LeaveCover();
+    void BlinkAfterSlam(ACastlePlayer* Player);
     FVector CoverGoal = FVector::ZeroVector;
     bool bSeekingCover = false;
     bool bAtCover = false;

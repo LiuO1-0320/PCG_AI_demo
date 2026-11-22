@@ -1,4 +1,6 @@
 #include "CastleQueen.h"
+#include "QueenCombatAnimation.h"
+#include "QueenBlinkEffect.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -37,10 +39,50 @@ ACastleQueen::ACastleQueen()
     Target->SetBoxExtent(FVector(45,60,150));Target->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Target->SetCollisionResponseToAllChannels(ECR_Ignore);Target->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
     Target->SetCanEverAffectNavigation(false);
+    auto ShieldPiece = [&](FName Name, FVector Offset, FVector Scale, const TCHAR* Material)
+    {
+        auto* Piece=CreateDefaultSubobject<UStaticMeshComponent>(Name);
+        Piece->SetupAttachment(GetRootComponent());
+        Piece->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Sphere.Sphere")));
+        Piece->SetMaterial(0,QueenMaterial(Material));
+        Piece->SetRelativeLocation(Offset); Piece->SetRelativeScale3D(Scale);
+        Piece->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Piece->SetCollisionResponseToAllChannels(ECR_Ignore);
+        Piece->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+        Piece->SetGenerateOverlapEvents(false); Piece->SetCanEverAffectNavigation(false);
+        Piece->SetCastShadow(false); Piece->SetVisibility(false);
+        return Piece;
+    };
+    ShieldShell=ShieldPiece(TEXT("QueenShield"),FVector(0,0,66),FVector(2.7,2.7,3.4),TEXT("M_QueenShield"));
+    WeakPoints.Add(ShieldPiece(TEXT("ShieldLeft"),FVector(130,-103,72),FVector(.52),TEXT("M_QueenChargeCore")));
+    WeakPoints.Add(ShieldPiece(TEXT("ShieldRight"),FVector(130,103,72),FVector(.52),TEXT("M_QueenChargeCore")));
+    WeakPoints.Add(ShieldPiece(TEXT("ShieldCrown"),FVector(100,0,206),FVector(.52),TEXT("M_QueenChargeCore")));
+
+    for (int32 I=0; I<WeakPoints.Num(); ++I)
+    {
+        auto* Point=WeakPoints[I].Get();
+        auto* Gold=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/Materials/M_Gold.M_Gold"));
+        if (Gold) Point->SetMaterial(0,Gold);
+        for (int32 J=0; J<8; ++J)
+        {
+            auto* Spark=CreateDefaultSubobject<UStaticMeshComponent>(*FString::Printf(TEXT("WeakPoint%dSpark%d"),I,J));
+            Spark->SetupAttachment(Point);
+            Spark->SetStaticMesh(Point->GetStaticMesh());
+            Spark->SetMaterial(0,QueenMaterial(TEXT("M_QueenChargeCore")));
+            const float Angle=2.f*PI*J/8;
+            Spark->SetRelativeLocation(FVector(0,73.f*FMath::Cos(Angle),73.f*FMath::Sin(Angle)));
+            Spark->SetRelativeScale3D(FVector(.12f));
+            Spark->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Spark->SetCanEverAffectNavigation(false); Spark->SetCastShadow(false);
+            Spark->SetVisibility(false);
+        }
+    }
 }
 
 void ACastleQueen::Configure(bool InBoss,int32 Floor,ACastleDirector* InDirector)
 {
+    DirectBreakLevel = Floor >= 3 ? 10 : 8;
+    WeakPointsHit=0; HideShield();
     LeaveCover();
     LastCoverIndex = INDEX_NONE; NextCover = 0;
     Super::Configure(InBoss,Floor,InDirector);
@@ -51,6 +93,7 @@ void ACastleQueen::Configure(bool InBoss,int32 Floor,ACastleDirector* InDirector
     for(auto* Piece:Pieces) if(Piece!=Telegraph) Piece->SetVisibility(false);
     auto* Skin=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/BossPrototype/QueenDemo/SK_QueenDemo.SK_QueenDemo"));
     QueenMesh->SetSkeletalMesh(Skin);
+    QueenMesh->SetAnimInstanceClass(UQueenCombatAnimation::StaticClass());
     if(Skin)
     {
         const auto Bounds=Skin->GetBounds();const float Scale=300.f/FMath::Max(1.f,Bounds.BoxExtent.Z*2);
@@ -100,7 +143,7 @@ void ACastleQueen::BeginAction(int32 NewAction,float Delay)
     Action=NewAction;Due=GetWorld()->GetTimeSeconds()+Delay;
     if(NewAction==2 || NewAction==3) {ClearQueenBolts();FlashUntil=0;}
     if(NewAction==3) {Telegraph->SetVisibility(false);QueenMesh->Stop();QueenMesh->SetAnimation(nullptr);}
-    else if(auto* Animation=NewAction==2?ChargeAnimation.Get():ShootAnimation.Get()) QueenMesh->PlayAnimation(Animation,false);
+    else if(auto* Animation=NewAction==2?ChargeAnimation.Get():ShootAnimation.Get()) { QueenMesh->SetAnimation(Animation); QueenMesh->Play(false); }
     UE_LOG(LogTemp,Display,TEXT("CASTLE_QUEEN_ACTION State=%d PhaseTwo=%d"),Action,bPhaseTwo);
 }
 
@@ -110,11 +153,21 @@ void ACastleQueen::Tick(float Dt)
     auto* Player=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0));
     const bool Active=CanRunAI(Player);const float Now=GetWorld()->GetTimeSeconds();
     if (bSeekingCover && (!Active || !IsInDecisionRange(Player) || Action==3)) LeaveCover();
-    if(!Active) {Action=0;FlashUntil=0;Telegraph->SetVisibility(false);QueenMesh->Stop();ClearQueenBolts();}
+    if(!Active) {if(Action==3)HideShield();Action=0;FlashUntil=0;Telegraph->SetVisibility(false);QueenMesh->Stop();ClearQueenBolts();}
     constexpr float TravelSpeed = 320.f;
     const bool bRunningToCover = bPhaseTwo && bSeekingCover && !bAtCover;
     const float CombatSpeed = bRunningToCover ? TravelSpeed * 1.2f : TravelSpeed;
-    GetCharacterMovement()->MaxWalkSpeed = !Active || Action == 3 || Action == 2 || bAtCover ? 0.f : CombatSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = !Active || Action == 2 || bAtCover ? 0.f : (Action==3 ? 210.f : CombatSpeed);
+    if (Active)
+    {
+        const FVector Velocity = GetVelocity();
+        const FVector Facing = Action!=3 && Velocity.SizeSquared2D() > 25.f*25.f ? Velocity : Player->GetActorLocation()-GetActorLocation();
+        if (!Facing.IsNearlyZero())
+            SetActorRotation(FRotator(0,FMath::FixedTurn(GetActorRotation().Yaw,Facing.Rotation().Yaw,420.f*Dt),0));
+    }
+    if (Action==3)
+        for (UStaticMeshComponent* Point : WeakPoints)
+            if (Point->IsVisible()) Point->SetRelativeRotation(FRotator(0,0,FMath::Fmod(Now*85.f,360.f)));
     if(FrameGlow)
     {
         const float Progress=FMath::Clamp(1-(Due-Now)/1.4f,0.f,1.f);
@@ -134,14 +187,63 @@ void ACastleQueen::Tick(float Dt)
     }
 }
 
+void ACastleQueen::HideShield()
+{
+    ShieldShell->SetVisibility(false); ShieldShell->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    for (UStaticMeshComponent* Point : WeakPoints)
+    {
+        Point->SetVisibility(false,true);
+        Point->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+}
+
+void ACastleQueen::StartShield(ACastlePlayer* Player)
+{
+    LeaveCover();
+    GetCharacterMovement()->StopMovementImmediately();
+    BeginAction(3,5.f);
+    ShieldWaypoint=0;
+    NextShieldMove=0;
+    SetActorRotation((Player->GetActorLocation()-GetActorLocation()).GetSafeNormal2D().Rotation());
+    if (ChargeAnimation)
+    {
+        QueenMesh->SetAnimation(ChargeAnimation);
+        QueenMesh->SetPlayRate(ChargeAnimation->GetPlayLength()/5.f);
+        QueenMesh->Play(false);
+    }
+    WeakPointsHit=0;
+    ShieldShell->SetVisibility(true); ShieldShell->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    for (UStaticMeshComponent* Point : WeakPoints)
+    {
+        Point->SetVisibility(true,true);
+        Point->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    }
+}
+
+bool ACastleQueen::HandleShieldShot(const FHitResult& Hit, int32 GunLevel)
+{
+    if (Action!=3 || WeakPointsHit==3) return false;
+    if (GunLevel>=DirectBreakLevel) WeakPointsHit=3;
+    else
+    {
+        auto* Point=Cast<UStaticMeshComponent>(Hit.GetComponent());
+        if (!Point || !WeakPoints.Contains(Point) || !Point->IsVisible()) return false;
+        Point->SetVisibility(false,true);
+        Point->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        ++WeakPointsHit;
+    }
+    if (WeakPointsHit==3) HideShield();
+    return true;
+}
+
 void ACastleQueen::ResolvePendingBlast(ACastlePlayer* Player)
 {
     const float Now=GetWorld()->GetTimeSeconds();
-    if(!bPhaseTwo && Health>0 && Health<=MaxHealth*.5f)
+    if(Action!=3 && !bPhaseTwo && Health>0 && Health<=MaxHealth*.5f)
     {
-        bPhaseTwo=true;BeginAction(3,2);return;
+        StartShield(Player);return;
     }
-    if(Action==0 || Now<Due)return;
+    if(Action==0 || Now<Due || (Action==3 && WeakPointsHit<3))return;
     if(Action==1)
     {
         const int32 PerSide=bPhaseTwo?5:3;AILastVolley=PerSide*2;++AIAttackEvents;FlashUntil=Now+.14f;
@@ -163,9 +265,14 @@ void ACastleQueen::ResolvePendingBlast(ACastlePlayer* Player)
         const float Feet=Player->GetActorLocation().Z-Player->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
         if(FVector::Dist2D(Player->GetActorLocation(),BlastCenter)<280 && FMath::Abs(Feet-BlastCenter.Z)<160)
             UGameplayStatics::ApplyDamage(Player,AttackDamage*2.4f,GetController(),this,nullptr);
-        Telegraph->SetVisibility(false);LastCoverIndex=CoverIndex; LeaveCover(); NextGround=Now+2.5f;NextVolley=FMath::Max(NextVolley,Now+.9f);Recovery=Now+.5f;
+        Telegraph->SetVisibility(false);
+        LastCoverIndex=CoverIndex;
+        LeaveCover();
+        if (CanRunAI(Player)) BlinkAfterSlam(Player);
+        NextGround=Now+2.5f;NextVolley=FMath::Max(NextVolley,Now+.9f);Recovery=Now+.5f;
     }
-    else {NextVolley=Now+1;NextGround=Now;Recovery=Now;}
+    else {if (auto* AI=Cast<AAIController>(GetController())) AI->StopMovement();
+        bPhaseTwo=true; QueenMesh->SetPlayRate(1.f); NextVolley=Now+1;NextGround=Now;Recovery=Now;}
     Action=0;
 }
 
@@ -190,18 +297,89 @@ void ACastleQueen::UpdateGroundSlam(ACastlePlayer* Player)
 void ACastleQueen::UpdatePursuit(ACastlePlayer* Player, bool CanSee)
 {
     ++AIPursuitTicks;
-    auto* Movement = GetCharacterMovement();
     if (Action == 3)
     {
-        LeaveCover();
-        Movement->StopMovementImmediately();
+        UpdateShieldPatrol();
         return;
     }
-    const FVector Center = GetActorLocation();
-    const FVector Delta = Player->GetActorLocation() - Center;
-    const FVector Toward = Delta.GetSafeNormal2D();
-    SetActorRotation(Toward.Rotation());
     if (Action != 2) UpdateCover(Player);
+}
+
+void ACastleQueen::UpdateShieldPatrol()
+{
+    auto* AI=Cast<AAIController>(GetController());
+    const float Now=GetWorld()->GetTimeSeconds();
+    if (!AI || Now<NextShieldMove || AI->GetMoveStatus()==EPathFollowingStatus::Moving) return;
+    auto* Nav=FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!Nav) return;
+    NextShieldMove=Now+.35f;
+    for (int32 I=0; I<6; ++I)
+    {
+        const FVector Offset=FVector(560,0,0).RotateAngleAxis(ShieldWaypoint*60.f,FVector::UpVector);
+        ShieldWaypoint=(ShieldWaypoint+1)%6;
+        FNavLocation Goal;
+        if (!Nav->ProjectPointToNavigation(Director->BossCenter+Offset,Goal,FVector(120,120,150))) continue;
+        if (AI->MoveToLocation(Goal.Location,45.f,false,true,false,true,nullptr,false)==EPathFollowingRequestResult::RequestSuccessful) break;
+    }
+}
+
+void ACastleQueen::BlinkAfterSlam(ACastlePlayer* Player)
+{
+    auto* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!Nav) return;
+    const FVector From = GetActorLocation();
+    const FVector Eye = Player->Camera->GetComponentLocation();
+    const FVector OldBearing = (From - Eye).GetSafeNormal2D();
+    const auto* Capsule = GetCapsuleComponent();
+    FCollisionQueryParams Query(SCENE_QUERY_STAT(QueenBlink), false, this);
+    FCollisionQueryParams SightQuery = Query;
+    SightQuery.AddIgnoredActor(Player);
+    FVector Best = FVector::ZeroVector;
+    float BestScore = -BIG_NUMBER;
+    auto Consider = [&](const FVector& Feet)
+    {
+        FNavLocation Ground;
+        if (!Nav->ProjectPointToNavigation(Feet, Ground, FVector(50,50,75))) return;
+        const FVector Landing = Ground.Location + FVector(0,0,Capsule->GetScaledCapsuleHalfHeight()+2);
+        const float Range = FVector::Dist2D(Landing, Eye);
+        if (Range < 700 || Range > 3000 || FVector::Dist2D(From,Landing) < 500) return;
+        if (GetWorld()->OverlapBlockingTestByProfile(Landing,FQuat::Identity,Capsule->GetCollisionProfileName(),
+            Capsule->GetCollisionShape(),Query)) return;
+        if (GetWorld()->LineTraceTestByChannel(Landing+FVector(0,0,60),Eye,ECC_Visibility,SightQuery)) return;
+        const float Flank = 1.f - FVector::DotProduct(OldBearing,(Landing-Eye).GetSafeNormal2D());
+        const float Score = 500.f*Flank - FMath::Abs(Range-1400.f) + .4f*(Ground.Location.Z-Director->BossCenter.Z);
+        if (Score > BestScore) { BestScore = Score; Best = Landing; }
+    };
+    for (const FVector& Platform : Director->BossPlatforms) Consider(Platform);
+    for (int32 I=0; I<Director->BossCoverPoints.Num(); ++I)
+    {
+        if (I == LastCoverIndex) continue;
+        const FVector Base = Director->BossCoverPoints[I] - FVector(0,0,320);
+        const FVector Side = FVector::CrossProduct(FVector::UpVector,(Base-Eye).GetSafeNormal2D());
+        Consider(Base+Side*220.f);
+        Consider(Base-Side*220.f);
+    }
+    if (BestScore == -BIG_NUMBER)
+    {
+        // Arena furniture can occlude every pillar-side shot on some layouts.
+        for (float Radius : {750.f, 1200.f})
+            for (int32 Angle = 0; Angle < 360; Angle += 30)
+                Consider(Director->BossCenter + FVector(Radius,0,0).RotateAngleAxis(Angle,FVector::UpVector));
+    }
+    if (BestScore == -BIG_NUMBER) return;
+    if (TeleportTo(Best,(Eye-Best).GetSafeNormal2D().Rotation()))
+    {
+        GetCharacterMovement()->StopMovementImmediately();
+        const FVector FeetOffset(0,0,Capsule->GetScaledCapsuleHalfHeight());
+        auto SpawnFlash = [&](const FVector& Center, bool bArrival)
+        {
+            if (auto* Effect = GetWorld()->SpawnActor<AQueenBlinkEffect>(Center-FeetOffset,FRotator::ZeroRotator))
+                Effect->Start(bArrival);
+        };
+        SpawnFlash(From,false);
+        SpawnFlash(GetActorLocation(),true);
+        UE_LOG(LogTemp,Display,TEXT("CASTLE_QUEEN_BLINK From=%s To=%s Range=%.0f"),*From.ToCompactString(),*GetActorLocation().ToCompactString(),FVector::Dist2D(Best,Eye));
+    }
 }
 
 void ACastleQueen::LeaveCover()
@@ -275,7 +453,16 @@ bool ACastleQueen::UpdateCover(ACastlePlayer* Player)
 float ACastleQueen::TakeDamage(float Damage,const FDamageEvent& Event,AController* DamageInstigator,AActor* Causer)
 {
     if(Action==3)return 0;
+    if (!bPhaseTwo && Health > MaxHealth*.5f) Damage=FMath::Min(Damage,Health-MaxHealth*.5f);
     const float Taken=Super::TakeDamage(Damage,Event,DamageInstigator,Causer);
+    if (Taken>0 && !bPhaseTwo && !bDead && Health<=MaxHealth*.5f)
+        if (auto* Player=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0))) {StartShield(Player);return Taken;}
+    if (Taken > 0 && !bDead)
+        if (auto* Anim = Cast<UQueenCombatAnimation>(QueenMesh->GetAnimInstance()))
+        {
+            const FVector Away = Causer ? (GetActorLocation()-Causer->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
+            Anim->ReactToHit(FVector::DotProduct(Away,GetActorRightVector()));
+        }
     if(bDead) { LeaveCover(); ClearQueenBolts(); }
     return Taken;
 }
