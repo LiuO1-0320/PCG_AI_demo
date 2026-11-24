@@ -485,17 +485,8 @@ ACastleQueenBolt::ACastleQueenBolt()
     Make(TEXT("QueenBoltHalo"),FVector(2.5f),FVector::ZeroVector);Make(TEXT("QueenBoltTail"),FVector(4.5f,.8f,.8f),FVector(-150,0,0));
 }
 
-void ACastleQueenBolt::Tick(float Dt)
+void ACastleQueenBolt::HitPlayer(ACastlePlayer& Player)
 {
-    AActor::Tick(Dt);
-    const FVector Start=GetActorLocation(),End=Start+Velocity*Dt;SetActorRotation(Velocity.Rotation());
-    FHitResult Hit;FCollisionQueryParams Query(NAME_None,false,this);Query.AddIgnoredActor(Shooter);
-    GetWorld()->SweepSingleByChannel(Hit,Start,End,FQuat::Identity,ECC_Visibility,FCollisionShape::MakeSphere(8),Query);
-    if(Hit.bBlockingHit)
-    {
-        if(auto* Player=Cast<ACastlePlayer>(Hit.GetActor()))
-            if(auto* Queen=Cast<ACastleQueen>(Shooter);Queen&&Queen->AcceptBoltHit()) Player->ReceiveBoltHit(Damage,Shooter);
-        Destroy();
-    }
-    else SetActorLocation(End);
+    if (auto* Queen = Cast<ACastleQueen>(Shooter); Queen && Queen->AcceptBoltHit())
+        Super::HitPlayer(Player);
 }

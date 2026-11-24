@@ -57,5 +57,6 @@ class CASTLEDEMO_API ACastleQueenBolt : public ACastleBolt
     GENERATED_BODY()
 public:
     ACastleQueenBolt();
-    virtual void Tick(float Dt) override;
+protected:
+    virtual void HitPlayer(ACastlePlayer& Player) override;
 };

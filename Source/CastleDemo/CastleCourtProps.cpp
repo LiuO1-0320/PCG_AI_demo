@@ -10,7 +10,8 @@ void CastleDressCourtProp(ACastleInteractable* Item)
 {
     if(!Item || !Item->Director || Item->Director->Floor!=1)return;
     const ECastleInteract Kind=Item->Kind;
-    if(Kind!=ECastleInteract::Ammo && Kind!=ECastleInteract::Shop && Kind!=ECastleInteract::Rest)return;
+    const bool WeaponStand = Kind == ECastleInteract::Gatling || Kind == ECastleInteract::Knife;
+    if(!WeaponStand && Kind!=ECastleInteract::Ammo && Kind!=ECastleInteract::Shop && Kind!=ECastleInteract::Rest)return;
 
     auto Shape=[](const TCHAR* Name){const FString Path=FString::Printf(TEXT("/Engine/BasicShapes/%s.%s"),Name,Name);return LoadObject<UStaticMesh>(nullptr,*Path);};
     auto Finish=[](const TCHAR* Name){const FString Path=FString::Printf(TEXT("/Game/Demo/MemoryRoomArt/%s.%s"),Name,Name);return LoadObject<UMaterialInterface>(nullptr,*Path);};
@@ -35,7 +36,32 @@ void CastleDressCourtProp(ACastleInteractable* Item)
         Mesh->RegisterComponent();
         Mesh->SetWorldTransform(FTransform(Rotation,Ground+Center-Rotation.RotateVector(Bounds.Origin*Scale),Scale));
     };
-    if(Kind==ECastleInteract::Ammo)
+    if (WeaponStand)
+    {
+        Piece(Box,Stone,{0,0,34},{92,64,68});
+        Piece(Box,Brass,{0,0,69},{98,70,4});
+        Piece(Box,Cloth,{0,0,72},{96,68,3});
+        if (Kind == ECastleInteract::Gatling)
+        {
+            const FRotator BarrelAxis(90,0,0);
+            Piece(Round,Iron,{-24,0,90},{33,33,35},BarrelAxis);
+            for (int32 Barrel=0; Barrel<6; ++Barrel)
+            {
+                const double Angle=Barrel*PI/3.;
+                Piece(Round,Iron,{18,8*FMath::Cos(Angle),90+8*FMath::Sin(Angle)},{6,6,61},BarrelAxis);
+            }
+            Piece(Round,Brass,{38,0,90},{23,23,6},BarrelAxis);
+            Piece(Box,Iron,{-20,0,110},{18,8,6});
+        }
+        else
+        {
+            Piece(Round,Iron,{0,0,87},{6,6,25});
+            Piece(Box,Brass,{0,0,101},{28,7,5});
+            Piece(Box,Bone,{0,0,119},{9,3,32});
+            Piece(Horn,Bone,{0,0,143},{9,3,18});
+        }
+    }
+    else if(Kind==ECastleInteract::Ammo)
     {
         // Banded supply coffer; a clasp faces each approach, distinct from the violet memory chest.
         Piece(Box,Stone,{0,0,34},{86,72,62});

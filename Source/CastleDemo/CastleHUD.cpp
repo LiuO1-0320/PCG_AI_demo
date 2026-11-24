@@ -52,10 +52,28 @@ void ACastleHUD::DrawHUD()
     Text((CastleIsChinese()?FString::Printf(TEXT("生命 %.0f / %.0f"),P->Health,P->MaxHealth):FString::Printf(TEXT("HEALTH  %.0f / %.0f"),P->Health,P->MaxHealth)),35,H-77,White);
     Bar(35,H-54,338,10,P->Health,P->MaxHealth,FLinearColor(.87f,.25f,.26f));
     DrawRect(FLinearColor(.018f,.025f,.04f,.9f),W-310,H-126,290,105);
-    Text(P->bReloading?TEXT("RELOADING..."):(CastleIsChinese()?FString::Printf(TEXT("%02d  /  %d"),P->Ammo,P->Reserve):FString::Printf(TEXT("%02d  /  %d"),P->Ammo,P->Reserve)),W-291,H-114,White,1.9f);
-    Text((CastleIsChinese()?FString::Printf(TEXT("卡宾枪 等级 %d    伤害 %.0f"),P->WeaponLevel,P->BulletDamage):FString::Printf(TEXT("CARBINE Lv.%d    DAMAGE %.0f"),P->WeaponLevel,P->BulletDamage)),W-291,H-73,Teal);
-    Text((CastleIsChinese()?FString::Printf(TEXT("记忆碎片 %d     R：换弹"),P->Coins):FString::Printf(TEXT("FRAGMENTS %d     R: reload"),P->Coins)),W-291,H-48,Gold,.95f);
-    if(P->bReloading)Bar(W-291,H-26,245,4,1.25f-(P->ReloadEnd-Now),1.25f,Gold);
+    const bool Knife = P->EquippedWeapon == ECastleWeapon::Knife;
+    if (Knife)
+    {
+        const TCHAR* ParryStatus = P->IsParrying() ? TEXT("PARRY ACTIVE") :
+            Now < P->ParryReadyAt ? TEXT("RECOVERING") : TEXT("PARRY READY");
+        Text(ParryStatus,W-291,H-114,P->IsParrying()?Gold:White,1.7f);
+        Text(TEXT("3  KNIFE   |   RMB parry"),W-291,H-73,Teal);
+    }
+    else
+    {
+        Text(P->bReloading ? FString(TEXT("RELOADING...")) :
+            FString::Printf(TEXT("%02d  /  %d"),P->GetEquippedAmmo(),P->GetEquippedReserve()),W-291,H-114,White,1.9f);
+        const FString WeaponName = CastleText(P->EquippedWeapon == ECastleWeapon::Gatling ? TEXT("2  GATLING") : TEXT("1  CARBINE"));
+        Text(FString::Printf(TEXT("%s   Lv.%d   /   %.0f %s"),*WeaponName,P->WeaponLevel,P->GetEquippedDamage(),
+            CastleIsChinese()?TEXT("伤害"):TEXT("DMG")),W-291,H-73,Teal);
+        if (P->bReloading)
+        {
+            const float Duration=P->GetReloadDuration();
+            Bar(W-291,H-26,245,4,Duration-(P->ReloadEnd-Now),Duration,Gold);
+        }
+    }
+    Text(CastleIsChinese()?FString::Printf(TEXT("记忆碎片 %d"),P->Coins):FString::Printf(TEXT("FRAGMENTS %d"),P->Coins),W-291,H-48,Gold,.95f);
 
     const bool InCave=D->Region==TEXT("TREASURE CAVE"),InBoss=D->Region==TEXT("BOSS ARENA");
     const auto& MapRooms=InCave?D->CaveRooms:D->Rooms;
@@ -138,9 +156,9 @@ void ACastleHUD::DrawHUD()
             if (Queen->WeakPointsHit==3)
                 Hint=Chinese?TEXT("护盾已破 · 女王即将狂暴"):TEXT("Shield broken - enrage incoming");
             else if (P->WeaponLevel>=Queen->DirectBreakLevel)
-                Hint=Chinese ? FString::Printf(TEXT("卡宾枪 %d 级 · 射击护盾，一枪击破"),P->WeaponLevel) : FString::Printf(TEXT("Carbine Lv.%d - shoot the shield to break it in one hit"),P->WeaponLevel);
+                Hint=Chinese ? FString::Printf(TEXT("枪械 %d 级 · 射击护盾，一枪击破"),P->WeaponLevel) : FString::Printf(TEXT("Gun Lv.%d - shoot the shield to break it in one hit"),P->WeaponLevel);
             else
-                Hint=Chinese ? FString::Printf(TEXT("卡宾枪 %d 级 · %d 级可直接破盾 · 射击发光弱点 %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit) : FString::Printf(TEXT("Carbine Lv.%d - Lv.%d breaks shield directly - hit glowing targets %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit);
+                Hint=Chinese ? FString::Printf(TEXT("枪械 %d 级 · %d 级可直接破盾 · 射击发光弱点 %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit) : FString::Printf(TEXT("Gun Lv.%d - Lv.%d breaks shield directly - hit glowing targets %d/3"),P->WeaponLevel,Queen->DirectBreakLevel,Queen->WeakPointsHit);
             DrawRect(FLinearColor(.045f,.02f,.08f,.92f),BX-12,94,BW+24,34);
             Text(Hint,BX,98,Gold,.9f);
         }
@@ -164,18 +182,20 @@ void ACastleHUD::DrawHUD()
         DrawRect(FLinearColor(.018f,.025f,.04f,.88f),W*.5f-360,H-181,720,38);
         Text(P->Notice,W*.5f-343,H-171,Gold,.95f);
     }
-    Text(TEXT("WASD move  |  Mouse aim / fire  |  E interact  |  SPACE jump  |  F1 help  |  ESC pause"),W*.5f-340,H-19,Muted,.82f);
+    Text(TEXT("WASD move  |  F interact  |  1 / 2 / 3 weapons  |  R reload  |  SPACE jump  |  F1 help  |  ESC pause"),W*.5f-340,H-19,Muted,.82f);
 
     if(P->bHelp && !P->bDead && !D->bWon)
     {
-        float X=W*.5f-290,Y=H*.5f-115;
-        DrawRect(FLinearColor(.018f,.025f,.04f,.94f),X,Y,580,190);
+        float X=W*.5f-340,Y=H*.5f-140;
+        DrawRect(FLinearColor(.018f,.025f,.04f,.94f),X,Y,680,248);
         Text(TEXT("THE PAINTER RETURNS"),X+24,Y+17,Gold,1.5f);
         Text(TEXT("Recover court keepsakes. Chests grant fragments, ammo and collectibles."),X+24,Y+53,White);
         Text(TEXT("Spend fragments at S rooms. E altars trade health for keepsakes."),X+24,Y+78,White);
         Text(D->Floor==1?TEXT("R rests once. OUT leads to floor 2. EL / T guard side loot."):TEXT("V portals lead to vaults. B gates lead to the boss."),X+24,Y+103,White);
         Text(TEXT("Shield recharges after 5 seconds without damage."),X+24,Y+128,Teal);
-        Text(TEXT("Clear all 3 floors to win. Fire or press F1 to close."),X+24,Y+155,Gold);
+        Text(TEXT("F: pick up or interact.  1: carbine   2: Gatling   3: knife"),X+24,Y+153,White);
+        Text(TEXT("Hold fire to spin up the Gatling. Knife: LMB slash, RMB parry."),X+24,Y+178,White);
+        Text(TEXT("Clear all 3 floors to win. Fire or press F1 to close."),X+24,Y+210,Gold);
     }
     if(D->bReady && !P->bDead && !D->bWon && !P->bHelp && !UGameplayStatics::IsGamePaused(this))
     {

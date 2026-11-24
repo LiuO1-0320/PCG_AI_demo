@@ -262,13 +262,34 @@ void ACastleDirector::TickSmokeTest()
         for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It)if(It->Kind==Kind && !It->bUsed)return *It;
         return static_cast<ACastleInteractable*>(nullptr);
     };
+    struct FGuardStats { float Health, Damage, Interval; };
+    static constexpr FGuardStats ExpectedByFloor[] = {
+        {85.f, 10.f, 1.9f}, {115.f, 14.f, 1.8f}, {155.f, 18.f, 1.7f}
+    };
+    if (Floor < 1 || Floor > static_cast<int32>(UE_ARRAY_COUNT(ExpectedByFloor))) { Fail(TEXT("Unexpected floor for guard tuning")); return; }
+    const FGuardStats& Expected = ExpectedByFloor[Floor - 1];
+    int32 Guards = 0, Elites = 0;
     for(TActorIterator<ACastleEnemy> It(GetWorld());It;++It)
     {
         auto* AI=Cast<ACastleAIController>(It->GetController());
         auto* BT=AI?Cast<UBehaviorTreeComponent>(AI->GetBrainComponent()):nullptr;
         if(!AI || !BT || !BT->IsRunning() || !AI->GetBlackboardComponent()) {Fail(TEXT("AI controller, running behavior tree or blackboard missing"));return;}
         It->bActive=false;
+        if (It->bBoss) continue;
+        const float ExpectedHealth = Expected.Health * (It->bElite ? 1.8f : 1.f);
+        const float ExpectedDamage = Expected.Damage * (It->bElite ? 1.25f : 1.f);
+        if (!FMath::IsNearlyEqual(It->MaxHealth, ExpectedHealth) || !FMath::IsNearlyEqual(It->Health, ExpectedHealth) ||
+            !FMath::IsNearlyEqual(It->AttackDamage, ExpectedDamage) || !FMath::IsNearlyEqual(It->AttackInterval, Expected.Interval))
+        {
+            UE_LOG(LogTemp, Error, TEXT("Floor=%d enemy=%s elite=%d hp=%.2f/%.2f damage=%.2f interval=%.2f"),
+                Floor, *It->GetName(), It->bElite, It->Health, It->MaxHealth, It->AttackDamage, It->AttackInterval);
+            Fail(TEXT("Spawned guard stats do not match floor tuning")); return;
+        }
+        if (It->bElite) ++Elites; else ++Guards;
     }
+    if (!Guards || Elites != TypeCount[static_cast<int32>(ECastleRoom::Elite)]) { Fail(TEXT("Guard or elite spawn missing")); return; }
+    UE_LOG(LogTemp, Display, TEXT("CASTLE_GUARD_TUNING_OK Floor=%d Guards=%d Elites=%d BaseHP=%.0f BaseDamage=%.0f Interval=%.2f"),
+        Floor, Guards, Elites, Expected.Health, Expected.Damage, Expected.Interval);
     if(Floor==1)
     {
         FString ProjectileFailure;
@@ -327,19 +348,7 @@ void ACastleDirector::TickSmokeTest()
             if(!Trap->bTriggered || P->Health!=85){Fail(TEXT("Trap damage"));return;}
             Trap->NotifyActorBeginOverlap(P); if(P->Health!=85){Fail(TEXT("Trap repeat damage"));return;}
         }
-        // Exercise the actual camera trace / ammunition / damage path, not only ApplyDamage.
-        auto* Target=AddEnemy(FVector(200,0,100),false); Target->bActive=true;
-        Travel(P,FVector(-400,0,100));
-        P->GetController()->SetControlRotation((Target->GetActorLocation()-P->Camera->GetComponentLocation()).Rotation());
-        P->Camera->SetWorldRotation(P->GetController()->GetControlRotation());
-        P->Camera->UpdateComponentToWorld(); P->NextShot=0; int32 AmmoBefore=P->Ammo; float HPBefore=Target->Health;
-        P->Fire(); if(P->Ammo!=AmmoBefore-1 || Target->Health>=HPBefore)
-        {
-            FHitResult Shot; FCollisionQueryParams Params(SCENE_QUERY_STAT(CastleSmokeShot),false,P);
-            GetWorld()->LineTraceSingleByChannel(Shot,P->Camera->GetComponentLocation(),P->Camera->GetComponentLocation()+P->Camera->GetForwardVector()*14000,ECC_Visibility,Params);
-            UE_LOG(LogTemp,Error,TEXT("Shot ammo=%d/%d hp=%.0f/%.0f hit=%s camera=%s direction=%s target=%s"),P->Ammo,AmmoBefore,Target->Health,HPBefore,*GetNameSafe(Shot.GetActor()),*P->Camera->GetComponentLocation().ToString(),*P->Camera->GetForwardVector().ToString(),*Target->GetActorLocation().ToString());
-            Fail(TEXT("First person shooting trace"));return;
-        }
+        if (const TCHAR* Error = CheckPlayerWeapons(P)) { Fail(Error); return; }
         P->Ammo=0; P->Reload(); if(!P->bReloading){Fail(TEXT("Reload did not start"));return;}
         P->ReloadEnd=Now; P->Tick(.01f); if(P->bReloading || P->Ammo!=P->MagazineSize){Fail(TEXT("Reload transfer"));return;}
         auto* Weapon=FindItem(ECastleInteract::Weapon); if(!Weapon){Fail(TEXT("Exploration weapon pickup missing"));return;}
@@ -583,16 +592,16 @@ void ACastleDirector::TickCapture()
             PlayerController->SetControlRotation((Chest->GetActorLocation()-P->Camera->GetComponentLocation()).Rotation());
             P->Camera->SetWorldRotation(PlayerController->GetControlRotation());P->Camera->UpdateComponentToWorld();
             if(P->Focused()!=Chest){FailArt(TEXT("Player cannot focus the chest"));return;}
-            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::E,IE_Pressed,1.f,false,FPlatformTime::Cycles64()));
-            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::E,IE_Released,0.f,false,FPlatformTime::Cycles64()));
+            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::F,IE_Pressed,1.f,false,FPlatformTime::Cycles64()));
+            PlayerController->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),EKeys::F,IE_Released,0.f,false,FPlatformTime::Cycles64()));
             CaptureStage=1;NextCaptureAt=Now+.3f;return;
         }
         if(CaptureStage==1)
         {
             if(!Chest->bUsed || P->Relics!=1 || FMath::Abs(Chest->ChestLid->GetRelativeRotation().Roll)<40 || Chest->MemoryLight->IsVisible())
-            {FailArt(TEXT("Real E input did not open the chest exactly once"));return;}
+            {FailArt(TEXT("Real F input did not open the chest exactly once"));return;}
             Chest->Use(P);if(P->Relics!=1){FailArt(TEXT("Chest repeats reward"));return;}
-            UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_CHEST_OK Seed=%d RealInput=E Open=1 RewardCount=1"),RunSeed);
+            UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_CHEST_OK Seed=%d RealInput=F Open=1 RewardCount=1"),RunSeed);
             Travel(P,Target->Center+FVector(-600,-590,110),43);
             P->MemoryNoticeUntil=0;P->NoticeUntil=0;CaptureStage=2;NextCaptureAt=Now+3;return;
         }

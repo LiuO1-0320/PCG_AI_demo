@@ -27,9 +27,11 @@ class UButton;
 class UTextBlock;
 
 UENUM(BlueprintType)
+enum class ECastleWeapon : uint8 { Carbine, Gatling, Knife };
+UENUM(BlueprintType)
 enum class ECastleRoom : uint8 { Entrance, Shop, Combat, Chest, Event, Cave, Rest, Elite, Trap, Exit };
 UENUM(BlueprintType)
-enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest };
+enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest, Gatling, Knife };
 UENUM(BlueprintType)
 enum class ECastlePCGRegion : uint8 { Exploration, BossArena, TreasureCave };
 
@@ -78,6 +80,18 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Relics = 0;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> CollectibleStacks = {0,0,0};
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 WeaponLevel = 1;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) ECastleWeapon EquippedWeapon = ECastleWeapon::Carbine;
+    bool HasWeapon(ECastleWeapon Weapon) const;
+    void UnlockWeapon(ECastleWeapon Weapon);
+    void EquipWeapon(ECastleWeapon Weapon);
+    int32 GetEquippedAmmo() const;
+    int32 GetEquippedReserve() const;
+    float GetEquippedDamage() const;
+    float GetReloadDuration() const;
+    void AddReserveAmmo(int32 BaseAmount);
+    void RefillMagazines();
+    bool IsParrying() const;
+    float ParryReadyAt = 0;
     bool bReloading = false, bDead = false, bHelp = true;
     float HitMarkerUntil = 0, HurtUntil = 0, ReloadEnd = 0;
     FString Notice;
@@ -95,6 +109,22 @@ private:
     friend class ACastleDirector;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Gun;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Muzzle;
+    UPROPERTY() TObjectPtr<USceneComponent> GatlingModel;
+    UPROPERTY() TObjectPtr<USceneComponent> BarrelRotor;
+    UPROPERTY() TObjectPtr<USceneComponent> KnifeModel;
+    bool bOwnsGatling = false, bOwnsKnife = false;
+    int32 GatlingAmmo = 100, GatlingReserve = 300;
+    float SpinStartedAt = 0, GatlingHeat = 0, LastShotAt = -10;
+    float ParryEnd = 0, SwingStartedAt = -10;
+    void CreateWeaponModels();
+    void RefreshWeaponModels();
+    void UpdateWeaponModels(float Now, float Dt);
+    void EquipCarbine();
+    void EquipGatling();
+    void EquipKnife();
+    void Slash();
+    void Parry();
+    void CompleteReload();
     float BoltSlowUntil = 0.f, SpeedBeforeBoltHit = 0.f;
     void ClearBoltSlow();
     bool bFiring = false;
@@ -173,6 +203,7 @@ public:
     bool bActive = true, bDead = false;
     FVector Home, BlastCenter;
     float AttackDamage = 10;
+    float AttackInterval = 1.90f;
     // Ability execution is reused by BT tasks; decisions no longer run in Character::Tick.
     bool CanRunAI(ACastlePlayer* Player) const;
     bool IsInDecisionRange(ACastlePlayer* Player) const;
@@ -230,8 +261,17 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Mesh;
     UPROPERTY() TObjectPtr<AActor> Shooter;
-    FVector Velocity;
+    FVector Velocity = FVector::ZeroVector;
     float Damage = 10;
+protected:
+    float SweepRadius = 8.f;
+    int32 ShieldBreakLevel = 0;
+    void ResolveImpact(const FHitResult& Hit);
+    virtual void HitPlayer(ACastlePlayer& Player);
+private:
+    bool TryParry(ACastlePlayer& Player, FVector Start, FVector End, FVector& Contact);
+    UPROPERTY() TObjectPtr<UMaterialInterface> ReflectedMaterial;
+    UPROPERTY() TObjectPtr<class USoundBase> ParrySound;
 };
 
 UCLASS(BlueprintType)
@@ -341,6 +381,7 @@ private:
     float PendingFloorAt = 0;
     int32 PendingFloor = 0;
     void TickSmokeTest();
+    const TCHAR* CheckPlayerWeapons(ACastlePlayer* Player);
     void TickAISmokeTest();
     void TickAICapture();
     int32 SmokeFloor = 0;

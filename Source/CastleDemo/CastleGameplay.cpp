@@ -78,6 +78,7 @@ ACastlePlayer::ACastlePlayer()
     Muzzle->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Muzzle->SetCastShadow(false);
     Muzzle->SetVisibility(false);
+    CreateWeaponModels();
 }
 
 ACastlePlayerController::ACastlePlayerController()
@@ -101,6 +102,7 @@ void ACastlePlayer::BeginPlay()
 {
     Super::BeginPlay();
     Muzzle->SetMaterial(0,CastleMaterial(TEXT("M_Gold")));
+    RefreshWeaponModels();
 }
 
 void ACastlePlayer::SetupPlayerInputComponent(UInputComponent* Input)
@@ -113,6 +115,10 @@ void ACastlePlayer::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction(TEXT("Fire"), IE_Pressed, this, &ACastlePlayer::FirePressed);
     Input->BindAction(TEXT("Fire"), IE_Released, this, &ACastlePlayer::FireReleased);
     Input->BindAction(TEXT("Reload"), IE_Pressed, this, &ACastlePlayer::Reload);
+    Input->BindKey(EKeys::One, IE_Pressed, this, &ACastlePlayer::EquipCarbine);
+    Input->BindKey(EKeys::Two, IE_Pressed, this, &ACastlePlayer::EquipGatling);
+    Input->BindKey(EKeys::Three, IE_Pressed, this, &ACastlePlayer::EquipKnife);
+    Input->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ACastlePlayer::Parry);
     Input->BindAction(TEXT("Interact"), IE_Pressed, this, &ACastlePlayer::Interact);
     Input->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
     Input->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
@@ -134,8 +140,6 @@ void ACastlePlayer::MoveForward(float V) { if (!bDead) AddMovementInput(GetActor
 void ACastlePlayer::MoveRight(float V) { if (!bDead) AddMovementInput(GetActorRightVector(), V); }
 void ACastlePlayer::Turn(float V) { if (!bDead) AddControllerYawInput(V); }
 void ACastlePlayer::Look(float V) { if (!bDead) AddControllerPitchInput(V); }
-void ACastlePlayer::FirePressed() { if(bCollectionOpen)return; bFiring = true; bHelp = false; Fire(); }
-void ACastlePlayer::FireReleased() { bFiring = false; }
 void ACastlePlayer::Help() { bHelp = !bHelp;bCollectionOpen=false; }
 void ACastlePlayer::ToggleLanguage() { CastleSetChinese(!CastleIsChinese()); }
 void ACastlePlayer::ToggleCollection()
@@ -151,51 +155,11 @@ void ACastlePlayer::Tick(float Dt)
     Super::Tick(Dt);
     const float Now = GetWorld()->GetTimeSeconds();
     if (BoltSlowUntil > 0.f && Now >= BoltSlowUntil) ClearBoltSlow();
-    if (bReloading && Now >= ReloadEnd)
-    {
-        const int32 Taken = FMath::Min(MagazineSize - Ammo, Reserve);
-        Ammo += Taken; Reserve -= Taken; bReloading = false;
-    }
+    if (bReloading && Now >= ReloadEnd) CompleteReload();
     if (bFiring) Fire();
     if (!bDead && Now - LastDamage > 5) Shield = FMath::Min(MaxShield, Shield + Dt * 12);
-    const float Kick = FMath::Clamp((NextShot - Now) / .16f, 0.f, 1.f);
-    Gun->SetRelativeLocation(FVector(48 - Kick * 6, 19, -18 + Kick * 2));
-    Muzzle->SetVisibility(NextShot - Now > .12f && !bReloading);
+    UpdateWeaponModels(Now, Dt);
     if (!bDead && GetActorLocation().Z < -600) TakeDamage(9999, FDamageEvent(), nullptr, nullptr);
-}
-
-void ACastlePlayer::Fire()
-{
-    auto* D = Director();
-    const float Now = GetWorld()->GetTimeSeconds();
-    if (bDead || bReloading || Now < NextShot || !D || !D->bReady || D->bWon) return;
-    if (Ammo <= 0) { Reload(); return; }
-    --Ammo; NextShot = Now + .16f;
-    const FVector Start = Camera->GetComponentLocation();
-    const FVector End = Start + Camera->GetForwardVector() * 14000;
-    FHitResult Hit;
-    FCollisionQueryParams Query(SCENE_QUERY_STAT(CastleShot), false, this);
-    GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Query);
-    const FVector Target = Hit.bBlockingHit ? Hit.ImpactPoint : End;
-    DrawDebugLine(GetWorld(), Muzzle->GetComponentLocation(), Target, FColor(255, 210, 85), false, .065f, 0, 1.5f);
-    if (auto* Enemy = Cast<ACastleEnemy>(Hit.GetActor()))
-    {
-        if (auto* Queen=Cast<ACastleQueen>(Enemy); Queen && Queen->Action==3)
-        {
-            if (Queen->HandleShieldShot(Hit,WeaponLevel)) HitMarkerUntil=Now+.15f;
-            return;
-        }
-        UGameplayStatics::ApplyDamage(Enemy, BulletDamage, GetController(), this, nullptr);
-        HitMarkerUntil = Now + .15f;
-    }
-    if (Hit.bBlockingHit) DrawDebugPoint(GetWorld(), Target, 8, FColor::Orange, false, .2f);
-}
-
-void ACastlePlayer::Reload()
-{
-    if (bDead || bReloading || Ammo >= MagazineSize) return;
-    if (Reserve <= 0) { Tell(TEXT("No reserve ammo. Buy supplies at the shop or collect dropped ammo.")); return; }
-    bReloading = true; ReloadEnd = GetWorld()->GetTimeSeconds() + 1.25f;
 }
 
 ACastleInteractable* ACastlePlayer::Focused() const
@@ -278,6 +242,12 @@ void ACastlePlayer::ResetRun()
     Ammo = MagazineSize = 24; Reserve = 144; Coins = 35; Relics = 0; WeaponLevel = 1;
     CollectibleStacks.Init(0,3);LastCollectibleKind=INDEX_NONE;MemoryNoticeUntil=0;bCollectionOpen=false;NoticeUntil=0;
     bDead = bReloading = bFiring = false; NextShot = 0; LastDamage = -100;
+    EquippedWeapon = ECastleWeapon::Carbine;
+    bOwnsGatling = bOwnsKnife = false;
+    GatlingAmmo = 100; GatlingReserve = 300;
+    ParryEnd = ParryReadyAt = SpinStartedAt = GatlingHeat = 0;
+    SwingStartedAt = -10;
+    RefreshWeaponModels();
 }
 void ACastlePlayer::Restart() { if (auto* D = Director()) if (bDead || D->bWon) D->NewRun(); }
 void ACastlePlayer::RestartSame() { if (auto* D = Director()) if (bDead || D->bWon) D->RetrySameSeed(); }
@@ -343,16 +313,18 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
 {
     switch (Kind)
     {
-    case ECastleInteract::Chest: return CastleIsChinese()?TEXT("E 打开记忆匣：记忆碎片、弹药与宫廷旧物"):TEXT("E  Open memory chest: fragments, ammo and a collectible");
-    case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("E 升级武器并补给 | %d 记忆碎片"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("E  Upgrade + supplies | %d memory fragments"), 30 + (P->WeaponLevel - 1) * 20));
-    case ECastleInteract::Event: return TEXT("E  Make an offering: 15 health for a relic");
-    case ECastleInteract::CaveEnter: return TEXT("E  Enter the treasure cave");
-    case ECastleInteract::CaveReturn: return TEXT("E  Return to exploration");
-    case ECastleInteract::BossEnter: return TEXT("E  Enter boss arena (no return until victory)");
-    case ECastleInteract::NextFloor: return Director && Director->Floor == 3 ? TEXT("E  Claim victory") : TEXT("E  Ascend to the next floor");
-    case ECastleInteract::Weapon: return TEXT("E  Acquire reinforced carbine: +10 damage, +4 magazine");
-    case ECastleInteract::Rest: return TEXT("E  Rest once: health, shield and reserve ammo");
-    default: return TEXT("E  Collect ammo and memory fragments");
+    case ECastleInteract::Chest: return CastleIsChinese()?TEXT("F 打开记忆匣：记忆碎片、弹药与宫廷旧物"):TEXT("F  Open memory chest: fragments, ammo and a collectible");
+    case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("F 升级武器并补给 | %d 记忆碎片"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("F  Upgrade + supplies | %d memory fragments"), 30 + (P->WeaponLevel - 1) * 20));
+    case ECastleInteract::Event: return TEXT("F  Make an offering: 15 health for a relic");
+    case ECastleInteract::CaveEnter: return TEXT("F  Enter the treasure cave");
+    case ECastleInteract::CaveReturn: return TEXT("F  Return to exploration");
+    case ECastleInteract::BossEnter: return TEXT("F  Enter boss arena (no return until victory)");
+    case ECastleInteract::NextFloor: return Director && Director->Floor == 3 ? TEXT("F  Claim victory") : TEXT("F  Ascend to the next floor");
+    case ECastleInteract::Weapon: return TEXT("F  Acquire reinforced carbine: +10 damage, +4 magazine");
+    case ECastleInteract::Gatling: return TEXT("F  Equip Gatling  |  Hold fire to spin up");
+    case ECastleInteract::Knife: return TEXT("F  Equip parry knife  |  Right click to reflect bolts");
+    case ECastleInteract::Rest: return TEXT("F  Rest once: health, shield and reserve ammo");
+    default: return TEXT("F  Collect ammo and memory fragments");
     }
 }
 
@@ -362,13 +334,13 @@ void ACastleInteractable::Use(ACastlePlayer* P)
     switch (Kind)
     {
     case ECastleInteract::Chest:
-        P->Coins += 25 + 5 * Director->Floor; P->Reserve += 48; P->GrantRelic(RewardKind); bUsed = true; break;
+        P->Coins += 25 + 5 * Director->Floor; P->AddReserveAmmo(48); P->GrantRelic(RewardKind); bUsed = true; break;
     case ECastleInteract::Shop:
     {
         const int32 Cost = 30 + (P->WeaponLevel - 1) * 20;
         if (P->Coins < Cost) { P->Tell(TEXT("Not enough memory fragments. Search chests or defeat sentinels.")); return; }
         P->Coins -= Cost; ++P->WeaponLevel; P->BulletDamage += 8; P->MagazineSize += 4;
-        P->Ammo = P->MagazineSize; P->Reserve += 96; P->Health = P->MaxHealth; P->Shield = P->MaxShield;
+        P->RefillMagazines(); P->AddReserveAmmo(96); P->Health = P->MaxHealth; P->Shield = P->MaxShield;
         P->Tell(TEXT("Carbine upgraded: +8 damage, +4 magazine. Health, shield and ammo restored.")); break;
     }
     case ECastleInteract::Event:
@@ -382,15 +354,29 @@ void ACastleInteractable::Use(ACastlePlayer* P)
         if (Director->Floor == 3) { Director->bWon = true; P->Tell(TEXT("CASTLE CLEARED | Press ENTER for a new seed.")); }
         else Director->RequestFloor(Director->Floor + 1);
         break;
-    case ECastleInteract::Ammo: P->Reserve += 36; P->Coins += 8; P->Tell(TEXT("Supplies collected: +36 ammo, +8 memory fragments")); bUsed = true; break;
+    case ECastleInteract::Ammo:
+        P->AddReserveAmmo(36); P->Coins += 8;
+        P->Tell(P->HasWeapon(ECastleWeapon::Gatling) ? TEXT("Supplies: +36 carbine rounds, +72 Gatling rounds, +8 fragments") :
+            TEXT("Supplies collected: +36 ammo, +8 memory fragments"));
+        bUsed = true; break;
     case ECastleInteract::Weapon:
-        ++P->WeaponLevel; P->BulletDamage+=10; P->MagazineSize+=4; P->Ammo=P->MagazineSize;
+        ++P->WeaponLevel; P->BulletDamage+=10; P->MagazineSize+=4; P->RefillMagazines();
         P->Tell(TEXT("WEAPON ACQUIRED: reinforced carbine | +10 damage, +4 magazine")); bUsed=true; break;
+    case ECastleInteract::Gatling:
+        P->UnlockWeapon(ECastleWeapon::Gatling);
+        P->Tell(TEXT("Gatling equipped. Hold left mouse to spin up and fire. Press 2 to equip again."));
+        bUsed=true; break;
+    case ECastleInteract::Knife:
+        P->UnlockWeapon(ECastleWeapon::Knife);
+        P->Tell(TEXT("Knife equipped. Left click to slash. Right click as a bolt approaches to reflect it."));
+        bUsed=true; break;
     case ECastleInteract::Rest:
         P->Health=FMath::Min(P->MaxHealth,P->Health+35);
         P->Shield=FMath::Min(P->MaxShield,P->Shield+30);
-        P->Reserve+=48;
-        P->Tell(TEXT("RESTED: +35 health, +30 shield, +48 reserve ammo")); bUsed=true; break;
+        P->AddReserveAmmo(48);
+        P->Tell(P->HasWeapon(ECastleWeapon::Gatling) ? TEXT("Rested: +35 health, +30 shield, +48 carbine rounds, +96 Gatling rounds") :
+            TEXT("RESTED: +35 health, +30 shield, +48 reserve ammo"));
+        bUsed=true; break;
     }
     if (bUsed)
     {
@@ -454,8 +440,26 @@ ACastleEnemy::ACastleEnemy()
 void ACastleEnemy::Configure(bool InBoss, int32 InFloor, ACastleDirector* D)
 {
     bBoss = InBoss; Director = D; Home = GetActorLocation();
-    MaxHealth = Health = bBoss ? 500 + (InFloor - 1) * 275 : 65 + InFloor * 20;
-    AttackDamage = bBoss ? 14 + InFloor * 4 : 7 + InFloor * 3;
+    if (bBoss)
+    {
+        MaxHealth = 500 + (InFloor - 1) * 275;
+        AttackDamage = 14 + InFloor * 4;
+    }
+    else
+    {
+        struct FGuardStats { float Health, Damage, AttackInterval; };
+        static constexpr FGuardStats GuardsByFloor[] = {
+            {85.f, 10.f, 1.90f},
+            {115.f, 14.f, 1.80f},
+            {155.f, 18.f, 1.70f}
+        };
+        const int32 FloorIndex = FMath::Clamp<int32>(InFloor, 1, UE_ARRAY_COUNT(GuardsByFloor)) - 1;
+        const FGuardStats& Stats = GuardsByFloor[FloorIndex];
+        MaxHealth = Stats.Health;
+        AttackDamage = Stats.Damage;
+        AttackInterval = Stats.AttackInterval;
+    }
+    Health = MaxHealth;
     Body->SetMaterial(0, CastleMaterial(bBoss ? TEXT("M_Purple") : TEXT("M_Enemy")));
     TArray<UStaticMeshComponent*> Meshes; GetComponents(Meshes);
     for (auto* M : Meshes)
@@ -675,7 +679,7 @@ void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
     if (CanSee && Now >= NextAttack)
     {
         ++AIAttackEvents;
-        NextAttack = Now + (bBoss ? (Health < MaxHealth * .5f ? .85f : 1.35f) : 1.9f);
+        NextAttack = Now + (bBoss ? (Health < MaxHealth * .5f ? .85f : 1.35f) : AttackInterval);
         const bool bMelee = Dist < 140;
         bool bAttackCommitted = bMelee;
         if (bMelee)
@@ -725,30 +729,6 @@ float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, 
         BP_OnHitVisual(PreviousHealth - Health);
     }
     return Damage;
-}
-
-ACastleBolt::ACastleBolt()
-{
-    PrimaryActorTick.bCanEverTick = true;
-    Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Bolt")); SetRootComponent(Mesh);
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-    Mesh->SetStaticMesh(Sphere.Object); Mesh->SetRelativeScale3D(FVector(.16f)); Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Mesh->SetCanEverAffectNavigation(false); Mesh->SetCastShadow(false); InitialLifeSpan = 6;
-}
-
-void ACastleBolt::Tick(float Dt)
-{
-    Super::Tick(Dt);
-    if (auto* Mat = CastleMaterial(TEXT("M_Danger"))) Mesh->SetMaterial(0, Mat);
-    const FVector Start = GetActorLocation(), End = Start + Velocity * Dt;
-    FHitResult Hit; FCollisionQueryParams Q(SCENE_QUERY_STAT(CastleBolt), false, this); Q.AddIgnoredActor(Shooter);
-    GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(8), Q);
-    if (Hit.bBlockingHit)
-    {
-        if (auto* P = Cast<ACastlePlayer>(Hit.GetActor())) P->ReceiveBoltHit(Damage, Shooter);
-        Destroy();
-    }
-    else SetActorLocation(End);
 }
 
 ACastleGameMode::ACastleGameMode()

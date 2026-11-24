@@ -506,7 +506,13 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         {
         case ECastleRoom::Entrance:
             if(!Dressed)AddSign(C+FVector(700,-470,240),TEXT("THE HOLLOW CITADEL\nExplore / Upgrade / Ascend"),FColor(100,220,220));
-            CastleDressCourtProp(AddInteract(C+FVector(220,-400,45),ECastleInteract::Ammo,TEXT("STARTER SUPPLIES"))); break;
+            CastleDressCourtProp(AddInteract(C+FVector(220,-400,45),ECastleInteract::Ammo,TEXT("STARTER SUPPLIES")));
+            if (Floor == 1)
+            {
+                CastleDressCourtProp(AddInteract(C+FVector(-120,0,45),ECastleInteract::Gatling,TEXT("GATLING")));
+                CastleDressCourtProp(AddInteract(C+FVector(120,0,45),ECastleInteract::Knife,TEXT("PARRY KNIFE")));
+            }
+            break;
         case ECastleRoom::Shop: CastleDressCourtProp(AddInteract(C+FVector(250,0,45),ECastleInteract::Shop,TEXT("ARMORY"))); break;
         case ECastleRoom::Combat:
             for(int32 E=0;E<2+Floor;++E) AddOrdinaryEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100));
@@ -601,8 +607,8 @@ void ACastleDirector::CompleteFloorGeneration()
         P->SetActorEnableCollision(true);
         if(Floor==1) PositionPlayerAtEntrance(P);
         else Travel(P,FVector(-400,0,110));
-        P->Shield=P->MaxShield; P->Health=FMath::Min(P->MaxHealth,P->Health+35); P->Reserve+=48;
-        P->Tell(Floor==1 ? TEXT("Floor 1 | Fight, explore side rooms, then find the ASCEND portal.")
+        P->Shield=P->MaxShield; P->Health=FMath::Min(P->MaxHealth,P->Health+35); P->AddReserveAmmo(48);
+        P->Tell(Floor==1 ? TEXT("Take the Gatling and knife from the entrance stands with F. Switch with 1 / 2 / 3.")
                          : (CastleIsChinese()?FString::Printf(TEXT("第 %d 层 | 探索房间、收集藏品，然后寻找首领入口。"),Floor):FString::Printf(TEXT("Floor %d | Explore rooms, collect relics, then find the BOSS GATE."),Floor)));
         if(Floor==1 && FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryPreview")))
         {
@@ -610,8 +616,8 @@ void ACastleDirector::CompleteFloorGeneration()
             {
                 Travel(P,Rooms[I].Center+FVector(-420,-260,110),20);
                 RevealRoom(I);P->bHelp=false;
-                P->Tell(CastleIsChinese()?TEXT("记忆房测试：靠近记忆匣按 E，Tab 查看宫廷旧物。"):
-                    TEXT("Memory room preview: E at the chest. Tab opens your court collectibles."));
+                P->Tell(CastleIsChinese()?TEXT("记忆房测试：靠近记忆匣按 F，Tab 查看宫廷旧物。"):
+                    TEXT("Memory room preview: F at the chest. Tab opens your court collectibles."));
                 UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_PREVIEW Room=%d Seed=%d"),I,RunSeed);
                 break;
             }
