@@ -196,9 +196,11 @@ bool ACastleWeaponProjectile::Fire(ACastlePlayer& Player, FVector MuzzleLocation
     if (FanAngle > 0.f)
     {
         // The center round retains precision against the queen's shield and weak points.
-        const FVector Up = Player.Camera->GetUpVector();
-        SpawnRound(Aim.RotateAngleAxis(-FanAngle, Up), ShotDamage*.25f, INDEX_NONE);
-        SpawnRound(Aim.RotateAngleAxis( FanAngle, Up), ShotDamage*.25f, INDEX_NONE);
+        // 原名 Up，与 CastleCourtScenery.cpp 匿名命名空间里的全局 Up 撞名；
+        // unity 构建把两者编进同一单元时会触发 C4459（本工程按错误处理）→ 改名规避。
+        const FVector UpAxis = Player.Camera->GetUpVector();
+        SpawnRound(Aim.RotateAngleAxis(-FanAngle, UpAxis), ShotDamage*.25f, INDEX_NONE);
+        SpawnRound(Aim.RotateAngleAxis( FanAngle, UpAxis), ShotDamage*.25f, INDEX_NONE);
     }
     return true;
 }

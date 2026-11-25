@@ -44,7 +44,12 @@ namespace
         return LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/CaveArt/M_CaveSlab.M_CaveSlab"));
     }
 
-    void ApplyCaveGrade(UMaterialInstanceDynamic* Mid,float MemDepth,bool bTile)
+    // 楼层身份（试玩反馈"每层要有玩家能感知的变化"）：
+    //   第 2 层 = 被遗忘的记忆：偏冷、潮湿、积尘、粗糙
+    //   第 3 层 = 封存的辉煌：偏暖、润泽、抛光、干净
+    // 记忆深度仍在同一层内做渐变（越深越亮越净），两轴相乘：色相负责"哪一层"，
+    // 明度/粗糙负责"走到多深"。玩家不看小地图也能一眼分出自己在哪一层。
+    void ApplyCaveGrade(UMaterialInstanceDynamic* Mid,float MemDepth,bool bTile,int32 Floor)
     {
         if(!Mid) return;
         const float D=FMath::Clamp(MemDepth,0.f,1.f);
@@ -54,14 +59,28 @@ namespace
         const FLinearColor Warm=bTile?FLinearColor(1.52f,1.36f,1.06f):FLinearColor(1.62f,1.46f,1.16f);
         const float RoughCold=bTile?1.10f:1.20f,RoughWarm=bTile?.72f:.84f;
         const float GrimeCold=bTile?.48f:.34f,GrimeWarm=bTile?.15f:.12f;
-        Mid->SetVectorParameterValue(TEXT("Tint"),FLinearColor(
-            FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f));
-        Mid->SetScalarParameterValue(TEXT("RoughnessScale"),FMath::Lerp(RoughCold,RoughWarm,D));
-        Mid->SetScalarParameterValue(TEXT("MacroGrime"),FMath::Lerp(GrimeCold,GrimeWarm,D));
+        FLinearColor Tint(
+            FMath::Lerp(Cold.R,Warm.R,D),FMath::Lerp(Cold.G,Warm.G,D),FMath::Lerp(Cold.B,Warm.B,D),1.f);
+        float Rough=FMath::Lerp(RoughCold,RoughWarm,D);
+        float Grime=FMath::Lerp(GrimeCold,GrimeWarm,D);
+
+        // 楼层轴：0 = 第 2 层褪色，1 = 第 3 层辉煌。第 1 层没有藏宝洞，按褪色处理。
+        const float F=Floor>=3?1.f:0.f;
+        const FLinearColor FadeTint(0.87f,0.93f,1.18f,1.f);   // 压红提蓝 → 冷灰蓝
+        const FLinearColor RichTint(1.14f,1.05f,0.84f,1.f);   // 提红压蓝 → 暖金
+        Tint.R*=FMath::Lerp(FadeTint.R,RichTint.R,F);
+        Tint.G*=FMath::Lerp(FadeTint.G,RichTint.G,F);
+        Tint.B*=FMath::Lerp(FadeTint.B,RichTint.B,F);
+        Rough*=FMath::Lerp(1.16f,0.86f,F);   // 褪色层更粗（积尘），辉煌层更滑（被摩挲过）
+        Grime*=FMath::Lerp(1.45f,0.62f,F);   // 褪色层更脏
+
+        Mid->SetVectorParameterValue(TEXT("Tint"),Tint);
+        Mid->SetScalarParameterValue(TEXT("RoughnessScale"),Rough);
+        Mid->SetScalarParameterValue(TEXT("MacroGrime"),Grime);
     }
 
     // 房间美术本身：石材槽和地砖槽各一份 MID，外加那盏大范围补光的色温。
-    void GradeCaveRoomArt(AActor* Art,float MemDepth)
+    void GradeCaveRoomArt(AActor* Art,float MemDepth,int32 Floor)
     {
         if(!IsValid(Art)) return;
         auto* OldStone=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Demo/MemoryRoomArt/M_MemoryStone.M_MemoryStone"));
@@ -73,8 +92,8 @@ namespace
 
         auto* StoneMid=UMaterialInstanceDynamic::Create(NewStone,Art);
         auto* TileMid=UMaterialInstanceDynamic::Create(NewTile,Art);
-        ApplyCaveGrade(StoneMid,MemDepth,false);
-        ApplyCaveGrade(TileMid,MemDepth,true);
+        ApplyCaveGrade(StoneMid,MemDepth,false,Floor);
+        ApplyCaveGrade(TileMid,MemDepth,true,Floor);
 
         int32 Walls=0,Floors=0;
         TArray<UStaticMeshComponent*> Meshes;
@@ -108,7 +127,8 @@ namespace
             {
                 Lamp->SetIntensity(Lamp->Intensity*.55f);
                 Lamp->SetAttenuationRadius(900.f);
-                Lamp->SetLightColor(FLinearColor(.74f,.74f,.76f));
+                // 补光色温跟着楼层走：褪色层偏冷蓝，辉煌层偏暖白。
+                Lamp->SetLightColor(Floor>=3?FLinearColor(.82f,.79f,.72f):FLinearColor(.68f,.74f,.88f));
                 ++LitLamps;
             }
             else if(Radius>800.f)
@@ -119,8 +139,8 @@ namespace
                 ++LitLamps;
             }
         }
-        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Walls=%d Floors=%d Lamps=%d"),
-            FMath::Clamp(MemDepth,0.f,1.f),Walls,Floors,LitLamps);
+        UE_LOG(LogTemp,Display,TEXT("CAVE_MATERIAL_GRADE Depth=%.2f Floor=%d Walls=%d Floors=%d Lamps=%d"),
+            FMath::Clamp(MemDepth,0.f,1.f),Floor,Walls,Floors,LitLamps);
     }
 }
 
@@ -275,7 +295,10 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         const float MemDepth=Order/3.f;
         // 房间尺寸固定 900：复用组员的 BuildMedievalMemoryRoom（它按 1800x1800 模块化铺设）
         const float Half=900.f;
-        const float CeilH=980.f+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 980 -> 1460
+        // 层高：楼层抬 + 记忆深度抬。第 3 层的宝库比第 2 层整体高一截，
+        // 抬头就能看出"这一层更隆重"，是试玩时最容易感知的楼层差异。
+        const float FloorLift=Floor>=3?170.f:0.f;
+        const float CeilH=960.f+FloorLift+MemDepth*380.f+G.FRandRange(0.f,120.f);   // 第2层 960->1460 / 第3层 1130->1630
         const float Density=FMath::Lerp(.45f,1.f,MemDepth);               // 陈设密度 0.45 -> 1
         // 洞体可见墙面走材质槽 6（只有藏宝洞用这个索引）：每房一份 MID，按深度分级。
         UMaterialInstanceDynamic* RoomStone=nullptr;
@@ -283,7 +306,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             if(Materials.IsValidIndex(6))
             {
                 RoomStone=UMaterialInstanceDynamic::Create(ShellBase,this);
-                ApplyCaveGrade(RoomStone,MemDepth,false);
+                ApplyCaveGrade(RoomStone,MemDepth,false,Floor);
                 Materials[6]=RoomStone;
             }
         BuildRoom(C,Half,Room.Doors,6);
@@ -295,7 +318,7 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
         if(BuildMedievalMemoryRoom(Room,Half)) ++ArtBuilt;
         for(TActorIterator<AActor> It(GetWorld());It;++It)
             if(It->ActorHasTag(TEXT("CastleMemoryRoomArt")) && !ArtBefore.Contains(*It))
-                GradeCaveRoomArt(*It,MemDepth);
+                GradeCaveRoomArt(*It,MemDepth,Floor);
 
         // ===== 金厅吊灯 =====
         // 整间房只有这一盏开阴影：灯下亮成一片、墙脚自然留暗，房间才有纵深。
@@ -326,9 +349,15 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
                     Bulb->SetMobility(EComponentMobility::Movable);
                     // 点光源是平方反比衰减：灯挂在 7 米高，要到地面上跟"地面 1.6 米的
                     // 蜡烛灯"同量级，强度得差 (7/1.6)^2 ≈ 20 倍，所以是 26 万起。
-                    Bulb->SetIntensity(FMath::Lerp(380000.f,560000.f,MemDepth));
+                    // 第 3 层层高更高，灯挂得更高 → 按 (CeilH/1200)^2 把强度补回来，
+                    // 否则"更隆重的一层"反而更暗。
+                    const float LiftBias=FMath::Square(CeilH/1200.f);
+                    const float BulbBase=Floor>=3?FMath::Lerp(420000.f,600000.f,MemDepth)
+                                                 :FMath::Lerp(370000.f,500000.f,MemDepth);
+                    Bulb->SetIntensity(BulbBase*LiftBias);
                     Bulb->SetAttenuationRadius(1900.f);
-                    Bulb->SetLightColor(FLinearColor(1.f,.80f,.50f));
+                    // 色温就是楼层身份：褪色层冷白，辉煌层暖金。
+                    Bulb->SetLightColor(Floor>=3?FLinearColor(1.f,.82f,.50f):FLinearColor(.85f,.90f,1.f));
                     Bulb->SetCastShadows(true);
                     Bulb->MarkRenderStateDirty();
                 }
@@ -411,13 +440,20 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             }
         }
 
-        // 光照基调三套：暖金 / 记忆紫 / 冷金；深处固定暖金（记忆最完整）
-        const FLinearColor Moods[3]={FLinearColor(1.f,.80f,.52f),FLinearColor(.88f,.62f,.98f),FLinearColor(.98f,.91f,.68f)};
-        const FLinearColor Mood = MemDepth>=.66f?Moods[0]:Moods[G.RandRange(0,2)];
-        // 拱顶：形式服从空间 —— 宽厅配肋拱/连拱，高塔配阶梯穹顶
+        // 光照基调：色相定楼层，明度定深度。
+        //   第 2 层 = 褪色（冷紫 / 冷月白）  第 3 层 = 辉煌（暖金 / 深金）
+        // 同一层内越往里越亮，但色相不变 —— 玩家靠"冷还是暖"分辨楼层，
+        // 靠"亮还是暗"分辨自己走了多深。
+        static const FLinearColor FadeMoods[2]={FLinearColor(.78f,.66f,1.06f),FLinearColor(.86f,.93f,1.12f)};
+        static const FLinearColor RichMoods[2]={FLinearColor(1.f,.84f,.52f),FLinearColor(1.f,.74f,.40f)};
+        FLinearColor Mood = Floor>=3?RichMoods[G.RandRange(0,1)]:FadeMoods[G.RandRange(0,1)];
+        Mood = Mood * (.82f+.34f*MemDepth);   // 入口压暗、深处提亮
+        // 拱顶：形式服从空间 —— 层高足够才配得起阶梯穹顶。
+        // （Half 恒为 900，原来那句 `if(Half>855)` 永远为真，阶梯穹顶从来没生成过；
+        //   这里改成先看层高，第 3 层深处才会真正出现阶梯穹顶。）
         int32 VaultStyle;
-        if(Half>855.f) VaultStyle=G.RandRange(0,1);
-        else if(CeilH>1310.f) VaultStyle=2;
+        if(CeilH>1380.f) VaultStyle=2;
+        else if(Half>855.f) VaultStyle=G.RandRange(0,1);
         else VaultStyle=1;
         // 主题：按记忆深度递进（人 -> 物 -> 时间 -> 身份），中间两房方向由种子决定
         int32 Theme;
@@ -549,12 +585,37 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             const int32 RelicKind = MemDepth>=.66f ? 2 : R.RandRange(0,2);
             AddInteract(C+FVector(420,400,45),ECastleInteract::Chest,TEXT("VAULT RELIC"),RelicKind);
         }
+        // ===== 守卫布防（PCG2）：只改"站哪"，不加"加多少" =====
+        // 原做法只在中间两房排成一排（-330 + E*220），玩家贴着墙就能绕过去 ——
+        // 试玩反馈"熟悉地图后可以一路跑到终点"，有一部分就出在这种布防上。
+        // 但这块地方在 Demo Day 是要给老师亲自试玩的，所以定死两条安全线：
+        //   1. 传送落点（入口房）绝对不放守卫 —— 玩家还在读画面就被打，卡一点就直接死；
+        //   2. 总守卫数与原来完全一致（第2层 2+3、第3层 3+4），不靠堆数量施压。
+        // 压力改由"阵型"产生：中间房改成前后错开、左右交替的楔形，两人一组夹住通道，
+        // 贴墙绕行会同时进两个人的射界；守卫本身会追击，玩家往深处走压力自然跟上来。
+        // 敌人一律走 AddOrdinaryEnemy()：继承关卡指定的 BP_CastleEnemy_Grunt_Art
+        // （组员已合并的成品网格与动画），生命/伤害/攻击间隔由 Configure(Floor) 按
+        // 楼层表下发 —— 这里只决定"站几个人、站在哪"，不碰任何数值（冒烟会逐个校验）。
         if(Order==1 || Order==2)
         {
-            // 守卫数量随记忆深度递增：Floor .. Floor+2
-            const int32 Guards = Floor + int32(MemDepth*2.f);
-            for(int32 E=0;E<Guards;++E) AddOrdinaryEnemy(C+FVector(-330+E*220,300,100));
+            // 行进方向：从上一间房过来的方向（入口门在 -Fwd 那面墙上，所以第一排
+            // 站位在 +Fwd 300，离门口 12 米，不会在门口堵人）
+            FVector Fwd(1.f,0.f,0.f);
+            const FVector Step=(C-CaveRooms[CaveRoute[Order-1]].Center).GetSafeNormal2D();
+            if(!Step.IsNearlyZero()) Fwd=Step;
+            const FVector Right(-Fwd.Y,Fwd.X,0.f);
+            // 数量公式与原来一致（Floor + 深度提升，最低 2 人）
+            const int32 Guards=FMath::Max(2,Floor+int32(MemDepth*2.f));
+            for(int32 E=0;E<Guards;++E)
+            {
+                const int32 Row=E/2;
+                const float Side=(E%2)?1.f:-1.f;
+                AddOrdinaryEnemy(C+Fwd*(300.f+Row*330.f)+Right*(Side*(430.f+Row*120.f))+FVector(0,0,100));
+            }
+            // 中央掩体：玩家推进时能靠它换弹/找掩体（原来是贴着墙的方块）
             AddBox(C+FVector(-440,-420,120),FVector(160,260,240),6);
+            UE_LOG(LogTemp,Display,TEXT("CAVE_GUARD_POST Order=%d Floor=%d Posted=%d Fwd=%s"),
+                Order,Floor,Guards,*Fwd.ToCompactString());
         }
         for(int32 Side=0;Side<2;++Side) if(Room.Doors&(1<<Side))
         {
