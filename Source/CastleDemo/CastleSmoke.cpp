@@ -1,5 +1,6 @@
 #include "CastleQueen.h"
 #include "CastleDemo.h"
+#include "CastleExplorationDimensions.h"
 #include "CastleLanguage.h"
 #include "CastleMemoryArtChecks.h"
 #include "CastleProjectileChecks.h"
@@ -169,18 +170,37 @@ void ACastleDirector::TickSmokeTest()
         {
             const FVector Normal=Side==0?FVector::ForwardVector:FVector::RightVector;
             const FVector Start=Room.Center+FVector(0,0,617);
-            if(!GetWorld()->LineTraceSingleByChannel(Masonry,Start,Start+Normal*1100,ECC_Visibility,VaultQuery) ||
-                !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag))
+            if(!GetWorld()->LineTraceSingleByChannel(Masonry,Start,Start+Normal*(CastleExploration::RoomHalf+100),ECC_Visibility,VaultQuery) ||
+                !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag) ||
+                FMath::Abs(Masonry.Distance-CastleExploration::RoomHalf)>75.f)
             {
-                UE_LOG(LogTemp,Error,TEXT("Vault wall Floor=%d Room=%s Side=%d Hit=%s"),Floor,*Room.Center.ToString(),Side,*GetNameSafe(Masonry.GetComponent()));
-                Fail(TEXT("Exploration room has an open upper wall"));return;
+                UE_LOG(LogTemp,Error,TEXT("Vault wall Floor=%d Room=%s Side=%d Hit=%s Distance=%.0f"),Floor,*Room.Center.ToString(),Side,*GetNameSafe(Masonry.GetComponent()),Masonry.Distance);
+                Fail(TEXT("Exploration upper wall is missing or outside the room boundary"));return;
             }
             if(Room.Doors&(1<<Side))
             {
-                const FVector Passage=Room.Center+Normal*1200+FVector(0,0,340);
+                const FVector Passage=Room.Center+Normal*(CastleExploration::CellSpacing*.5f)+FVector(0,0,340);
                 if(!GetWorld()->LineTraceSingleByChannel(Masonry,Passage,Passage+FVector(0,0,310),ECC_Visibility,VaultQuery) ||
                     !Masonry.GetComponent() || !Masonry.GetComponent()->ComponentHasTag(VaultTag))
                 { Fail(TEXT("Exploration corridor is missing a roof"));return; }
+            }
+        }
+        if(Room.Type==ECastleRoom::Combat || Room.Type==ECastleRoom::Elite)
+        {
+            int32 CoverSides=0;
+            for(int32 X : {-1,1}) for(int32 Y : {-1,1})
+            {
+                const FVector Corner=Room.Center+FVector(X*790,Y*765,0);
+                FHitResult Cover;
+                if(GetWorld()->LineTraceSingleByChannel(Cover,Corner+FVector(0,0,360),Corner+FVector(0,0,50),ECC_Visibility,VaultQuery) &&
+                    Cover.GetComponent() && Cover.GetComponent()->ComponentHasTag(TEXT("CastleExplorationFurniture")) &&
+                    Cover.GetComponent()->GetCollisionResponseToChannel(ECC_Pawn)==ECR_Block && Cover.GetComponent()->CanEverAffectNavigation())
+                    ++CoverSides;
+            }
+            if(CoverSides<2)
+            {
+                UE_LOG(LogTemp,Error,TEXT("Exploration cover Floor=%d Room=%s BlockingCorners=%d"),Floor,*Room.Center.ToString(),CoverSides);
+                Fail(TEXT("Combat room lacks two outer cover positions that block bullets and movement"));return;
             }
         }
         auto* Path=UNavigationSystemV1::FindPathToLocationSynchronously(this,FVector(-400,0,100),Room.Center+FVector(0,0,100));
@@ -198,6 +218,8 @@ void ACastleDirector::TickSmokeTest()
             Fail(TEXT("Navigation does not reach every room"));return;
         }
     }
+    UE_LOG(LogTemp,Display,TEXT("CASTLE_EXPLORATION_SPACE_OK Floor=%d RoomWidthCm=%.0f PassageLengthCm=%.0f CheckedCombatAndEliteRooms=%d"),
+        Floor,2.f*CastleExploration::RoomHalf,CastleExploration::PassageLength,TypeCount[2]+TypeCount[7]);
     {
         if(ActiveCount<10 || ActiveCount>12 || TypeCount[0]!=1 || TypeCount[1]!=1 || TypeCount[2]<4 || TypeCount[3]!=1 || TypeCount[5]!=0 || TypeCount[6]!=1 || TypeCount[9]!=1 || TypeCount[4]+TypeCount[7]+TypeCount[8]<1 || TypeCount[4]+TypeCount[7]+TypeCount[8]>2 || TypeCount[7]>1)
         {Fail(TEXT("First-floor room quota"));return;}
@@ -333,11 +355,23 @@ void ACastleDirector::TickSmokeTest()
             const int32 Before=P->Coins;
             int32 ChestsBefore=0;
             for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::Chest) ++ChestsBefore;
+            const FVector ElitePos = Elite->GetActorLocation();
+            const int32 BeforeKillOrdinal = GuardKillOrdinal;
             Elite->bActive=true;
             Elite->TakeDamage(99999,FDamageEvent(),P->GetController(),P);
             int32 ChestsAfter=0;
-            for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::Chest) ++ChestsAfter;
-            if(P->Coins!=Before+30 || ChestsAfter!=ChestsBefore+1){Fail(TEXT("Elite reward"));return;}
+            ACastleInteractable* EliteChest = nullptr;
+            for(TActorIterator<ACastleInteractable> It(GetWorld());It;++It) if(It->Kind==ECastleInteract::Chest)
+            {
+                ++ChestsAfter;
+                if (!It->bUsed && FVector::Dist2D(It->GetActorLocation(), ElitePos) < 1.) EliteChest = *It;
+            }
+            if(!EliteChest || P->Coins!=Before+30 || ChestsAfter!=ChestsBefore+1 || GuardKillOrdinal!=BeforeKillOrdinal)
+            {Fail(TEXT("Elite reward"));return;}
+            const int32 BeforeStock = P->Reserve, BeforeRelics = P->Relics;
+            EliteChest->Use(P);
+            if (P->Reserve != BeforeStock || P->Relics != BeforeRelics+1)
+            {Fail(TEXT("Elite chest must grant a relic without ammunition"));return;}
         }
         if(TypeCount[8])
         {
@@ -348,14 +382,22 @@ void ACastleDirector::TickSmokeTest()
             if(!Trap->bTriggered || P->Health!=85){Fail(TEXT("Trap damage"));return;}
             Trap->NotifyActorBeginOverlap(P); if(P->Health!=85){Fail(TEXT("Trap repeat damage"));return;}
         }
-        if (const TCHAR* Error = CheckPlayerWeapons(P)) { Fail(Error); return; }
+        if (!P->HasWeapon(ECastleWeapon::Knife) || P->HasWeapon(ECastleWeapon::Gatling) ||
+            FindItem(ECastleInteract::Knife) || FindItem(ECastleInteract::Gatling))
+        { Fail(TEXT("The first-floor loadout should include the knife without a weapon stand or Gatling")); return; }
+        if (const TCHAR* Error = CheckGuardLoot(P)) { Fail(Error); return; }
+        if (const TCHAR* Error = CheckWeaponMods(P)) { Fail(Error); return; }
         P->Ammo=0; P->Reload(); if(!P->bReloading){Fail(TEXT("Reload did not start"));return;}
         P->ReloadEnd=Now; P->Tick(.01f); if(P->bReloading || P->Ammo!=P->MagazineSize){Fail(TEXT("Reload transfer"));return;}
         auto* Weapon=FindItem(ECastleInteract::Weapon); if(!Weapon){Fail(TEXT("Exploration weapon pickup missing"));return;}
         const float DamageBefore=P->BulletDamage; Weapon->Use(P); Weapon->Use(P);
         if(P->BulletDamage!=DamageBefore+10){Fail(TEXT("Weapon pickup or duplicate reward"));return;}
+        P->ApplyWeaponMod(ECastleWeaponMod::InfiniteAmmo);
         P->TakeDamage(99999,FDamageEvent(),nullptr,nullptr); if(!P->bDead){Fail(TEXT("Death state"));return;}
-        P->ResetRun(); P->GrantRelic(0); SmokeDamageBeforeTravel=P->BulletDamage;
+        P->ResetRun();
+        if (P->RapidFireStacks || P->SpreadStacks || P->GetInfiniteAmmoRemaining() > 0)
+        { Fail(TEXT("Weapon mods survived a new run")); return; }
+        P->GrantRelic(0); SmokeDamageBeforeTravel=P->BulletDamage;
     }
     else if(P->BulletDamage!=SmokeDamageBeforeTravel) {Fail(TEXT("Attributes not preserved across floors"));return;}
     else if(P->CollectibleStacks.Num()!=3 || P->CollectibleStacks[0]!=1 || P->Relics!=1)
@@ -431,6 +473,18 @@ void ACastleDirector::TickSmokeTest()
     if(FVector::Dist2D(P->GetActorLocation(),CaveEntrance)>100){Fail(TEXT("Cave portal missed the entrance"));return;}
     auto* Return=FindItem(ECastleInteract::CaveReturn); if(!Return){Fail(TEXT("Cave return missing"));return;}
     if(CaveEntrance==CaveExit || FVector::Dist2D(Return->GetActorLocation(),CaveExit)>700){Fail(TEXT("Cave exit is not in the final room"));return;}
+    if (Floor == 2)
+    {
+        if (const TCHAR* Error = CheckPlayerWeapons(P)) { Fail(Error); return; }
+        if (const TCHAR* Error = CheckGuardLoot(P)) { Fail(Error); return; }
+    }
+    else
+    {
+        if (!P->HasWeapon(ECastleWeapon::Gatling) || FindItem(ECastleInteract::Gatling))
+        { Fail(TEXT("Expected the retained Gatling and no new pickup on floor three")); return; }
+        if (P->RapidFireStacks != 1 || P->SpreadStacks != 1 || P->GetInfiniteAmmoRemaining() <= 0)
+        { Fail(TEXT("Weapon mod stacks or active timer lost during floor transition")); return; }
+    }
     Travel(P,CaveExit+FVector(0,0,110));
     Return->Use(P); if(Region!=TEXT("EXPLORATION") || FVector::Dist2D(P->GetActorLocation(),BeforeCave)>300){Fail(TEXT("Cave return"));return;}
     if(FindItem(ECastleInteract::NextFloor)){Fail(TEXT("Later-floor exit unlocked before boss"));return;}
@@ -574,8 +628,8 @@ void ACastleDirector::TickCapture()
             const FVector Directions[]={FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
             for(int32 Side=0;Side<4;++Side)if(Target->Doors&(1<<Side))
             {
-                Travel(P,Target->Center+Directions[Side]*550+FVector(0,0,100));
-                const FVector Destination=Target->Center+Directions[Side]*1400+FVector(0,0,100);
+                Travel(P,Target->Center+Directions[Side]*(CastleExploration::RoomHalf-220)+FVector(0,0,100));
+                const FVector Destination=Target->Center+Directions[Side]*(CastleExploration::CellSpacing*.5f)+FVector(0,0,100);
                 FHitResult Hit;P->SetActorLocation(Destination,true,&Hit,ETeleportType::TeleportPhysics);
                 if(Hit.bBlockingHit || FVector::Dist(P->GetActorLocation(),Destination)>2){FailArt(TEXT("Physical player traversal blocked"));return;}
                 UE_LOG(LogTemp,Display,TEXT("CASTLE_MEMORY_ART_DOOR_WALK_OK Seed=%d Side=%d"),RunSeed,Side);

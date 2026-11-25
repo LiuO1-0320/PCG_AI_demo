@@ -29,10 +29,12 @@ private:
     UStaticMesh *ShatteredPortrait=nullptr, *DroppedFrameRail=nullptr;
     UMaterialInterface *Stone=nullptr, *Paving=nullptr, *Limestone=nullptr, *Dark=nullptr, *Wine=nullptr, *Gold=nullptr, *Flame=nullptr;
     UInstancedStaticMeshComponent* UpperShell = nullptr;
+    UInstancedStaticMeshComponent* FurnitureCollision = nullptr;
     TMap<TPair<UStaticMesh*,UMaterialInterface*>,UInstancedStaticMeshComponent*> Batches;
     int32 RoomCount=0, PassageCount=0;
     void Put(UStaticMesh* Mesh, UMaterialInterface* Mat, FVector Center, FVector LocalSize, FRotator Rot=FRotator::ZeroRotator);
     void WallPanel(FVector Center, double Length, double Depth, double Height, double Yaw);
+    void FurnishRoom(const FCastleRoom& Node, FRandomStream& Dressing);
     void SolidStone(FVector Center, FVector LocalSize, FRotator Rot, UMaterialInterface* Finish);
     void Vault(FVector Center, double Yaw, double Length, double HalfSpan, double Spring, double Rise, bool LargeHall);
     void Arch(FVector Base, FVector N, double Yaw);

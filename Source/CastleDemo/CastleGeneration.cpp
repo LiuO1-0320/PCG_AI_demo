@@ -1,8 +1,10 @@
 #include "CastleDemo.h"
+#include "CastleGuardLoot.h"
 #include "CastleQueen.h"
 #include "CastleLanguage.h"
 #include "CastleCourtProps.h"
 #include "CastleCourtScenery.h"
+#include "CastleExplorationDimensions.h"
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGElement.h"
@@ -11,6 +13,7 @@
 #include "Data/PCGPointData.h"
 #include "Metadata/PCGMetadata.h"
 #include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
@@ -38,6 +41,20 @@ static int32 CastleStreamSeed(int32 RunSeed, int32 Floor, uint32 Purpose)
     uint32 X=uint32(RunSeed) ^ (uint32(Floor)*0x9e3779b9u) ^ Purpose;
     X^=X>>16; X*=0x7feb352du; X^=X>>15; X*=0x846ca68bu; X^=X>>16;
     return int32(X);
+}
+
+TOptional<ECastleWeaponMod> CastleRollGuardMod(int32 RunSeed, int32 Floor, int32 GuardKillOrdinal)
+{
+    // Three winning tickets out of fifteen, one for each mod. This roll never
+    // advances the random streams used for rooms, vault contents or encounters.
+    FRandomStream Loot(CastleStreamSeed(RunSeed, Floor, 0xb13c7a09u + uint32(GuardKillOrdinal)));
+    switch (Loot.RandRange(1, 15))
+    {
+    case 1: return ECastleWeaponMod::RapidFire;
+    case 2: return ECastleWeaponMod::Spread;
+    case 3: return ECastleWeaponMod::InfiniteAmmo;
+    default: return {};
+    }
 }
 
 class FCastleLayoutElement : public IPCGElement
@@ -76,9 +93,10 @@ protected:
         auto AddPoint = [&](FVector Pos, int32 Type, int32 Area, int32 Doors, int32 Order)
         {
             FPCGPoint P; P.Transform = FTransform(Pos); P.Seed = D->RunSeed;
-            P.BoundsMin = FVector(-900,-900,0);
+            const float Half = Area == int32(ECastlePCGRegion::Exploration) ? CastleExploration::RoomHalf : 900.f;
+            P.BoundsMin = FVector(-Half,-Half,0);
             const int32 Height = Area == int32(ECastlePCGRegion::Exploration) ? FCastleCourtScenery::CrownHeight(D->Floor)+45 : 480;
-            P.BoundsMax = FVector(900,900,Height);
+            P.BoundsMax = FVector(Half,Half,Height);
             P.MetadataEntry = Points->Metadata->AddEntry();
             RoomType->SetValue(P.MetadataEntry, Type); Region->SetValue(P.MetadataEntry, Area); DoorMask->SetValue(P.MetadataEntry, Doors); RouteOrder->SetValue(P.MetadataEntry, Order);
             Points->GetMutablePoints().Add(P);
@@ -247,11 +265,12 @@ void ACastleDirector::Tick(float Dt)
         if(auto* P=UGameplayStatics::GetPlayerPawn(this,0))
         {
             const FVector Pos=P->GetActorLocation();
-            const int32 X=FMath::RoundToInt(Pos.X/2400.f),Y=FMath::RoundToInt(Pos.Y/2400.f);
+            const int32 X=FMath::RoundToInt(Pos.X/CastleExploration::CellSpacing),Y=FMath::RoundToInt(Pos.Y/CastleExploration::CellSpacing);
             if(X>=0 && X<GridWidth && Y>=0 && Y<GridWidth)
             {
                 const int32 Index=Y*GridWidth+X;
-                if(Rooms.IsValidIndex(Index) && Rooms[Index].bActive && FVector::Dist2D(Pos,Rooms[Index].Center)<800)
+                if(Rooms.IsValidIndex(Index) && Rooms[Index].bActive &&
+                   FMath::Max(FMath::Abs(Pos.X-Rooms[Index].Center.X),FMath::Abs(Pos.Y-Rooms[Index].Center.Y)) < CastleExploration::RoomHalf-100)
                     RevealRoom(Index);
             }
         }
@@ -428,6 +447,7 @@ ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos)
 void ACastleDirector::StartRun(int32 Seed)
 {
     EndStartPreview();
+    GuardKillOrdinal = 0;
     RunSeed=FMath::Max(1,Seed); bWon=false; Floor=1; CurrentRoomIndex=0;
     if(auto* P=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0))) P->ResetRun();
     UE_LOG(LogTemp,Display,TEXT("CASTLE_RUN_START Seed=%d"),RunSeed);
@@ -470,7 +490,7 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
     Rooms.SetNum(GridWidth*GridWidth);
     for (int32 I=0;I<Rooms.Num();++I)
     {
-        Rooms[I].Center=FVector((I%GridWidth)*2400,(I/GridWidth)*2400,0);
+        Rooms[I].Center=FVector((I%GridWidth)*CastleExploration::CellSpacing,(I/GridWidth)*CastleExploration::CellSpacing,0);
         Rooms[I].bActive=false;
         Rooms[I].bRevealed=Rooms[I].bVisited=false;
     }
@@ -489,10 +509,10 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
     {
         const auto& Room = Rooms[I]; const FVector C = Room.Center;
         if(!Room.bActive)continue;
-        const bool NewMemoryArt=Room.Type==ECastleRoom::Chest && BuildMedievalMemoryRoom(Room,900);
+        const bool NewMemoryArt=Room.Type==ECastleRoom::Chest && BuildMedievalMemoryRoom(Room,CastleExploration::RoomHalf);
         const bool Dressed=Court.Shell && Room.Type!=ECastleRoom::Chest;
         CourtShellDuringBuild=Dressed?Court.Shell:nullptr;
-        BuildRoom(C,900,Room.Doors,2,NewMemoryArt);
+        BuildRoom(C,CastleExploration::RoomHalf,Room.Doors,2,NewMemoryArt);
         CourtShellDuringBuild=nullptr;
         if(Court.Shell)Court.EncloseRoom(Room,Floor);
         if(Dressed)Court.Room(Room,CastleStreamSeed(RunSeed,Floor,0x869da321u+uint32(I)));
@@ -507,18 +527,13 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         case ECastleRoom::Entrance:
             if(!Dressed)AddSign(C+FVector(700,-470,240),TEXT("THE HOLLOW CITADEL\nExplore / Upgrade / Ascend"),FColor(100,220,220));
             CastleDressCourtProp(AddInteract(C+FVector(220,-400,45),ECastleInteract::Ammo,TEXT("STARTER SUPPLIES")));
-            if (Floor == 1)
-            {
-                CastleDressCourtProp(AddInteract(C+FVector(-120,0,45),ECastleInteract::Gatling,TEXT("GATLING")));
-                CastleDressCourtProp(AddInteract(C+FVector(120,0,45),ECastleInteract::Knife,TEXT("PARRY KNIFE")));
-            }
             break;
         case ECastleRoom::Shop: CastleDressCourtProp(AddInteract(C+FVector(250,0,45),ECastleInteract::Shop,TEXT("ARMORY"))); break;
         case ECastleRoom::Combat:
             for(int32 E=0;E<2+Floor;++E) AddOrdinaryEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100));
             Cover(FVector(-430,-350,90),FVector(160,260,180)); Cover(FVector(430,350,90),FVector(160,260,180)); break;
         case ECastleRoom::Chest:
-            if(!NewMemoryArt)BuildMemoryRoom(Room,900,false);
+            if(!NewMemoryArt)BuildMemoryRoom(Room,CastleExploration::RoomHalf,false);
             {
                 auto* Chest=AddInteract(C+FVector(230,0,45),ECastleInteract::Chest,TEXT("PALACE MEMORY CHEST"),R.RandRange(0,2));
                 if(NewMemoryArt)
@@ -564,11 +579,14 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         // Each corridor is built exactly once and aligns with the matching openings.
         for(int32 S=0; S<2; ++S) if(Room.Doors&(1<<S))
         {
-            const FVector Mid=C+(S==0?FVector(1200,0,0):FVector(0,1200,0));
+            const FVector Direction = S==0 ? FVector::ForwardVector : FVector::RightVector;
+            const FVector Mid=C+Direction*(CastleExploration::CellSpacing*.5f);
+            const float ClearLength=CastleExploration::PassageLength;
+            const float ShellLength=ClearLength+100.f; // Overlap both thresholds so the floor and walls meet.
             CourtShellDuringBuild=Court.Shell;
-            AddBox(Mid+FVector(0,0,-35),S==0?FVector(700,560,70):FVector(560,700,70),0);
-            for(int32 Sign : {-1,1}) AddBox(Mid+(S==0?FVector(0,Sign*280,240):FVector(Sign*280,0,240)),S==0?FVector(700,65,480):FVector(65,700,480),2);
-            AddBox(Mid+FVector(0,0,2),S==0?FVector(600,26,3):FVector(26,600,3),4,false);
+            AddBox(Mid+FVector(0,0,-35),S==0?FVector(ShellLength,560,70):FVector(560,ShellLength,70),0);
+            for(int32 Sign : {-1,1}) AddBox(Mid+(S==0?FVector(0,Sign*280,240):FVector(Sign*280,0,240)),S==0?FVector(ShellLength,65,480):FVector(65,ShellLength,480),2);
+            AddBox(Mid+FVector(0,0,2),S==0?FVector(ClearLength,26,3):FVector(26,ClearLength,3),4,false);
             CourtShellDuringBuild=nullptr;
             if(Court.Shell)Court.Passage(Mid,S);
         }
@@ -608,7 +626,7 @@ void ACastleDirector::CompleteFloorGeneration()
         if(Floor==1) PositionPlayerAtEntrance(P);
         else Travel(P,FVector(-400,0,110));
         P->Shield=P->MaxShield; P->Health=FMath::Min(P->MaxHealth,P->Health+35); P->AddReserveAmmo(48);
-        P->Tell(Floor==1 ? TEXT("Take the Gatling and knife from the entrance stands with F. Switch with 1 / 2 / 3.")
+        P->Tell(Floor==1 ? TEXT("Start with the carbine and knife. Press 3 for melee. Find the Gatling in the floor 2 treasure vault.")
                          : (CastleIsChinese()?FString::Printf(TEXT("第 %d 层 | 探索房间、收集藏品，然后寻找首领入口。"),Floor):FString::Printf(TEXT("Floor %d | Explore rooms, collect relics, then find the BOSS GATE."),Floor)));
         if(Floor==1 && FParse::Param(FCommandLine::Get(),TEXT("CastleMemoryPreview")))
         {
@@ -658,7 +676,9 @@ void ACastleDirector::EnterCave(ACastlePlayer* P,const FVector& From)
     Region=TEXT("TREASURE CAVE");
     const float EntryYaw=(CaveRooms[CaveRoute[1]].Center-CaveEntrance).Rotation().Yaw;
     Travel(P,CaveEntrance+FVector(0,0,110),EntryYaw);
-    P->Tell(TEXT("Vault: collect relics along the four-room path, then leave through the exit portal."));
+    P->Tell(Floor == 2 && !P->HasWeapon(ECastleWeapon::Gatling)
+        ? TEXT("Follow the vault to its last hall. Pick up the Gatling with F before returning.")
+        : TEXT("Vault: collect relics along the four-room path, then leave through the exit portal."));
 }
 void ACastleDirector::LeaveCave(ACastlePlayer* P) { Region=TEXT("EXPLORATION"); Travel(P,ReturnLocation,180); }
 void ACastleDirector::EnemyKilled(ACastleEnemy* E)
@@ -672,8 +692,15 @@ void ACastleDirector::EnemyKilled(ACastleEnemy* E)
         if(auto* P=Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0))) P->Tell(TEXT("BOSS DEFEATED | Use the portal at the arena center."));
     }
     else if (E->bElite)
-        AddInteract(FVector(E->GetActorLocation().X,E->GetActorLocation().Y,35),ECastleInteract::Chest,TEXT("ELITE REWARD"),RunSeed%3);
-    else AddInteract(FVector(E->GetActorLocation().X,E->GetActorLocation().Y,35),ECastleInteract::Ammo,TEXT("SUPPLIES"));
+    {
+        auto* Chest = AddInteract(FVector(E->GetActorLocation().X,E->GetActorLocation().Y,35),ECastleInteract::Chest,TEXT("ELITE REWARD"),RunSeed%3);
+        Chest->bGrantsChestAmmo = false;
+    }
+    else if (const auto Mod = CastleRollGuardMod(RunSeed, Floor, ++GuardKillOrdinal))
+    {
+        const FVector DropAt = E->GetActorLocation() + FVector(0,0,18.f - E->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+        AddInteract(DropAt, ECastleInteract::WeaponMod, TEXT("WEAPON MOD"), int32(*Mod));
+    }
 }
 void ACastleDirector::NewRun()
 {

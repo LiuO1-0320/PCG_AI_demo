@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleCourtProps.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -566,6 +567,12 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
     }
     // Only the last room contains the return portal; the entry room stays clear.
     AddInteract(CaveExit+FVector(-440,-400,135),ECastleInteract::CaveReturn,TEXT("VAULT EXIT / RETURN"));
+    if (Floor == 2)
+    {
+        const auto* Player = Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this,0));
+        if (!Player || !Player->HasWeapon(ECastleWeapon::Gatling))
+            CastleDressCourtProp(AddInteract(CaveExit+FVector(280,-250,45),ECastleInteract::Gatling,TEXT("GATLING")));
+    }
     UE_LOG(LogTemp,Display,TEXT("CASTLE_CAVE_ROUTE Floor=%d Seed=%d Route=%d,%d,%d,%d"),Floor,RunSeed,CaveRoute[0],CaveRoute[1],CaveRoute[2],CaveRoute[3]);
     // 约束校验：统计本区域几何实例数（0 = 生成失败；过大 = 性能风险）
     {

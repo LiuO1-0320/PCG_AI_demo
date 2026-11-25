@@ -1,6 +1,7 @@
 #include "CastleMemoryArtChecks.h"
 
 #include "CastleDemo.h"
+#include "CastleExplorationDimensions.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -66,10 +67,12 @@ bool CastleCheckMemoryRoomArt(ACastleDirector* Director, ACastlePlayer* Player, 
     if (ArtCount!=2 || !VisualCount || ShellCount!=9+2*ExpectedDoors)
         return Fail(FString::Printf(TEXT("Memory room replacement is missing (art actors %d, visual components %d, hidden collision components %d)."), ArtCount, VisualCount, ShellCount));
 
-    // Independently reconstruct the original BuildRoom boxes; neither fitting nor
-    // art asset dimensions may change this contract.
+    // Check the hidden collision independently of the fitted art meshes.
+    constexpr float Half = CastleExploration::RoomHalf;
+    constexpr float DoorHalf = 240.f;
+    constexpr float JambWidth = Half - DoorHalf;
     TArray<TPair<FVector,FVector>> Expected;
-    Expected.Emplace(Room->Center+FVector(0,0,-35),FVector(1900,1900,70));
+    Expected.Emplace(Room->Center+FVector(0,0,-35),FVector(2*Half+100,2*Half+100,70));
     const FVector Normals[]={FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
     for(int32 Side=0;Side<4;++Side)
     {
@@ -77,12 +80,12 @@ bool CastleCheckMemoryRoomArt(ACastleDirector* Director, ACastlePlayer* Player, 
         const FVector T=AlongX?FVector(0,1,0):FVector(1,0,0);
         if(Room->Doors&(1<<Side))
         {
-            for(int32 Sign:{-1,1})Expected.Emplace(Room->Center+N*900+T*(Sign*570)+FVector(0,0,240),AlongX?FVector(85,660,480):FVector(660,85,480));
-            Expected.Emplace(Room->Center+N*900+FVector(0,0,445),AlongX?FVector(90,480,70):FVector(480,90,70));
+            for(int32 Sign:{-1,1})Expected.Emplace(Room->Center+N*Half+T*(Sign*(DoorHalf+JambWidth*.5f))+FVector(0,0,240),AlongX?FVector(85,JambWidth,480):FVector(JambWidth,85,480));
+            Expected.Emplace(Room->Center+N*Half+FVector(0,0,445),AlongX?FVector(90,480,70):FVector(480,90,70));
         }
-        else Expected.Emplace(Room->Center+N*900+FVector(0,0,240),AlongX?FVector(85,1800,480):FVector(1800,85,480));
+        else Expected.Emplace(Room->Center+N*Half+FVector(0,0,240),AlongX?FVector(85,2*Half,480):FVector(2*Half,85,480));
     }
-    for(int32 X:{-1,1})for(int32 Y:{-1,1})Expected.Emplace(Room->Center+FVector(X*835,Y*835,260),FVector(135,135,520));
+    for(int32 X:{-1,1})for(int32 Y:{-1,1})Expected.Emplace(Room->Center+FVector(X*(Half-65),Y*(Half-65),260),FVector(135,135,520));
     for(TActorIterator<AActor> It(World);It;++It)
     {
         TInlineComponentArray<UPrimitiveComponent*> Components(*It);
@@ -124,7 +127,7 @@ bool CastleCheckMemoryRoomArt(ACastleDirector* Director, ACastlePlayer* Player, 
             {
                 FHitResult Hit;
                 const FVector Lane = Room->Center + PlayerHeight + Tangent * Offset;
-                if (World->SweepSingleByChannel(Hit, Lane + Normal * 550, Lane + Normal * 1400,
+                if (World->SweepSingleByChannel(Hit, Lane + Normal * (Half - 220), Lane + Normal * (CastleExploration::CellSpacing * .5f),
                     FQuat::Identity, Capsule->GetCollisionObjectType(), PlayerShape, Query, PlayerResponse))
                     return Fail(FString::Printf(TEXT("Memory room door %d blocks the player capsule at offset %.0f: %s / %s"),
                         Side, Offset, *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent())));
@@ -136,9 +139,9 @@ bool CastleCheckMemoryRoomArt(ACastleDirector* Director, ACastlePlayer* Player, 
         const auto CheckWall = [&](float Offset)
         {
             const FVector Lane = Room->Center + FVector(0, 0, 180) + Tangent * Offset;
-            const FVector Start = Lane + Normal * 750;
+            const FVector Start = Lane + Normal * (Half - 150);
             FHitResult Hit;
-            const auto Blocked = World->SweepSingleByChannel(Hit, Start, Lane + Normal * 1030,
+            const auto Blocked = World->SweepSingleByChannel(Hit, Start, Lane + Normal * (Half + 100),
                 FQuat::Identity, ECC_Visibility, FCollisionShape::MakeSphere(8.f), Query);
             const auto* Component = Hit.GetComponent();
             if (!Blocked || !Component || !Component->ComponentHasTag(ShellTag) || Component->GetCollisionProfileName() != BlockAll)

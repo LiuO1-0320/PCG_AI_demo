@@ -316,7 +316,7 @@ bool FCastleEnemyPresentationSpawnAndDamageTest::RunTest(const FString& Paramete
         TestEqual(TEXT("Lethal damage sends one death notification"), Deaths, 1);
         TestEqual(TEXT("Lethal damage does not also send a hit notification"), Hits, 1);
         const int32 AmmoDelta = CountAmmo() - InitialAmmo;
-        TestEqual(TEXT("Lethal damage spawns one original ammo drop"), AmmoDelta, 1);
+        TestEqual(TEXT("Defeated guards drop no ammunition"), AmmoDelta, 0);
         const bool bEmptyProxySpawned = bool(TActorIterator<AActor>(World, ProxyClass));
         TestFalse(TEXT("Empty death resources spawn no death proxy"), bEmptyProxySpawned);
         AddInfo(FString::Printf(TEXT("FIX01 empty-slot attack=%d hit=%d death=%d projectile=%d killDelta=%d ammoDropDelta=%d proxy=%d"),

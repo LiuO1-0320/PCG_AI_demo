@@ -8,9 +8,10 @@
 
 void CastleDressCourtProp(ACastleInteractable* Item)
 {
-    if(!Item || !Item->Director || Item->Director->Floor!=1)return;
+    if(!Item || !Item->Director)return;
     const ECastleInteract Kind=Item->Kind;
     const bool WeaponStand = Kind == ECastleInteract::Gatling || Kind == ECastleInteract::Knife;
+    if(!WeaponStand && Item->Director->Floor!=1)return;
     if(!WeaponStand && Kind!=ECastleInteract::Ammo && Kind!=ECastleInteract::Shop && Kind!=ECastleInteract::Rest)return;
 
     auto Shape=[](const TCHAR* Name){const FString Path=FString::Printf(TEXT("/Engine/BasicShapes/%s.%s"),Name,Name);return LoadObject<UStaticMesh>(nullptr,*Path);};

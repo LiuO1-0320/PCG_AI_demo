@@ -29,9 +29,11 @@ class UTextBlock;
 UENUM(BlueprintType)
 enum class ECastleWeapon : uint8 { Carbine, Gatling, Knife };
 UENUM(BlueprintType)
+enum class ECastleWeaponMod : uint8 { RapidFire, Spread, InfiniteAmmo };
+UENUM(BlueprintType)
 enum class ECastleRoom : uint8 { Entrance, Shop, Combat, Chest, Event, Cave, Rest, Elite, Trap, Exit };
 UENUM(BlueprintType)
-enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest, Gatling, Knife };
+enum class ECastleInteract : uint8 { Chest, Shop, Event, CaveEnter, CaveReturn, BossEnter, NextFloor, Ammo, Weapon, Rest, Gatling, Knife, WeaponMod };
 UENUM(BlueprintType)
 enum class ECastlePCGRegion : uint8 { Exploration, BossArena, TreasureCave };
 
@@ -88,6 +90,9 @@ public:
     int32 GetEquippedReserve() const;
     float GetEquippedDamage() const;
     float GetReloadDuration() const;
+    void ApplyWeaponMod(ECastleWeaponMod Mod);
+    float GetInfiniteAmmoRemaining() const;
+    int32 RapidFireStacks = 0, SpreadStacks = 0;
     void AddReserveAmmo(int32 BaseAmount);
     void RefillMagazines();
     bool IsParrying() const;
@@ -112,7 +117,8 @@ private:
     UPROPERTY() TObjectPtr<USceneComponent> GatlingModel;
     UPROPERTY() TObjectPtr<USceneComponent> BarrelRotor;
     UPROPERTY() TObjectPtr<USceneComponent> KnifeModel;
-    bool bOwnsGatling = false, bOwnsKnife = false;
+    bool bOwnsGatling = false;
+    float InfiniteAmmoUntil = 0.f;
     int32 GatlingAmmo = 100, GatlingReserve = 300;
     float SpinStartedAt = 0, GatlingHeat = 0, LastShotAt = -10;
     float ParryEnd = 0, SwingStartedAt = -10;
@@ -163,6 +169,7 @@ public:
     UPROPERTY() TObjectPtr<ACastleDirector> Director;
     bool bUsed = false;
     int32 RewardKind = 0;
+    bool bGrantsChestAmmo = true;
     void Configure(ECastleInteract InKind, const FString& InTitle, ACastleDirector* InDirector, int32 InReward = 0);
     FString Prompt(const ACastlePlayer* Player) const;
     void Use(ACastlePlayer* Player);
@@ -328,6 +335,7 @@ public:
     FVector CaveCenter = FVector(0, 10000, 0);
     FVector ReturnLocation;
     int32 Kills = 0;
+    int32 GuardKillOrdinal = 0;
     FString Region = TEXT("EXPLORATION");
     void GenerateLayout(const UCastleLayoutSettings* Settings);
     void GenerateCave(const UCastleLayoutSettings* Settings);
@@ -382,6 +390,8 @@ private:
     int32 PendingFloor = 0;
     void TickSmokeTest();
     const TCHAR* CheckPlayerWeapons(ACastlePlayer* Player);
+    const TCHAR* CheckGuardLoot(ACastlePlayer* Player);
+    const TCHAR* CheckWeaponMods(ACastlePlayer* Player);
     void TickAISmokeTest();
     void TickAICapture();
     int32 SmokeFloor = 0;

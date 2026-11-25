@@ -243,7 +243,9 @@ void ACastlePlayer::ResetRun()
     CollectibleStacks.Init(0,3);LastCollectibleKind=INDEX_NONE;MemoryNoticeUntil=0;bCollectionOpen=false;NoticeUntil=0;
     bDead = bReloading = bFiring = false; NextShot = 0; LastDamage = -100;
     EquippedWeapon = ECastleWeapon::Carbine;
-    bOwnsGatling = bOwnsKnife = false;
+    bOwnsGatling = false;
+    RapidFireStacks = SpreadStacks = 0;
+    InfiniteAmmoUntil = 0.f;
     GatlingAmmo = 100; GatlingReserve = 300;
     ParryEnd = ParryReadyAt = SpinStartedAt = GatlingHeat = 0;
     SwingStartedAt = -10;
@@ -279,6 +281,60 @@ ACastleInteractable::ACastleInteractable()
     Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
+static void DressWeaponMod(ACastleInteractable& Item)
+{
+    auto* Cylinder = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+    auto* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+    Item.Mesh->SetStaticMesh(Cylinder);
+    Item.Mesh->SetWorldScale3D(FVector(.46,.46,.36));
+    Item.Mesh->SetMaterial(0, CastleMaterial(TEXT("M_Metal")));
+    Item.Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Item.Mesh->SetCanEverAffectNavigation(false);
+
+    // Place the three visible pieces in world units so the pedestal's non-uniform
+    // scale does not flatten the collectible. Focus and pickup use the actor origin.
+    auto Piece = [&](UStaticMeshComponent* Part, UStaticMesh* Shape, UMaterialInterface* Finish,
+                     FVector Offset, FVector Size, FRotator Rotation = FRotator::ZeroRotator)
+    {
+        Part->SetStaticMesh(Shape);
+        Part->SetMaterial(0, Finish);
+        Part->SetAbsolute(false, false, true);
+        Part->SetWorldScale3D(Size / 100.);
+        Part->SetWorldLocationAndRotation(Item.GetActorLocation() + Offset, Rotation);
+        Part->SetVisibility(true);
+    };
+    switch (static_cast<ECastleWeaponMod>(Item.RewardKind))
+    {
+    case ECastleWeaponMod::RapidFire:
+    {
+        Item.Title = TEXT("RAPID FIRE");
+        auto* Gold = CastleMaterial(TEXT("M_Gold"));
+        Piece(Item.ChestLid, Cylinder, Gold, {0,0,26}, {35,35,8});
+        Piece(Item.ChestBand, Cylinder, CastleMaterial(TEXT("M_Metal")), {0,0,41}, {20,20,28});
+        Piece(Item.MemoryLight, Cylinder, Gold, {0,0,55}, {35,35,8});
+        break;
+    }
+    case ECastleWeaponMod::Spread:
+    {
+        Item.Title = TEXT("SPREAD");
+        auto* Violet = CastleMaterial(TEXT("M_Purple"));
+        Piece(Item.ChestLid, Cone, Violet, {0,-12,34}, {13,13,35}, FRotator(0,0,30));
+        Piece(Item.ChestBand, Cone, Violet, {0,0,38}, {15,15,40});
+        Piece(Item.MemoryLight, Cone, Violet, {0,12,34}, {13,13,35}, FRotator(0,0,-30));
+        break;
+    }
+    case ECastleWeaponMod::InfiniteAmmo:
+    {
+        Item.Title = TEXT("INFINITE AMMO");
+        auto* Teal = CastleMaterial(TEXT("M_Teal"));
+        Piece(Item.ChestLid, Cone, Teal, {0,0,31}, {28,28,26});
+        Piece(Item.ChestBand, Cone, Teal, {0,0,56}, {28,28,26}, FRotator(180,0,0));
+        Piece(Item.MemoryLight, Cylinder, CastleMaterial(TEXT("M_Gold")), {0,0,71}, {31,31,4});
+        break;
+    }
+    }
+}
+
 void ACastleInteractable::Configure(ECastleInteract InKind, const FString& InTitle, ACastleDirector* InDirector, int32 InReward)
 {
     Kind = InKind; Title = InTitle; Director = InDirector; RewardKind = InReward;
@@ -297,6 +353,7 @@ void ACastleInteractable::Configure(ECastleInteract InKind, const FString& InTit
         MemoryLight->SetRelativeLocation(FVector(0,0,135));MemoryLight->SetRelativeScale3D(FVector(.18f,.18f,.3f));
         MemoryLight->SetRelativeRotation(FRotator(0,45,0));MemoryLight->SetMaterial(0,CastleMaterial(TEXT("M_Purple")));
     }
+    if (Kind == ECastleInteract::WeaponMod) DressWeaponMod(*this);
     Label->SetText(FText::FromString(Title)); Label->SetTextRenderColor(Portal ? FColor(150, 210, 255) : FColor(255, 215, 120));
     Label->SetAbsolute(false, true, true); Label->SetWorldScale3D(FVector(1));
     Label->SetWorldLocation(GetActorLocation() + FVector(0, 0, Portal ? 175 : 95));
@@ -313,7 +370,9 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
 {
     switch (Kind)
     {
-    case ECastleInteract::Chest: return CastleIsChinese()?TEXT("F 打开记忆匣：记忆碎片、弹药与宫廷旧物"):TEXT("F  Open memory chest: fragments, ammo and a collectible");
+    case ECastleInteract::Chest:
+        if (!bGrantsChestAmmo) return TEXT("F  Open elite chest: fragments and a collectible");
+        return CastleIsChinese()?TEXT("F 打开记忆匣：记忆碎片、弹药与宫廷旧物"):TEXT("F  Open memory chest: fragments, ammo and a collectible");
     case ECastleInteract::Shop: return (CastleIsChinese()?FString::Printf(TEXT("F 升级武器并补给 | %d 记忆碎片"), 30 + (P->WeaponLevel - 1) * 20):FString::Printf(TEXT("F  Upgrade + supplies | %d memory fragments"), 30 + (P->WeaponLevel - 1) * 20));
     case ECastleInteract::Event: return TEXT("F  Make an offering: 15 health for a relic");
     case ECastleInteract::CaveEnter: return TEXT("F  Enter the treasure cave");
@@ -324,6 +383,14 @@ FString ACastleInteractable::Prompt(const ACastlePlayer* P) const
     case ECastleInteract::Gatling: return TEXT("F  Equip Gatling  |  Hold fire to spin up");
     case ECastleInteract::Knife: return TEXT("F  Equip parry knife  |  Right click to reflect bolts");
     case ECastleInteract::Rest: return TEXT("F  Rest once: health, shield and reserve ammo");
+    case ECastleInteract::WeaponMod:
+        switch (static_cast<ECastleWeaponMod>(RewardKind))
+        {
+        case ECastleWeaponMod::RapidFire: return TEXT("F  Pick up rapid fire");
+        case ECastleWeaponMod::Spread: return TEXT("F  Pick up spread shot");
+        case ECastleWeaponMod::InfiniteAmmo: return TEXT("F  Pick up infinite ammo");
+        }
+        return FString();
     default: return TEXT("F  Collect ammo and memory fragments");
     }
 }
@@ -334,7 +401,9 @@ void ACastleInteractable::Use(ACastlePlayer* P)
     switch (Kind)
     {
     case ECastleInteract::Chest:
-        P->Coins += 25 + 5 * Director->Floor; P->AddReserveAmmo(48); P->GrantRelic(RewardKind); bUsed = true; break;
+        P->Coins += 25 + 5 * Director->Floor;
+        if (bGrantsChestAmmo) P->AddReserveAmmo(48);
+        P->GrantRelic(RewardKind); bUsed = true; break;
     case ECastleInteract::Shop:
     {
         const int32 Cost = 30 + (P->WeaponLevel - 1) * 20;
@@ -359,6 +428,10 @@ void ACastleInteractable::Use(ACastlePlayer* P)
         P->Tell(P->HasWeapon(ECastleWeapon::Gatling) ? TEXT("Supplies: +36 carbine rounds, +72 Gatling rounds, +8 fragments") :
             TEXT("Supplies collected: +36 ammo, +8 memory fragments"));
         bUsed = true; break;
+    case ECastleInteract::WeaponMod:
+        bUsed = true;
+        P->ApplyWeaponMod(static_cast<ECastleWeaponMod>(RewardKind));
+        break;
     case ECastleInteract::Weapon:
         ++P->WeaponLevel; P->BulletDamage+=10; P->MagazineSize+=4; P->RefillMagazines();
         P->Tell(TEXT("WEAPON ACQUIRED: reinforced carbine | +10 damage, +4 magazine")); bUsed=true; break;

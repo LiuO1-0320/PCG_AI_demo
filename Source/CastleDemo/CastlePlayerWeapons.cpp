@@ -1,4 +1,5 @@
 #include "CastleDemo.h"
+#include "CastleLanguage.h"
 #include "CastleWeaponProjectile.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -77,14 +78,13 @@ void ACastlePlayer::CreateWeaponModels()
 
 bool ACastlePlayer::HasWeapon(ECastleWeapon Weapon) const
 {
-    return Weapon == ECastleWeapon::Carbine || (Weapon == ECastleWeapon::Gatling && bOwnsGatling)
-        || (Weapon == ECastleWeapon::Knife && bOwnsKnife);
+    return Weapon == ECastleWeapon::Carbine || Weapon == ECastleWeapon::Knife ||
+        (Weapon == ECastleWeapon::Gatling && bOwnsGatling);
 }
 
 void ACastlePlayer::UnlockWeapon(ECastleWeapon Weapon)
 {
     if (Weapon == ECastleWeapon::Gatling) bOwnsGatling = true;
-    if (Weapon == ECastleWeapon::Knife) bOwnsKnife = true;
     EquipWeapon(Weapon);
 }
 
@@ -148,14 +148,58 @@ float ACastlePlayer::GetReloadDuration() const
     return EquippedWeapon == ECastleWeapon::Gatling ? 2.f : 1.25f;
 }
 
+float ACastlePlayer::GetInfiniteAmmoRemaining() const
+{
+    return FMath::Max(0.f, InfiniteAmmoUntil - GetWorld()->GetTimeSeconds());
+}
+
+void ACastlePlayer::ApplyWeaponMod(ECastleWeaponMod Mod)
+{
+    const bool Chinese = CastleIsChinese();
+    switch (Mod)
+    {
+    case ECastleWeaponMod::RapidFire:
+        if (RapidFireStacks >= 3)
+        {
+            Tell(Chinese ? TEXT("快速扳机已满级") : TEXT("Rapid fire is at maximum level"));
+            break;
+        }
+        ++RapidFireStacks;
+        Tell(Chinese ? FString::Printf(TEXT("快速扳机：枪械射速 +%d%%"), RapidFireStacks*15)
+                     : FString::Printf(TEXT("Rapid fire: firing rate +%d%%"), RapidFireStacks*15));
+        break;
+    case ECastleWeaponMod::Spread:
+        if (SpreadStacks >= 2)
+        {
+            Tell(Chinese ? TEXT("扇形散射已满级") : TEXT("Spread is at maximum level"));
+            break;
+        }
+        ++SpreadStacks;
+        if (SpreadStacks == 1)
+            Tell(Chinese ? TEXT("扇形散射：每枪增加两颗侧弹") : TEXT("Spread: each shot now adds two side rounds"));
+        else
+            Tell(Chinese ? TEXT("扇形散射 II：侧弹角度扩大一倍") : TEXT("Spread II: side rounds now fan twice as wide"));
+        break;
+    case ECastleWeaponMod::InfiniteAmmo:
+        InfiniteAmmoUntil = GetWorld()->GetTimeSeconds() + 60.f;
+        if (bReloading)
+        {
+            bReloading = false;
+            SpinStartedAt = GetWorld()->GetTimeSeconds();
+        }
+        Tell(Chinese ? TEXT("无限弹药：接下来 60 秒开火无需耗弹或换弹") : TEXT("Infinite ammo: fire without consuming ammo or reloading for 60 seconds"));
+        break;
+    }
+}
+
 void ACastlePlayer::Reload()
 {
-    if (bDead || bReloading || bCollectionOpen || EquippedWeapon == ECastleWeapon::Knife) return;
+    if (bDead || bReloading || bCollectionOpen || EquippedWeapon == ECastleWeapon::Knife || GetInfiniteAmmoRemaining() > 0.f) return;
     const bool Gatling = EquippedWeapon == ECastleWeapon::Gatling;
     if (GetEquippedAmmo() >= (Gatling ? GatlingCapacity : MagazineSize)) return;
     if (GetEquippedReserve() <= 0)
     {
-        Tell(TEXT("No reserve ammo. Buy supplies at the shop or collect dropped ammo."));
+        Tell(TEXT("No reserve ammo. Press 3 for the knife or collect supplies."));
         FireReleased();
         return;
     }
@@ -202,19 +246,24 @@ void ACastlePlayer::Fire()
         NextShot = Now + KnifeInterval;
         return;
     }
-    if (GetEquippedAmmo() == 0)
+    const bool InfiniteAmmo = GetInfiniteAmmoRemaining() > 0.f;
+    if (!InfiniteAmmo && GetEquippedAmmo() == 0)
     {
         Reload();
         return;
     }
     const bool Gatling = EquippedWeapon == ECastleWeapon::Gatling;
     if (Gatling && (!bFiring || Now < SpinStartedAt + SpinUpSeconds)) return;
-    const float Spread = Gatling ? .6f + GatlingHeat * 3.4f : 0.f;
-    if (!ACastleWeaponProjectile::Fire(*this, Muzzle->GetComponentLocation(), GetEquippedDamage(), Spread)) return;
-    int32& Loaded = Gatling ? GatlingAmmo : Ammo;
-    --Loaded;
+    const float Inaccuracy = Gatling ? .6f + GatlingHeat * 3.4f : 0.f;
+    const float FanAngle = SpreadStacks * 6.f;
+    if (!ACastleWeaponProjectile::Fire(*this, Muzzle->GetComponentLocation(), GetEquippedDamage(), Inaccuracy, FanAngle)) return;
+    if (!InfiniteAmmo)
+    {
+        int32& Loaded = Gatling ? GatlingAmmo : Ammo;
+        --Loaded;
+    }
     LastShotAt = Now;
-    const float Interval = Gatling ? GatlingInterval : CarbineInterval;
+    const float Interval = (Gatling ? GatlingInterval : CarbineInterval) / (1.f + .15f * RapidFireStacks);
     // Carry fractional frame time during continuous fire without banking shots after idle.
     NextShot = (bFiring && Now - NextShot < Interval ? NextShot : Now) + Interval;
     if (Gatling) GatlingHeat = FMath::Min(1.f, GatlingHeat + .065f);

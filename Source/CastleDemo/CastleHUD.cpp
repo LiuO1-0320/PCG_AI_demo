@@ -1,5 +1,6 @@
 #include "CastleQueen.h"
 #include "CastleDemo.h"
+#include "CastleExplorationDimensions.h"
 #include "CastleMapProjection.h"
 #include "CastleLanguage.h"
 #include "CastleCollectibles.h"
@@ -51,7 +52,22 @@ void ACastleHUD::DrawHUD()
     Bar(35,H-94,338,10,P->Shield,P->MaxShield,Teal);
     Text((CastleIsChinese()?FString::Printf(TEXT("生命 %.0f / %.0f"),P->Health,P->MaxHealth):FString::Printf(TEXT("HEALTH  %.0f / %.0f"),P->Health,P->MaxHealth)),35,H-77,White);
     Bar(35,H-54,338,10,P->Health,P->MaxHealth,FLinearColor(.87f,.25f,.26f));
-    DrawRect(FLinearColor(.018f,.025f,.04f,.9f),W-310,H-126,290,105);
+    const float InfiniteAmmo = P->GetInfiniteAmmoRemaining();
+    const bool HasPermanentMods = P->RapidFireStacks > 0 || P->SpreadStacks > 0;
+    const float ModHeight = (HasPermanentMods ? 24.f : 0.f) + (InfiniteAmmo > 0.f ? 24.f : 0.f);
+    DrawRect(FLinearColor(.018f,.025f,.04f,.9f),W-310,H-126-ModHeight,290,105+ModHeight);
+    if (HasPermanentMods)
+    {
+        const float ModY = H-119-ModHeight;
+        if (P->RapidFireStacks > 0)
+            Text(FString::Format(*CastleText(TEXT("Fire rate +{0}%")), {P->RapidFireStacks * 15}),W-291,ModY,Teal);
+        if (P->SpreadStacks > 0)
+            Text(P->SpreadStacks == 1 ? TEXT("Spread I") : TEXT("Spread II"),
+                P->RapidFireStacks > 0 ? W-153 : W-291,ModY,Teal);
+    }
+    if (InfiniteAmmo > 0.f)
+        Text(FString::Format(*CastleText(TEXT("Infinite ammo  {0}s")), {FMath::CeilToInt(InfiniteAmmo)}),
+            W-291,H-143,Gold);
     const bool Knife = P->EquippedWeapon == ECastleWeapon::Knife;
     if (Knife)
     {
@@ -79,7 +95,7 @@ void ACastleHUD::DrawHUD()
     const auto& MapRooms=InCave?D->CaveRooms:D->Rooms;
     const int32 MapWidth=InCave?2:D->GridWidth;
     const FVector MapOrigin=InCave?D->CaveCenter:FVector::ZeroVector;
-    const float MapSpacing=InCave?2100.f:2400.f;
+    const float MapSpacing=InCave?2100.f:CastleExploration::CellSpacing;
     if(!InBoss)
     {
     const float MX=W-218,MY=28,Step=MapWidth==4?43:55,Tile=MapWidth==4?31:39;
@@ -186,8 +202,8 @@ void ACastleHUD::DrawHUD()
 
     if(P->bHelp && !P->bDead && !D->bWon)
     {
-        float X=W*.5f-340,Y=H*.5f-140;
-        DrawRect(FLinearColor(.018f,.025f,.04f,.94f),X,Y,680,248);
+        float X=W*.5f-340,Y=H*.5f-155;
+        DrawRect(FLinearColor(.018f,.025f,.04f,.94f),X,Y,680,276);
         Text(TEXT("THE PAINTER RETURNS"),X+24,Y+17,Gold,1.5f);
         Text(TEXT("Recover court keepsakes. Chests grant fragments, ammo and collectibles."),X+24,Y+53,White);
         Text(TEXT("Spend fragments at S rooms. E altars trade health for keepsakes."),X+24,Y+78,White);
@@ -195,7 +211,8 @@ void ACastleHUD::DrawHUD()
         Text(TEXT("Shield recharges after 5 seconds without damage."),X+24,Y+128,Teal);
         Text(TEXT("F: pick up or interact.  1: carbine   2: Gatling   3: knife"),X+24,Y+153,White);
         Text(TEXT("Hold fire to spin up the Gatling. Knife: LMB slash, RMB parry."),X+24,Y+178,White);
-        Text(TEXT("Clear all 3 floors to win. Fire or press F1 to close."),X+24,Y+210,Gold);
+        Text(TEXT("Guards can drop gun mods. Find ammo at supply points."),X+24,Y+203,White);
+        Text(TEXT("Clear all 3 floors to win. Fire or press F1 to close."),X+24,Y+238,Gold);
     }
     if(D->bReady && !P->bDead && !D->bWon && !P->bHelp && !UGameplayStatics::IsGamePaused(this))
     {

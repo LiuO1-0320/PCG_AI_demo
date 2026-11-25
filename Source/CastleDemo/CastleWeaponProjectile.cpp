@@ -61,7 +61,7 @@ void ACastleBolt::ResolveImpact(const FHitResult& Hit)
         {
             bool bRegistered = false;
             if (auto* Queen = Cast<ACastleQueen>(Enemy); Queen && Queen->Action == 3)
-                bRegistered = Queen->HandleShieldShot(Hit, ShieldBreakLevel);
+                bRegistered = ShieldBreakLevel != INDEX_NONE && Queen->HandleShieldShot(Hit, ShieldBreakLevel);
             else
                 bRegistered = UGameplayStatics::ApplyDamage(Enemy, Damage, Player->GetController(), Player, nullptr) > 0.f;
             if (bRegistered) Player->HitMarkerUntil = GetWorld()->GetTimeSeconds() + .15f;
@@ -163,13 +163,13 @@ ACastleWeaponProjectile::ACastleWeaponProjectile()
     Mesh->SetRelativeScale3D(FVector(.19f, .05f, .05f));
 }
 
-bool ACastleWeaponProjectile::Fire(ACastlePlayer& Player, FVector MuzzleLocation, float ShotDamage, float SpreadDegrees)
+bool ACastleWeaponProjectile::Fire(ACastlePlayer& Player, FVector MuzzleLocation, float ShotDamage, float InaccuracyDegrees, float FanAngle)
 {
     UWorld* World = Player.GetWorld();
     const FVector Eye = Player.Camera->GetComponentLocation();
     const FVector Direction = (CrosshairTarget(Player) - MuzzleLocation)
         .GetSafeNormal(UE_SMALL_NUMBER, Player.Camera->GetForwardVector());
-    const FVector Aim = SpreadDegrees > 0.f ? FMath::VRandCone(Direction, FMath::DegreesToRadians(SpreadDegrees)) : Direction;
+    const FVector Aim = InaccuracyDegrees > 0.f ? FMath::VRandCone(Direction, FMath::DegreesToRadians(InaccuracyDegrees)) : Direction;
 
     // Detect a barrel already clipping through cover before spawning on its far side.
     FHitResult Obstruction;
@@ -181,12 +181,24 @@ bool ACastleWeaponProjectile::Fire(ACastlePlayer& Player, FVector MuzzleLocation
     Params.Owner = &Player;
     Params.Instigator = &Player;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    auto* Bullet = World->SpawnActor<ACastleWeaponProjectile>(Origin, Aim.Rotation(), Params);
-    if (!Bullet) return false;
-    Bullet->Shooter = &Player;
-    Bullet->Damage = ShotDamage;
-    Bullet->ShieldBreakLevel = Player.WeaponLevel;
-    Bullet->Velocity = Aim * ShotSpeed;
-    if (Obstruction.bBlockingHit) Bullet->ResolveImpact(Obstruction);
+    const auto SpawnRound = [&](const FVector& ShotDirection, float DamageAmount, int32 ShieldLevel)
+    {
+        auto* Bullet = World->SpawnActor<ACastleWeaponProjectile>(Origin, ShotDirection.Rotation(), Params);
+        if (!Bullet) return false;
+        Bullet->Shooter = &Player;
+        Bullet->Damage = DamageAmount;
+        Bullet->ShieldBreakLevel = ShieldLevel;
+        Bullet->Velocity = ShotDirection * ShotSpeed;
+        if (Obstruction.bBlockingHit) Bullet->ResolveImpact(Obstruction);
+        return true;
+    };
+    if (!SpawnRound(Aim, ShotDamage, Player.WeaponLevel)) return false;
+    if (FanAngle > 0.f)
+    {
+        // The center round retains precision against the queen's shield and weak points.
+        const FVector Up = Player.Camera->GetUpVector();
+        SpawnRound(Aim.RotateAngleAxis(-FanAngle, Up), ShotDamage*.25f, INDEX_NONE);
+        SpawnRound(Aim.RotateAngleAxis( FanAngle, Up), ShotDamage*.25f, INDEX_NONE);
+    }
     return true;
 }

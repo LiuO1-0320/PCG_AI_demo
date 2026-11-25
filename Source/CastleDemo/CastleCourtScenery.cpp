@@ -1,5 +1,6 @@
 #include "CastleCourtScenery.h"
 #include "CastleDemo.h"
+#include "CastleExplorationDimensions.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
@@ -7,6 +8,9 @@
 #include "Materials/MaterialInterface.h"
 
 namespace {
+using CastleExploration::RoomHalf;
+constexpr double CourtBayWidth = RoomHalf / 2.;
+constexpr double CourtRibOffset = RoomHalf * .74;
 const FVector Up(0,0,1);
 const FVector Axes[] = {FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0),FVector(0,-1,0)};
 template<class T> T* Asset(const FString& Dir, const TCHAR* Name)
@@ -52,6 +56,17 @@ FCastleCourtScenery::FCastleCourtScenery(UWorld* World)
     UpperShell->SetHiddenInGame(true);
     UpperShell->SetCastShadow(false);
     UpperShell->RegisterComponent();
+    FurnitureCollision=NewObject<UInstancedStaticMeshComponent>(Owner);
+    Owner->AddInstanceComponent(FurnitureCollision);
+    FurnitureCollision->SetupAttachment(Root);
+    FurnitureCollision->SetStaticMesh(Cube);
+    FurnitureCollision->ComponentTags.Add(TEXT("CastleExplorationFurniture"));
+    FurnitureCollision->SetCollisionProfileName(TEXT("BlockAll"));
+    FurnitureCollision->SetCanEverAffectNavigation(true);
+    FurnitureCollision->SetHiddenInGame(true);
+    FurnitureCollision->SetVisibility(false);
+    FurnitureCollision->SetCastShadow(false);
+    FurnitureCollision->RegisterComponent();
 }
 
 void FCastleCourtScenery::Put(UStaticMesh* Mesh,UMaterialInterface* Mat,FVector Center,FVector LocalSize,FRotator Rot)
@@ -103,7 +118,7 @@ void FCastleCourtScenery::Vault(FVector Center, double Yaw, double Length, doubl
         SolidStone(ArchCenter+Up*22,FVector(Length,Delta.Size()+21,44),Rotation,Limestone);
         if (LargeHall)
         {
-            for(double Position : {-665.,0.,665.})
+            for(double Position : {-CourtRibOffset,0.,CourtRibOffset})
             {
                 Put(Cube,Limestone,ArchCenter+Along*Position-Up*9,FVector(43,Delta.Size()+7,36),Rotation);
                 Put(Cube,Stone,ArchCenter+Along*Position-Up*25,FVector(26,Delta.Size()+4,19),Rotation);
@@ -111,7 +126,7 @@ void FCastleCourtScenery::Vault(FVector Center, double Yaw, double Length, doubl
         }
         else
         {
-            for(double Position : {-162.,162.})
+            for(double Position : {-Length*.25,Length*.25})
                 Put(Cube,Limestone,ArchCenter+Along*Position-Up*13,FVector(23,Delta.Size()+6,21),Rotation);
         }
     }
@@ -121,7 +136,7 @@ void FCastleCourtScenery::EncloseRoom(const FCastleRoom& Node, int32 Floor)
 {
     const FVector C = Node.Center;
     const double Spring = CrownHeight(Floor)-VaultRise;
-    Vault(C,0.,1892.,916.,Spring,VaultRise,true);
+    Vault(C,0.,2.*RoomHalf+92.,RoomHalf+16.,Spring,VaultRise,true);
     for(int32 Side = 0; Side < 4; ++Side)
     {
         const FVector N = Axes[Side], T(-N.Y,N.X,0);
@@ -130,26 +145,27 @@ void FCastleCourtScenery::EncloseRoom(const FCastleRoom& Node, int32 Floor)
         // The vault runs along X. Its end walls rise to the crown and its side walls meet the spring line.
         const double Top = Side%2 == 0 ? CrownHeight(Floor)+34. : Spring+43.;
         constexpr double Bottom = 470.;
-        const FVector UpperWall = C+N*900+Up*((Bottom+Top)*.5);
-        SolidStone(UpperWall,FVector(86,1840,Top-Bottom),R,Stone);
+        const FVector UpperWall = C+N*RoomHalf+Up*((Bottom+Top)*.5);
+        SolidStone(UpperWall,FVector(86,2.*RoomHalf+40.,Top-Bottom),R,Stone);
         for(int32 Bay = 0; Bay < 4; ++Bay)
-            WallPanel(UpperWall-N*19+T*(-675.+Bay*450.),450,56,Top-Bottom,Side*90.);
+            WallPanel(UpperWall-N*19+T*((Bay+.5)*CourtBayWidth-RoomHalf),CourtBayWidth,56,Top-Bottom,Side*90.);
         // Back the irregular kit stone. Any split in a lower wall shows depth, rather than the sky.
-        const FVector Back = C+N*925;
+        const FVector Back = C+N*(RoomHalf+25.);
         if(Open)
         {
+            const double Length = RoomHalf+26.-240.;
             for(double SideOfDoor : {-1.,1.})
-                Put(Cube,Stone,Back+T*(SideOfDoor*583.)+Up*243,FVector(39,686,486),R);
+                Put(Cube,Stone,Back+T*(SideOfDoor*(240.+Length*.5))+Up*243,FVector(39,Length,486),R);
             Put(Cube,Stone,Back+Up*455,FVector(39,484,90),R);
         }
         else
-            Put(Cube,Stone,Back+Up*243,FVector(39,1860,486),R);
-        Put(Cube,Limestone,C+N*853+Up*541,FVector(36,1774,25),R);
+            Put(Cube,Stone,Back+Up*243,FVector(39,2.*RoomHalf+60.,486),R);
+        Put(Cube,Limestone,C+N*(RoomHalf-47.)+Up*541,FVector(36,2.*RoomHalf-26.,25),R);
         if(Side%2 == 1)
         {
-            for(double Position : {-665.,0.,665.})
+            for(double Position : {-CourtRibOffset,0.,CourtRibOffset})
             {
-                const FVector Pier = C+N*843+T*Position;
+                const FVector Pier = C+N*(RoomHalf-57.)+T*Position;
                 Put(Pillar,Stone,Pier+Up*((536.+Spring)*.5),FVector(92,89,Spring-536.),R);
                 Put(Cube,Limestone,Pier+Up*(Spring-7),FVector(103,102,23),R);
             }
@@ -246,6 +262,73 @@ void FCastleCourtScenery::Sconce(FVector Base,FVector N,double Yaw)
     }
 }
 
+void FCastleCourtScenery::FurnishRoom(const FCastleRoom& Node, FRandomStream& Dressing)
+{
+    const bool Combat = Node.Type == ECastleRoom::Combat || Node.Type == ECastleRoom::Elite;
+    const bool FurnishedHall = Node.Type == ECastleRoom::Entrance || Node.Type == ECastleRoom::Rest ||
+        Node.Type == ECastleRoom::Shop || Node.Type == ECastleRoom::Event;
+    if (!Combat && !FurnishedHall) return;
+
+    // Occupy two opposite outer quadrants. The central cross, weapon stands, guard
+    // spawn bounds and all four approaches to the door arches remain open.
+    const int32 Diagonal = Dressing.RandRange(0,1) ? 1 : -1;
+    for (int32 Side : {-1, 1})
+    {
+        const FVector Base = Node.Center + FVector(Side*(RoomHalf-310.), Side*Diagonal*(RoomHalf-335.), 0);
+        const FRotator Turn(0, Side == 1 ? 0. : 90., 0);
+        auto Block = [&](UStaticMesh* Mesh, UMaterialInterface* Finish, FVector Offset, FVector Size)
+        {
+            const FVector Center = Base + Turn.RotateVector(Offset);
+            Put(Mesh, Finish, Center, Size, Turn);
+            FurnitureCollision->AddInstance(FTransform(Turn, Center, Size/100.), true);
+        };
+        if (Combat)
+        {
+            // A limestone-capped parapet gives low cover along its length and
+            // standing cover at the surviving pier. Both ends can be flanked.
+            const double Length = Side == 1 ? 254. : 216.;
+            const double Height = Side == 1 ? 104. : 124.;
+            const FVector Pier(0, (Length-64.)*.5, 0);
+            WallPanel(Base+Up*(Height*.5), Length, 64., Height, Turn.Yaw);
+            FurnitureCollision->AddInstance(FTransform(Turn, Base+Up*(Height*.5), FVector(64.,Length,Height)/100.),true);
+            Block(Cube, Limestone, Up*(Height+7.), FVector(76,Length+8.,14));
+            Block(Pillar, Stone, Pier+Up*(Height+65.), FVector(68,68,104));
+            Block(Cube, Limestone, Pier+Up*(Height+124.), FVector(81,81,14));
+            const FVector Lantern = Base + Turn.RotateVector(FVector(0, -Length*.32, Height+14.));
+            Put(Cube, Gold, Lantern+Up*2., FVector(30,30,4), Turn);
+            Put(Candle ? Candle : Cube, Limestone, Lantern+Up*21., FVector(13,13,34), Turn);
+            Put(Sphere, Flame, Lantern+Up*44., FVector(7,7,13), Turn);
+            Light(Lantern+Up*55., FLinearColor(1.f,.67f,.39f), 9800.f, 600.f);
+            if (Side == 1)
+                Banner(Base+Turn.RotateVector(Pier+FVector(-37,0,Height+119.)), Turn.Yaw, 44., 74.);
+        }
+        else if (Side == 1)
+        {
+            // The bench is open beneath the seat. Its two stone feet and seat
+            // each supply their own collision, including the gap between feet.
+            for (double Foot : {-73.,73.})
+                Block(Pillar, Stone, FVector(0,Foot,23), FVector(52,32,46));
+            Block(Cube, Limestone, Up*54., FVector(64,210,16));
+            Put(Cube, Wine, Base+Up*63., FVector(56,128,2), Turn);
+        }
+        else
+        {
+            Block(Cube, Limestone, Up*8., FVector(100,100,16));
+            Block(Pillar, Stone, Up*65., FVector(76,76,98));
+            Block(Cube, Limestone, Up*121., FVector(97,97,14));
+            Put(Cube, Gold, Base+Up*130., FVector(64,64,4), Turn);
+            for (int32 Wick = 0; Wick < 3; ++Wick)
+            {
+                const double WaxHeight = 20. + Wick*7.;
+                const FVector At = Base + Turn.RotateVector(FVector(Wick == 1 ? 14. : -13., (Wick-1)*18., 132.));
+                Put(Candle ? Candle : Cube, Limestone, At+Up*(WaxHeight*.5), FVector(11,11,WaxHeight), Turn);
+                Put(Sphere, Flame, At+Up*(WaxHeight+5.), FVector(5,5,10), Turn);
+            }
+            Light(Base+Up*172., FLinearColor(1.f,.60f,.30f), 4200.f, 385.f);
+        }
+    }
+}
+
 void FCastleCourtScenery::Room(const FCastleRoom& Node,int32 DressingSeed)
 {
     ++RoomCount;
@@ -255,11 +338,11 @@ void FCastleCourtScenery::Room(const FCastleRoom& Node,int32 DressingSeed)
     const bool Formal=Entrance || Exit || Node.Type==ECastleRoom::Elite || Node.Type==ECastleRoom::Event;
     int Focus=0;while(Focus<4 && (Node.Doors&(1<<Focus)))++Focus;
     for(int X=0;X<4;++X)for(int Y=0;Y<4;++Y) {
-        const FVector P=C+FVector(-675+450*X,-675+450*Y,0);
+        const FVector P=C+FVector((X+.5)*CourtBayWidth-RoomHalf,(Y+.5)*CourtBayWidth-RoomHalf,0);
         const FRotator Turn(0,90.*Patina.RandRange(0,3),0);
         // The kit's flags are deeply uneven; use a *textured*, per-bay substrate under their low spots and seams.
-        Put(Cube,Paving,P-Up*38,FVector(450,450,70),Turn);
-        Put(Tiles,Paving,P-Up*12,FVector(450,450,24),Turn);
+        Put(Cube,Paving,P-Up*38,FVector(CourtBayWidth,CourtBayWidth,70),Turn);
+        Put(Tiles,Paving,P-Up*12,FVector(CourtBayWidth,CourtBayWidth,24),Turn);
     }
     if(Entrance || Exit) {
         // A compass rose in the flagstones echoes the painter's diamond seal. No route is painted on a closed wall.
@@ -276,28 +359,30 @@ void FCastleCourtScenery::Room(const FCastleRoom& Node,int32 DressingSeed)
     }
     for(int Side=0;Side<4;++Side) {
         const FVector N=Axes[Side],T(-N.Y,N.X,0); const double Yaw=Side*90.;const FRotator R(0,Yaw,0);
+        const FVector WallCenter=C+N*RoomHalf;
         const bool Open=(Node.Doors&(1<<Side))!=0;
         auto Bay=[&](double Offset,double Length){
-            const FVector B=C+N*900+T*Offset;
+            const FVector B=WallCenter+T*Offset;
             WallPanel(B+Up*260,Length,85,520,Yaw);
             Put(Cube,Stone,B-N*28+Up*57,FVector(58,Length,114),R);
             Put(Cube,Limestone,B-N*45+Up*117,FVector(28,Length,9),R);
             Put(Cube,Stone,B+Up*506,FVector(122,Length,33),R);
         };
         if(Open) {
-            for(int S:{-1,1})for(int K=0;K<2;++K)Bay(S*(405+330*K),330);
+            const double Segment=(RoomHalf-240.)*.5;
+            for(int S:{-1,1})for(int K=0;K<2;++K)Bay(S*(240.+(K+.5)*Segment),Segment);
             // Close the tympanum behind the arch so the visual opening agrees with its solid lintel.
-            WallPanel(C+N*900+Up*495,480,85,170,Yaw);
-            Arch(C+N*846,N,Yaw);
+            WallPanel(WallCenter+Up*495,480,85,170,Yaw);
+            Arch(WallCenter-N*54,N,Yaw);
         } else {
-            for(int K=0;K<4;++K)Bay(-675+K*450,450);
+            for(int K=0;K<4;++K)Bay((K+.5)*CourtBayWidth-RoomHalf,CourtBayWidth);
             if(Side==Focus || (Entrance && Side==0)) {
-                Frame(C+N*840+Up*269,N,Yaw,!Safe);
-                if(Formal || Safe)for(int S:{-1,1})Banner(C+N*835+T*(S*350.)+Up*514,Yaw,Formal?125:84,Formal?282:185);
+                Frame(WallCenter-N*60+Up*269,N,Yaw,!Safe);
+                if(Formal || Safe)for(int S:{-1,1})Banner(WallCenter-N*65+T*(S*350.)+Up*514,Yaw,Formal?125:84,Formal?282:185);
                 // High blind arches keep the Gothic silhouette in the room without opening onto the sky.
                 for(int W=-1;W<=1;++W) {
                     if(!Formal && W==1)continue;
-                    const FVector Sill=C+N*842+T*(W*153.)+Up*553;
+                    const FVector Sill=WallCenter-N*58+T*(W*153.)+Up*553;
                     const double Rise=W==0?104.:69.;
                     Put(Cube,Stone,Sill,FVector(80,164,25),R);
                     for(int S:{-1,1}) {
@@ -311,37 +396,39 @@ void FCastleCourtScenery::Room(const FCastleRoom& Node,int32 DressingSeed)
                 }
             }
         }
-        if(Open && (Entrance || Exit || (Formal && Side%2==0)))for(int S:{-1,1})Banner(C+N*833+T*(S*460.)+Up*493,Yaw,112,246);
+        if(Open && (Entrance || Exit || (Formal && Side%2==0)))for(int S:{-1,1})Banner(WallCenter-N*67+T*(S*460.)+Up*493,Yaw,112,246);
         if((Open && (Entrance || Safe || Exit)) || Side==Focus) {
-            for(int S:{-1,1})Sconce(C+N*827+T*(S*(Open?350.:242.))+Up*(Safe?162.:195.),N,Yaw);
+            for(int S:{-1,1})Sconce(WallCenter-N*73+T*(S*(Open?350.:242.))+Up*(Safe?162.:195.),N,Yaw);
             for(int S:{-1,1})
-                Light(C+N*672+T*(S*(Open?350.:211.))+Up*(Safe?202.:246.),FLinearColor(1.f,.64f,.36f),Safe?17500:11800,850);
+                Light(WallCenter-N*228+T*(S*(Open?350.:211.))+Up*(Safe?202.:246.),FLinearColor(1.f,.64f,.36f),Safe?17500:11800,850);
         }
     }
     for(int X:{-1,1})for(int Y:{-1,1}) {
-        const FVector P=C+FVector(X*835,Y*835,0);
+        const FVector P=C+FVector(X*(RoomHalf-65.),Y*(RoomHalf-65.),0);
         Put(Pillar,Stone,P+Up*281,FVector(137,137,562));
         Put(Cube,Limestone,P+Up*98,FVector(148,148,12));
         Put(Cube,Stone,P+Up*560,FVector(174,174,34));
     }
     // Low ambient light keeps movement legible while the wall sconces do most of the work.
-    Light(C+FVector(-80,-90,415),Safe?FLinearColor(1.f,.79f,.55f):FLinearColor(.68f,.78f,1.f),Safe?27400:21700,1590);
+    Light(C+FVector(-80,-90,415),Safe?FLinearColor(1.f,.79f,.55f):FLinearColor(.68f,.78f,1.f),Safe?27400:21700,RoomHalf*1.8);
     if(Entrance)
         Light(C+Up*610,FLinearColor(.59f,.67f,.87f),16000,1100);
+    FurnishRoom(Node,Patina);
 }
 
 void FCastleCourtScenery::Passage(FVector C,int32 Side)
 {
     ++PassageCount;
     const FVector N=Axes[Side],T(-N.Y,N.X,0);const double Yaw=Side*90.;const FRotator R(0,Yaw,0);
-    Put(Cube,Paving,C-Up*38,FVector(700,560,70),R);
+    const double Gap=CastleExploration::PassageLength;
+    Put(Cube,Paving,C-Up*38,FVector(Gap+100.,560,70),R);
     for(int S:{-1,1}) {
-        Put(Tiles,Paving,C+N*(S*158.)-Up*12,FVector(316,552,24),R);
-        WallPanel(C+T*(S*280.)+Up*243,700,65,486,Yaw+90.);
-        Put(Cube,Stone,C+T*(S*300.)+Up*242,FVector(694,36,484),R);
-        Put(Cube,Limestone,C+T*(S*249.)+Up*120,FVector(624,10,10),R);
+        Put(Tiles,Paving,C+N*(S*(Gap*.25+8.))-Up*12,FVector(Gap*.5+16.,552,24),R);
+        WallPanel(C+T*(S*280.)+Up*243,Gap+100.,65,486,Yaw+90.);
+        Put(Cube,Stone,C+T*(S*300.)+Up*242,FVector(Gap+94.,36,484),R);
+        Put(Cube,Limestone,C+T*(S*249.)+Up*120,FVector(Gap+24.,10,10),R);
     }
-    Vault(C,Yaw,644.,275.,450.,113.,false);
+    Vault(C,Yaw,Gap+44.,275.,450.,113.,false);
     Sconce(C+T*237+Up*221,T,Yaw+90.);
     Light(C+T*153+Up*270,FLinearColor(1.f,.62f,.34f),5700,553);
 }
