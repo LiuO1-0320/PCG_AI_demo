@@ -610,7 +610,8 @@ void ACastleDirector::GenerateCave(const UCastleLayoutSettings*)
             {
                 const int32 Row=E/2;
                 const float Side=(E%2)?1.f:-1.f;
-                AddOrdinaryEnemy(C+Fwd*(300.f+Row*330.f)+Right*(Side*(430.f+Row*120.f))+FVector(0,0,100));
+                AddOrdinaryEnemy(C+Fwd*(300.f+Row*330.f)+Right*(Side*(430.f+Row*120.f))+FVector(0,0,100),
+                    ECastlePCGRegion::TreasureCave, CaveRoute[Order], E);
             }
             // 中央掩体：玩家推进时能靠它换弹/找掩体（原来是贴着墙的方块）
             AddBox(C+FVector(-440,-420,120),FVector(160,260,240),6);

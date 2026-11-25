@@ -1,5 +1,6 @@
 #include "CastleDemo.h"
 #include "CastleGuardLoot.h"
+#include "CastleOrdinaryEnemyMix.h"
 #include "CastleQueen.h"
 #include "CastleLanguage.h"
 #include "CastleCourtProps.h"
@@ -33,6 +34,8 @@
 #include "HAL/PlatformMisc.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/Paths.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCastleOrdinaryEnemyMix, Log, All);
 
 void CastleGenerateFloorNodes(int32 RunSeed,int32 Floor,TArray<FCastleRoom>& Rooms,TArray<int32>& Route);
 
@@ -439,9 +442,52 @@ ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<AC
     return Enemy;
 }
 
-ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos)
+ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos, ECastlePCGRegion InRegion, int32 RoomIndex, int32 SlotIndex)
 {
-    return AddEnemy(Pos, false, OrdinaryEnemyClass);
+    if (OrdinaryMeleeChance == 0.f)
+    {
+        return AddEnemy(Pos, false, OrdinaryEnemyClass);
+    }
+
+    const FCastleOrdinaryEnemyMixSlot Slot{RunSeed, Floor, InRegion, RoomIndex, SlotIndex};
+    // Read the configured object before TSubclassOf::Get can filter a wrong type into null.
+    const UClass* MeleeClass = OrdinaryMeleeEnemyClass.GetGCPtr().Get();
+    const ECastleOrdinaryEnemyMixChoice Choice = CastleOrdinaryEnemyMix::Select(OrdinaryMeleeChance, MeleeClass, Slot);
+    const int32 RegionId = static_cast<int32>(InRegion);
+    const int32 Version = CastleOrdinaryEnemyMix::SelectionVersion;
+    if (Choice == ECastleOrdinaryEnemyMixChoice::MissingMeleeClass && SlotIndex == 0)
+    {
+        UE_LOG(LogCastleOrdinaryEnemyMix, Warning,
+            TEXT("CASTLE_ORDINARY_MELEE_CLASS_MISSING Version=%d Seed=%d Floor=%d Region=%d Room=%d Chance=%g"),
+            Version, RunSeed, Floor, RegionId, RoomIndex, OrdinaryMeleeChance);
+    }
+
+    const bool bMelee = Choice == ECastleOrdinaryEnemyMixChoice::Melee;
+    if (!bMelee && Choice != ECastleOrdinaryEnemyMixChoice::Original && Choice != ECastleOrdinaryEnemyMixChoice::MissingMeleeClass)
+    {
+        if (SlotIndex == 0 || Choice == ECastleOrdinaryEnemyMixChoice::InvalidSlot)
+        {
+            UE_LOG(LogCastleOrdinaryEnemyMix, Error,
+                TEXT("CASTLE_ORDINARY_MELEE_CONFIG_REJECTED Version=%d Seed=%d Floor=%d Region=%d Room=%d Slot=%d Chance=%g Class=%s Reason=%s"),
+                Version, RunSeed, Floor, RegionId, RoomIndex, SlotIndex, OrdinaryMeleeChance, *GetPathNameSafe(MeleeClass),
+                CastleOrdinaryEnemyMix::GetChoiceName(Choice));
+        }
+        return nullptr;
+    }
+
+    const TSubclassOf<ACastleEnemy> SpawnClass = bMelee ? OrdinaryMeleeEnemyClass : OrdinaryEnemyClass;
+    ACastleEnemy* Enemy = AddEnemy(Pos, false, SpawnClass);
+    UE_LOG(LogCastleOrdinaryEnemyMix, VeryVerbose,
+        TEXT("CASTLE_ORDINARY_MELEE_SPAWN Version=%d Seed=%d Floor=%d Region=%d Room=%d Slot=%d Chance=%g Choice=%s Actual=%s Position=%s"),
+        Version, RunSeed, Floor, RegionId, RoomIndex, SlotIndex, OrdinaryMeleeChance,
+        CastleOrdinaryEnemyMix::GetChoiceName(Choice), *GetPathNameSafe(Enemy ? Enemy->GetClass() : nullptr), *Pos.ToCompactString());
+    if (!Enemy && bMelee)
+    {
+        UE_LOG(LogCastleOrdinaryEnemyMix, Error,
+            TEXT("CASTLE_ORDINARY_MELEE_SPAWN_FAILED Version=%d Seed=%d Floor=%d Region=%d Room=%d Slot=%d Class=%s Position=%s"),
+            Version, RunSeed, Floor, RegionId, RoomIndex, SlotIndex, *GetPathNameSafe(MeleeClass), *Pos.ToCompactString());
+    }
+    return Enemy;
 }
 
 void ACastleDirector::StartRun(int32 Seed)
@@ -530,7 +576,11 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
             break;
         case ECastleRoom::Shop: CastleDressCourtProp(AddInteract(C+FVector(250,0,45),ECastleInteract::Shop,TEXT("ARMORY"))); break;
         case ECastleRoom::Combat:
-            for(int32 E=0;E<2+Floor;++E) AddOrdinaryEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100));
+            for(int32 E=0;E<2+Floor;++E)
+            {
+                AddOrdinaryEnemy(C+FVector(R.FRandRange(-450,450),R.FRandRange(-450,450),100),
+                    ECastlePCGRegion::Exploration, I, E);
+            }
             Cover(FVector(-430,-350,90),FVector(160,260,180)); Cover(FVector(430,350,90),FVector(160,260,180)); break;
         case ECastleRoom::Chest:
             if(!NewMemoryArt)BuildMemoryRoom(Room,CastleExploration::RoomHalf,false);

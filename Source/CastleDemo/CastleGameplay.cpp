@@ -2,6 +2,7 @@
 #include "CastleDemo.h"
 #include "CastleLanguage.h"
 #include "CastleCollectibles.h"
+#include "Melee/CastleMeleeCombatComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
@@ -20,6 +21,7 @@
 #include "GameFramework/PlayerInput.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCastlePursuit, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogCastleMeleeBridge, Log, All);
 
 static bool TakePursuitRecoveryQuerySlot(UNavigationSystemV1& Navigation, double Now)
 {
@@ -564,10 +566,28 @@ bool ACastleEnemy::ShootAt(ACastlePlayer* P, int32 Count)
     return bSpawnedBolt;
 }
 
+UCastleMeleeCombatComponent* ACastleEnemy::FindMeleeCombatComponent()
+{
+    if (!bUseMeleeV1 || bBoss || bElite) return nullptr;
+
+    TInlineComponentArray<UCastleMeleeCombatComponent*, 1> Components(this);
+    if (Components.Num() == 1 && IsValid(Components[0]) && Components[0]->IsRegistered())
+        return Components[0];
+
+    if (!bLoggedInvalidMeleeComponent && !IsActorBeingDestroyed())
+    {
+        bLoggedInvalidMeleeComponent = true;
+        UE_LOG(LogCastleMeleeBridge, Warning, TEXT("Enemy %s requires one registered melee combat component; found %d."),
+            *GetPathName(), Components.Num());
+    }
+    return nullptr;
+}
+
 void ACastleEnemy::Tick(float Dt)
 {
     Super::Tick(Dt);
     auto* P = Cast<ACastlePlayer>(UGameplayStatics::GetPlayerPawn(this, 0));
+    if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent()) Melee->Advance(P, Dt);
     if (!P || bDead || !Director || !Director->bReady) return;
     Label->SetWorldRotation((P->GetActorLocation() - Label->GetComponentLocation()).Rotation());
     Label->SetText(FText::FromString(FString::Printf(TEXT("%s  %.0f"), bBoss ? *Director->BossName() : TEXT("SENTINEL"), Health)));
@@ -575,6 +595,7 @@ void ACastleEnemy::Tick(float Dt)
 
 void ACastleEnemy::UnPossessed()
 {
+    if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent()) Melee->Cancel();
     ClearPursuitNavigationWatch();
     PursuitTarget.Reset();
     PursuitRequestsRemaining = 0;
@@ -583,6 +604,7 @@ void ACastleEnemy::UnPossessed()
 
 void ACastleEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent()) Melee->Cancel();
     ClearPursuitNavigationWatch();
     Super::EndPlay(EndPlayReason);
 }
@@ -661,14 +683,19 @@ void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
     if (!AI) return;
 
     auto* Movement = GetCharacterMovement();
-    const bool bInFiringPosition = CanSee && Dist <= 450.f;
-    Movement->bOrientRotationToMovement = !bInFiringPosition;
-    Movement->bUseControllerDesiredRotation = bInFiringPosition;
+    const UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent();
+    const bool bAttackOwnsFacing = Melee && Melee->ShouldHoldMovement();
+    const bool bCanStopToAttack = bUseMeleeV1
+        ? (bAttackOwnsFacing || (Melee && Melee->IsInAttackPosition(P, CanSee)))
+        : (CanSee && Dist <= 450.f);
+    Movement->bOrientRotationToMovement = !bCanStopToAttack;
+    Movement->bUseControllerDesiredRotation = bCanStopToAttack && !bAttackOwnsFacing;
 
-    if (bInFiringPosition)
+    if (bCanStopToAttack)
     {
         if (AI->GetMoveStatus() != EPathFollowingStatus::Idle) AI->StopMovement();
-        AI->SetFocalPoint(TargetLocation, EAIFocusPriority::Gameplay);
+        if (bAttackOwnsFacing) AI->ClearFocus(EAIFocusPriority::Gameplay);
+        else AI->SetFocalPoint(TargetLocation, EAIFocusPriority::Gameplay);
         PursuitTarget.Reset();
         ClearPursuitNavigationWatch();
         return;
@@ -747,6 +774,15 @@ void ACastleEnemy::UpdatePursuit(ACastlePlayer* P, bool CanSee)
 void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
 {
     ++AIAttackTicks;
+    if (bUseMeleeV1 && !bBoss && !bElite)
+    {
+        if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent())
+        {
+            if (Melee->TryStart(P, CanSee)) ++AIAttackEvents;
+        }
+        return;
+    }
+
     const float Now = GetWorld()->GetTimeSeconds();
     const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
     if (CanSee && Now >= NextAttack)
@@ -792,6 +828,7 @@ float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, 
     if (Health <= 0)
     {
         bDead = true; Telegraph->SetVisibility(false);
+        if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent()) Melee->Cancel();
         if (auto* AI = Cast<AAIController>(GetController())) { AI->StopMovement(); AI->UnPossess(); AI->Destroy(); }
         if (Director) Director->EnemyKilled(this);
         if (!bBoss && !bElite) BP_OnDeathVisual();
@@ -799,7 +836,13 @@ float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, 
     }
     else if (!bBoss && !bElite && Health < PreviousHealth)
     {
-        BP_OnHitVisual(PreviousHealth - Health);
+        const float HealthLost = PreviousHealth - Health;
+        if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent())
+        {
+            Melee->Cancel();
+            if (bDead || IsActorBeingDestroyed()) return Damage;
+        }
+        BP_OnHitVisual(HealthLost);
     }
     return Damage;
 }

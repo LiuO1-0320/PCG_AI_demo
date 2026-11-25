@@ -19,6 +19,7 @@ class UPCGComponent;
 class UMaterialInterface;
 class UTextRenderComponent;
 class ACastleDirector;
+class UCastleMeleeCombatComponent;
 class ANavigationData;
 class UNavigationSystemV1;
 class UCastleStartMenu;
@@ -201,6 +202,7 @@ public:
     virtual void Configure(bool InBoss, int32 Floor, ACastleDirector* InDirector);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bBoss = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bElite = false;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Castle|Combat") bool bUseMeleeV1 = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float Health = 75;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float MaxHealth = 75;
     UPROPERTY() TObjectPtr<ACastleDirector> Director;
@@ -234,6 +236,8 @@ protected:
 private:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     void ClearPursuitNavigationWatch();
+    UCastleMeleeCombatComponent* FindMeleeCombatComponent();
+    bool bLoggedInvalidMeleeComponent = false;
 
     UFUNCTION()
     void OnPursuitNavigationGenerated(ANavigationData* NavData);
@@ -312,6 +316,8 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPCGComponent> BossPCG;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation") int32 RunSeed = 0;
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Generation") TSubclassOf<ACastleEnemy> OrdinaryEnemyClass;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Generation|Ordinary Enemies") TSubclassOf<ACastleEnemy> OrdinaryMeleeEnemyClass;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Generation|Ordinary Enemies", meta=(ClampMin="0.0", ClampMax="1.0")) float OrdinaryMeleeChance = 0.f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 Floor = 1;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<FCastleRoom> Rooms;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TArray<int32> FirstFloorRoute;
@@ -384,7 +390,7 @@ private:
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
     ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass = {});
-    ACastleEnemy* AddOrdinaryEnemy(FVector Pos);
+    ACastleEnemy* AddOrdinaryEnemy(FVector Pos, ECastlePCGRegion InRegion, int32 RoomIndex, int32 SlotIndex);
     ACastleTrap* AddTrap(FVector Pos);
     float PendingFloorAt = 0;
     int32 PendingFloor = 0;
