@@ -254,3 +254,60 @@ ABBA **未执行**。受控后撤条件未满足以及真实地图边界仍待�
 ### 人工交接
 
 唯一入口仍为 `/Game/Art/Grunt01/MeleeV1/Tests/L_CastleMelee_V1_Dev`。交接用干净的 Seed 24680 自然生成，不添加固定编组或改变地图。聚焦预览窗口按 Esc 恢复。人手验证真实门洞、窄门、横移与高差，以及打断后重新起手的手感。交接时暂停状态单独记录在 `r1-closeout-handoff-paused.json`。
+
+
+## 近战兵空手与移动表现（2026-11-26，香港时间）
+
+本轮在用户确认的 `C:/Users/User/Desktop/PCG_AI_demo/testfordemo.uproject` 上执行，使用 UE 5.8.4 和 `codex/castle-melee-v1`。通过 Epic 官方 Unreal MCP 检查资产、实施修改并读取真实 DX12 PIE。用户要求结束流程后，停止了后续验证。
+
+### 保存的资产
+
+| 资产 | 改动 |
+| --- | --- |
+| `/Game/Art/Grunt01/MeleeV1/BP_CastleEnemy_Melee` | 将近战专属的继承组件 `RifleVisual` 网格清空，关闭可见与阴影，保留 `NoCollision`。`CharacterMesh0` 继续使用 Animation Blueprint 模式，Anim Class 绑定到 `ABP_CastleGrunt_Melee_C`。 |
+| `/Game/Art/Grunt01/MeleeV1/Animation/ABP_CastleGrunt_Melee` | 继承 `/Game/Art/Grunt01/IntegrationV2/ABP_CastleGrunt`，通过 Asset Override 将 `AnimGraph` 的原 Blendspace Player 指向近战 BlendSpace，沿用速度更新和 `DefaultGroup.DefaultSlot`。 |
+| `/Game/Art/Grunt01/MeleeV1/Animation/BS_CastleGrunt_Melee` | 0 cm/s 继续使用 `/Game/Characters/MF_Rifle_Idle_ADS`。135 和 270 cm/s 均使用 `/Game/Art/Grunt01/MeleeV1/Animation/AS_Grunt_Melee_Walk`，样本播放倍率均为 1.0。 |
+| `/Game/Art/Grunt01/IntegrationV2/Ragdoll/BP_CastleEnemy_Grunt_Art_Ragdoll` | 原 `BP_OnDeathVisual` 硬编码生成同一个布娃娃代理并显示枪。局部调整该代理的 `SetVisibility`，以生前 `RifleVisual` 是否有有效的静态网格为条件。保留原死亡代理类、死亡动画和物理初始化流程。 |
+
+`AS_Grunt_Melee_Walk` 的类型为 AnimSequence，与角色 Mesh 使用同一个 `/Game/Art/Grunt01/SK_CastleGrunt_Corrected_Skeleton`。原序列启用了根运动和 Force Root Lock，锁定方式为 `RefPose`。子 AnimBP 沿用父类的 `IgnoreRootMotion`，角色位移仍由 CharacterMovement 驱动。攻击继续使用 `/Game/Art/Grunt01/MeleeV1/Animation/AS_Grunt_Melee_Strike_Montage`。本轮复用该 Montage 及其既有 `CastleMeleeHitWindow`，并使用现有构建。
+
+### 验证与交接
+
+- 冷重开后，用 MCP 读回近战枪网格为空、近战 Mesh 的 Anim Class、走路 BlendSpace 覆盖和死亡代理可见性连线。测试使用 `/Game/Art/Grunt01/MeleeV1/Tests/L_CastleMelee_V1_Dev`，Seed 24680。
+- 近战追击实测从 160.4 cm/s 达到 270 cm/s，进入攻击距离后速度回到 0。高速画面中近战兵双手为空、双臂自然摆动。停步后回到原来的持枪手势，手中无枪，也没有原地踏步。
+- 现有 `Cancel` 夹具通过。一次实弹将近战兵血量从 85 降至 63 并打断前摇，受击及再次起手时枪网格仍为空。日志记录后续攻击进入有效段及完成收招。攻击后在玩家拉开距离时恢复追击的专项采样尚未执行。
+- 现有 `ActiveDeath` 夹具通过。代理读取到 `AM_Grunt_Death`，随后进入 `PhysicsOnly` 且启用物理模拟。死亡动画和布娃娃阶段的代理枪均不可见、关闭隐藏阴影且为 `NoCollision`。观察到代理按生命周期清理。
+- 两名原远程兵 `BP_CastleEnemy_Grunt_Art_Ragdoll_C_0` 与 `_C_1` 实测移动达到 270 cm/s，使用 `ABP_CastleGrunt_C`，枪网格 `SM_CastleRifle` 可见。运行日志将 `CastleBolt_0` 和 `CastleBolt_1` 归到这两名远程兵。
+- 用户叫停时，朝向空手近战兵的暂停 PIE 交接尚未布置。收尾检查时，最后的测试编辑器已收到退出指令，MCP 监听已关闭。
+
+本地验证日志为 `Saved/Logs/CastleMeleeV1PresentationPIE.log`。收尾读到 HEAD `eea95e5`（`Melee update`），四个资产均已在该提交中。本次收尾追加本报告。
+
+## 空手待机与动画衔接验收（2026-11-26）
+
+实际工程为 **E:/Unreal Projects/PCG_AI_demo/testfordemo.uproject**，UE 5.8.4 / CL 58902052，分支 codex/castle-melee-v1 快进至 eea95e5。已对照补送的 CASTLE_MELEE_V1(6) 附件，并保留上方的前轮记录。前轮使用其报告所列的桌面工程，本轮以实际的 E 盘工程及冷加载证据为准。Git 账号窗口曾等待操作。四个所需资产通过 GitHub 公开下载取得，逐个核对提交中记录的 LFS 长度和 SHA-256 后写入标准缓存，快进完成。两个渲染编辑器均加载既有 DLL，SHA-256 为 215C9301C0AB1F679F8F7AD80D35A7A7967968BD64B6EDFA2E1E7A17CCC4C165。[官方 MCP 门禁](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Official-MCP-Gate.json>) · [LFS 对照](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/LFS-Verified.json>) · [冷启动模块](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Cold-LoadedModule.json>)
+
+### 资产配置
+
+只将 /Game/Art/Grunt01/MeleeV1/Animation/BS_CastleGrunt_Melee 的 0 cm/s 样本由 MF_Rifle_Idle_ADS 改为已有 **/Game/Characters/MM_Idle.MM_Idle**。序列时长 7.5667 秒，骨架为 SK_CastleGrunt_Corrected_Skeleton，根运动关闭。135 与 270 cm/s 均保留 AS_Grunt_Melee_Walk，采样值、速率和轴设置保持。定向保存并由新进程冷读取核对。保留近战专属 AnimBP、CharacterMovement 位移驱动、DefaultGroup.DefaultSlot、攻击 Montage 及原约 96 ms 命中窗口。本轮未另加状态机和混合规则。[保存前](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/ReadBefore.json>) · [定向保存](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/BlendSpace-Edit.json>) · [三个样本的冷加载结果](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Cold-Readback.json>)
+
+### 正常渲染 PIE
+
+验收图为 /Game/Art/Grunt01/MeleeV1/Tests/L_CastleMelee_V1_Dev，Seed 24680，D3D SM6 Standalone PIE。使用既有 Cohort 夹具布置试次。BugItGo 之后复核 Walking、落地和 Actor 碰撞。首次 Standing 尚在 Falling，未进入交战，等落地后重跑。移动和实弹试次由原夹具合成键鼠输入，经正常 PlayerController 路径处理。ActiveDeath 是独立的原生伤害注入。视频以实际游戏窗口关键帧和对应日志交付。
+
+| 编号 | 状态 | 实测结果 |
+| --- | --- | --- |
+| T01 空手待机 | PASS | 自然生成的同一个近战兵在运行中观察约 8.1 秒。9 个样本的实际速度和 AnimBP Speed 均为 0，原地位置保持。旁观相机单独定位，玩家本体未移动。可辨识画面中守卫双手下垂、无枪，无明显原地踏步。[数据](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/idle-20261126062907466.json>) · [开始画面](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/idle-20261126062907466-pose-0.png>) · [后段画面](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/idle-20261126062907466-pose-6.png>) |
+| T02 移动与停步 | PASS | Single 中同一近战兵沿路径改变位置，实际速度和专用 AnimBP Speed 均达到 270 cm/s，然后跌至 0。移动帧可见新 Walk。0 速对应已冷加载的空手样本。空手无 Montage 待机由 T01 画面独立复核，交战末段全身挥击连续衔接。[速度与位置](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/chase-20261126062613358.json>) · [移动帧](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/chase-20261126062613358-movement.png>) |
+| T03 完整攻击 | PASS | 同一 Attack ID 经前摇、窗口、命中、收招到 Completed=1。连续完成两次，各扣 10 护盾，60→40。另测真实后撤挥空，伤害为 0。[完整日志](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/standing-20261126061919004-raw.log>) · [前摇](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/standing-20261126061919004-windup.png>) · [接触附近](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/standing-20261126061919004-contact.png>) · [收招附近](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/standing-20261126061919004-recovery.png>) |
+| T04 受击恢复 | PASS | 同一守卫两次由真实 CastleWeaponProjectile 命中，弹量 24→23→22，目标血量 85→63→41。原前摇被取消，两次之后均观察到新 Attack ID 起手。[弹体、扣血与恢复](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/repeat-cancel-20261126062328417.json>) |
+| T05 恢复追击 | PASS | S 输入使玩家真实后撤约 190.9 cm。第一次挥空自然完成后，守卫再以 129.6→270 cm/s 移动，复追约 182 cm 并起手第二击。[坐标与速度](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/chase-20261126062613358.json>) · [后撤及收招日志](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/chase-20261126062613358-raw.log>) |
+| T06 死亡表现 | PASS | 四发卡宾枪弹使近战兵死亡，弹量 24→20、金币 35→47。单独 ActiveDeath 在原有效段杀死近战兵后，核实唯一 Ragdoll 代理、物理启用、Pawn 忽略及同一 PIE 内清理。真实画面可见倒地近战兵双手空着。[实弹死亡](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/death-20261126062055176.json>) · [布娃娃与清理](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/activedeath-20261126062113052.json>) · [尸体画面](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/activedeath-20261126062113052-end.png>) |
+| T07 远程回归 | PASS | 固定六远程组以约 270 cm/s 追击，实际画面持枪瞄准。采到 8 个真实 CastleBolt 实例，玩家护盾 60→0、生命 100→50。官方反射未开放 Bolt Owner，数量来自场景内活弹快照。[弹体与伤害](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/T07-RangedBolts.json>) · [持枪画面](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/ranged-20261126062630527-last.png>) |
+
+关键帧与运行数据覆盖技术验收，逐帧脚滑、短时穿模和手感留给连续试玩确认。未复跑 FIX05、长帧专项或 ABBA 性能测试。
+
+### 保护、回滚和人工交接
+
+复核的 12 个文件中只有近战 Blend Space 发生任务内变化。两张地图、远程父蓝图、近战 AnimBP／蓝图／Walk／攻击 Montage、现有 Idle、配置与核查的源码均与快进后的基线一致。Blend Space SHA-256 从 **3f6a671c1352ff2e95c22f020bad1413949afcf752bdbc3c1876c3efdd2aaaf7** 变为 **312400cbbfcc580f6cd2ce697d16d233497837adc24ed30018b04706b8b5369f**。最小回滚是在同一 Blend Space 把 0 cm/s 样本改回 MF_Rifle_Idle_ADS，定向保存该包。确无后续编辑且编辑器已关闭时，也可使用当次字节备份恢复。[最终 SHA 对照](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Final-Hashes.json>) · [原始 Blend Space](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/BS_CastleGrunt_Melee.before.uasset>)
+
+已在原图留下一次冷启动后的 **testfordemo Preview**，Seed 24680，Floor 1。玩家面向一名近身空手近战兵，生命 100、护盾 60。恢复窗口焦点后按 **Esc** 即可继续并交战。[实际暂停状态](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Paused-Handoff-Final.json>) · [暂停画面](<E:/Unreal Projects/PCG_AI_demo/Saved/CastleMeleeV1/AnimationPass_20261126/Cold/handoff-20261126063337620-paused.png>)

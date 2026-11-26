@@ -211,6 +211,7 @@ public:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Telegraph;
     bool bActive = true, bDead = false;
     FVector Home, BlastCenter;
+    FString OrdinaryRangedRegion;
     float AttackDamage = 10;
     float AttackInterval = 1.90f;
     // Ability execution is reused by BT tasks; decisions no longer run in Character::Tick.
@@ -244,6 +245,7 @@ private:
 
     float NextThink = 0, NextAttack = 0, NextBlast = 0, BlastTime = 0;
     TWeakObjectPtr<ACastlePlayer> PursuitTarget;
+    TWeakObjectPtr<ACastlePlayer> RetaliationTarget;
     FVector PursuitRetryOrigin = FVector::ZeroVector;
     int32 PursuitRequestsRemaining = 0;
     TWeakObjectPtr<UNavigationSystemV1> PursuitNavigationSystem;
@@ -389,7 +391,7 @@ private:
     void BuildMemoryRoom(const FCastleRoom& Room, float HalfSize, bool bIntact);
     void AddSign(FVector Pos, const FString& Text, FColor Color);
     void AddLight(FVector Pos, FLinearColor Color);
-    ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass = {});
+    ACastleEnemy* AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass = {}, bool bIsElite = false);
     ACastleEnemy* AddOrdinaryEnemy(FVector Pos, ECastlePCGRegion InRegion, int32 RoomIndex, int32 SlotIndex);
     ACastleTrap* AddTrap(FVector Pos);
     float PendingFloorAt = 0;

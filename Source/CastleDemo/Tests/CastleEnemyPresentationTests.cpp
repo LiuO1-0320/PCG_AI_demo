@@ -166,7 +166,10 @@ bool FCastleEnemyPresentationSpawnAndDamageTest::RunTest(const FString& Paramete
             {
                 ++Counts.Elites;
                 EliteClasses.AddUnique(Enemy->GetClass()->GetPathName());
-                TestEqual(TEXT("Elite remains native CastleEnemy"), Enemy->GetClass(), ACastleEnemy::StaticClass());
+                TestEqual(TEXT("Elite uses the configured rifle Grunt class or its native fallback"), Enemy->GetClass(), ExpectedGuardClass);
+                TestEqual(TEXT("Elite is twice the size"), Enemy->GetActorScale3D(), FVector(2.));
+                TestEqual(TEXT("Elite has 500 maximum and current health"), Enemy->MaxHealth, 500.f);
+                TestEqual(TEXT("Elite spawns at full health"), Enemy->Health, 500.f);
                 continue;
             }
             ++Counts.ExplorationGuards;
@@ -284,6 +287,13 @@ bool FCastleEnemyPresentationSpawnAndDamageTest::RunTest(const FString& Paramete
             });
         ON_SCOPE_EXIT { FBlueprintCoreDelegates::OnScriptException.Remove(Exceptions); };
 
+        const FVector GuardPosition = GuardToDamage->GetActorLocation();
+        Player->SetActorLocation(GuardPosition + FVector(4300, 0, 0));
+        TestFalse(TEXT("Ranged guard remains idle beyond its extended range"), GuardToDamage->IsInDecisionRange(Player));
+        GuardToDamage->UpdateAttack(Player, true);
+        TestEqual(TEXT("Clear sight beyond 4200 cm does not fire"), Attacks, 0);
+        Player->SetActorLocation(GuardPosition + FVector(4100, 0, 0));
+        TestTrue(TEXT("Ranged guard sees a target within its extended range"), GuardToDamage->IsInDecisionRange(Player));
         GuardToDamage->UpdateAttack(Player, false);
         TestEqual(TEXT("Blocked sight sends no attack notification"), Attacks, 0);
         GuardToDamage->UpdateAttack(Player, true);
@@ -310,11 +320,19 @@ bool FCastleEnemyPresentationSpawnAndDamageTest::RunTest(const FString& Paramete
         TestEqual(TEXT("Nonlethal damage reduces health"), GuardToDamage->Health, StartingHealth - 1.f);
         TestEqual(TEXT("Nonlethal damage sends exactly one hit notification"), Hits, 1);
         TestEqual(TEXT("Nonlethal damage does not count as a kill"), Director->Kills, InitialKills);
+        Player->SetActorLocation(GuardPosition + FVector(6000, 0, 0));
+        Director->bReady = true;
+        TestFalse(TEXT("Damage with no player source does not alert the ranged guard"), GuardToDamage->IsInDecisionRange(Player));
+        GuardToDamage->TakeDamage(1.f, DamageEvent, nullptr, Player);
+        TestTrue(TEXT("Player damage immediately wakes a distant ranged guard"), GuardToDamage->IsInDecisionRange(Player));
+        Director->Region = TEXT("TREASURE CAVE");
+        TestFalse(TEXT("Alerted guard does not follow the player through a region portal"), GuardToDamage->IsInDecisionRange(Player));
+        Director->Region = TEXT("EXPLORATION");
         GuardToDamage->TakeDamage(StartingHealth, DamageEvent, nullptr, nullptr);
         TestFalse(TEXT("Lethal damage destroys the generated Grunt immediately"), IsValid(GuardToDamage));
         TestEqual(TEXT("Lethal damage counts exactly one kill"), Director->Kills, InitialKills + 1);
         TestEqual(TEXT("Lethal damage sends one death notification"), Deaths, 1);
-        TestEqual(TEXT("Lethal damage does not also send a hit notification"), Hits, 1);
+        TestEqual(TEXT("Lethal damage does not also send a hit notification"), Hits, 2);
         const int32 AmmoDelta = CountAmmo() - InitialAmmo;
         TestEqual(TEXT("Defeated guards drop no ammunition"), AmmoDelta, 0);
         const bool bEmptyProxySpawned = bool(TActorIterator<AActor>(World, ProxyClass));

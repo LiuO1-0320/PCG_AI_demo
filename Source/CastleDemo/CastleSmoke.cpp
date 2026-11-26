@@ -298,8 +298,8 @@ void ACastleDirector::TickSmokeTest()
         if(!AI || !BT || !BT->IsRunning() || !AI->GetBlackboardComponent()) {Fail(TEXT("AI controller, running behavior tree or blackboard missing"));return;}
         It->bActive=false;
         if (It->bBoss) continue;
-        const float ExpectedHealth = Expected.Health * (It->bElite ? 1.8f : 1.f);
-        const float ExpectedDamage = Expected.Damage * (It->bElite ? 1.25f : 1.f);
+        const float ExpectedHealth = It->bElite ? 500.f : (It->bUseMeleeV1 ? 300.f : Expected.Health);
+        const float ExpectedDamage = It->bElite ? Expected.Damage * 1.25f : (It->bUseMeleeV1 ? 60.f : Expected.Damage);
         if (!FMath::IsNearlyEqual(It->MaxHealth, ExpectedHealth) || !FMath::IsNearlyEqual(It->Health, ExpectedHealth) ||
             !FMath::IsNearlyEqual(It->AttackDamage, ExpectedDamage) || !FMath::IsNearlyEqual(It->AttackInterval, Expected.Interval))
         {

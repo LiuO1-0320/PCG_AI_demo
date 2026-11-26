@@ -23,6 +23,9 @@
 DEFINE_LOG_CATEGORY_STATIC(LogCastlePursuit, Log, All);
 DEFINE_LOG_CATEGORY_STATIC(LogCastleMeleeBridge, Log, All);
 
+static constexpr float OrdinaryRangedShotRange = 4200.f;
+static constexpr float OrdinaryRangedHomeRange = 5200.f;
+
 static bool TakePursuitRecoveryQuerySlot(UNavigationSystemV1& Navigation, double Now)
 {
     // Navigation broadcasts can wake many stalled enemies at once. Pace them per world.
@@ -530,8 +533,8 @@ void ACastleEnemy::Configure(bool InBoss, int32 InFloor, ACastleDirector* D)
         };
         const int32 FloorIndex = FMath::Clamp<int32>(InFloor, 1, UE_ARRAY_COUNT(GuardsByFloor)) - 1;
         const FGuardStats& Stats = GuardsByFloor[FloorIndex];
-        MaxHealth = Stats.Health;
-        AttackDamage = Stats.Damage;
+        MaxHealth = bElite ? 500.f : (bUseMeleeV1 ? 300.f : Stats.Health);
+        AttackDamage = bElite ? Stats.Damage * 1.25f : (bUseMeleeV1 ? 60.f : Stats.Damage);
         AttackInterval = Stats.AttackInterval;
     }
     Health = MaxHealth;
@@ -635,11 +638,19 @@ void ACastleEnemy::OnPursuitNavigationGenerated(ANavigationData* NavData)
 
 bool ACastleEnemy::CanRunAI(ACastlePlayer* P) const
 {
-    return P && !bDead && Director && Director->bReady && bActive && !P->bDead && !Director->bWon;
+    return P && !bDead && Director && Director->bReady && bActive && !P->bDead && !Director->bWon &&
+        (OrdinaryRangedRegion.IsEmpty() || Director->Region == OrdinaryRangedRegion);
 }
 
 bool ACastleEnemy::IsInDecisionRange(ACastlePlayer* P) const
 {
+    if (P && !OrdinaryRangedRegion.IsEmpty())
+    {
+        return Director && Director->Region == OrdinaryRangedRegion &&
+            (RetaliationTarget.Get() == P ||
+                (FVector::DistSquared(P->GetActorLocation(), GetActorLocation()) <= FMath::Square(OrdinaryRangedShotRange) &&
+                 FVector::DistSquared2D(P->GetActorLocation(), Home) <= FMath::Square(OrdinaryRangedHomeRange)));
+    }
     return P && FVector::Dist(P->GetActorLocation(),GetActorLocation()) <= (bBoss ? 3600 : 2100) &&
         (bBoss || FVector::Dist2D(P->GetActorLocation(),Home) <= 2600);
 }
@@ -785,6 +796,7 @@ void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
 
     const float Now = GetWorld()->GetTimeSeconds();
     const float Dist = FVector::Dist(P->GetActorLocation(), GetActorLocation());
+    if (!OrdinaryRangedRegion.IsEmpty() && Dist > OrdinaryRangedShotRange) return;
     if (CanSee && Now >= NextAttack)
     {
         ++AIAttackEvents;
@@ -799,7 +811,7 @@ void ACastleEnemy::UpdateAttack(ACastlePlayer* P, bool CanSee)
         {
             bAttackCommitted = ShootAt(P, bBoss ? (Health < MaxHealth * .5f ? 5 : 3) : 1);
         }
-        if (bAttackCommitted && !bBoss && !bElite && !bDead) BP_OnAttackVisual(bMelee);
+        if (bAttackCommitted && !bBoss && !bDead) BP_OnAttackVisual(bMelee);
     }
 }
 
@@ -820,7 +832,7 @@ void ACastleEnemy::UpdateGroundSlam(ACastlePlayer* P)
     }
 }
 
-float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, AActor*)
+float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController* DamageController, AActor* DamageCauser)
 {
     if (bDead || !bActive) return 0;
     const float PreviousHealth = Health;
@@ -836,6 +848,22 @@ float ACastleEnemy::TakeDamage(float Damage, FDamageEvent const&, AController*, 
     }
     else if (!bBoss && !bElite && Health < PreviousHealth)
     {
+        if (!OrdinaryRangedRegion.IsEmpty())
+        {
+            auto* Player = Cast<ACastlePlayer>(DamageCauser);
+            if (!Player && DamageController) Player = Cast<ACastlePlayer>(DamageController->GetPawn());
+            if (CanRunAI(Player) && !IsInDecisionRange(Player))
+            {
+                RetaliationTarget = Player;
+                PursuitTarget.Reset();
+                NextThink = 0.f;
+                if (auto* AI = Cast<ACastleAIController>(GetController()))
+                {
+                    AI->UpdateCastleBlackboard();
+                    UpdatePursuit(Player, false);
+                }
+            }
+        }
         const float HealthLost = PreviousHealth - Health;
         if (UCastleMeleeCombatComponent* Melee = FindMeleeCombatComponent())
         {

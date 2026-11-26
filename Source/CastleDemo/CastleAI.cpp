@@ -128,7 +128,7 @@ void UBTTask_CastleAction::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* No
     if (Action == ECastleAIAction::Hold)
     {
         if (Player && !Enemy->bDead && Enemy->Director && Enemy->Director->bReady &&
-            (!Enemy->bActive || Player->bDead || Enemy->Director->bWon)) AI->StopMovement();
+            !Enemy->CanRunAI(Player)) AI->StopMovement();
         return;
     }
     // Recheck live state during branch aborts, so no task can attack a paused/dead player.

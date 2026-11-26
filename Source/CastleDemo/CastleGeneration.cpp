@@ -418,7 +418,7 @@ ACastleInteractable* ACastleDirector::AddInteract(FVector Pos, ECastleInteract K
     Item->Configure(Kind, Title, this, Reward); TrackGenerated(Item); return Item;
 }
 
-ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass)
+ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<ACastleEnemy> EnemyClass, bool bIsElite)
 {
     UClass* SpawnClass = EnemyClass.Get();
     if (!SpawnClass || SpawnClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
@@ -429,14 +429,21 @@ ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<AC
 
     FActorSpawnParameters P;
     P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    if (bIsElite)
+    {
+        // Preserve the original capsule bottom when doubling the character and its mesh.
+        Pos.Z += SpawnClass->GetDefaultObject<ACastleEnemy>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+    }
+    const FTransform SpawnTransform(FRotator::ZeroRotator, Pos, FVector(bIsElite ? 2.f : 1.f));
     UWorld* World = GetWorld();
-    auto* Enemy = World ? World->SpawnActor<ACastleEnemy>(SpawnClass, Pos, FRotator::ZeroRotator, P) : nullptr;
+    auto* Enemy = World ? World->SpawnActor<ACastleEnemy>(SpawnClass, SpawnTransform, P) : nullptr;
     if (!IsValid(Enemy))
     {
         UE_LOG(LogTemp, Error, TEXT("CASTLE_ENEMY_SPAWN_FAILED Class=%s Floor=%d Seed=%d Position=%s Boss=%d"),
             *GetNameSafe(SpawnClass), Floor, RunSeed, *Pos.ToCompactString(), IsBoss);
         return nullptr;
     }
+    Enemy->bElite = bIsElite;
     Enemy->Configure(IsBoss, Floor, this);
     TrackGenerated(Enemy);
     return Enemy;
@@ -444,9 +451,18 @@ ACastleEnemy* ACastleDirector::AddEnemy(FVector Pos, bool IsBoss, TSubclassOf<AC
 
 ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos, ECastlePCGRegion InRegion, int32 RoomIndex, int32 SlotIndex)
 {
+    const auto SpawnOrdinary = [this, Pos, InRegion](TSubclassOf<ACastleEnemy> Class)
+    {
+        ACastleEnemy* Enemy = AddEnemy(Pos, false, Class);
+        if (Enemy && !Enemy->bUseMeleeV1)
+        {
+            Enemy->OrdinaryRangedRegion = InRegion == ECastlePCGRegion::TreasureCave ? TEXT("TREASURE CAVE") : TEXT("EXPLORATION");
+        }
+        return Enemy;
+    };
     if (OrdinaryMeleeChance == 0.f)
     {
-        return AddEnemy(Pos, false, OrdinaryEnemyClass);
+        return SpawnOrdinary(OrdinaryEnemyClass);
     }
 
     const FCastleOrdinaryEnemyMixSlot Slot{RunSeed, Floor, InRegion, RoomIndex, SlotIndex};
@@ -476,7 +492,7 @@ ACastleEnemy* ACastleDirector::AddOrdinaryEnemy(FVector Pos, ECastlePCGRegion In
     }
 
     const TSubclassOf<ACastleEnemy> SpawnClass = bMelee ? OrdinaryMeleeEnemyClass : OrdinaryEnemyClass;
-    ACastleEnemy* Enemy = AddEnemy(Pos, false, SpawnClass);
+    ACastleEnemy* Enemy = SpawnOrdinary(SpawnClass);
     UE_LOG(LogCastleOrdinaryEnemyMix, VeryVerbose,
         TEXT("CASTLE_ORDINARY_MELEE_SPAWN Version=%d Seed=%d Floor=%d Region=%d Room=%d Slot=%d Chance=%g Choice=%s Actual=%s Position=%s"),
         Version, RunSeed, Floor, RegionId, RoomIndex, SlotIndex, OrdinaryMeleeChance,
@@ -598,9 +614,8 @@ void ACastleDirector::GenerateLayout(const UCastleLayoutSettings* Settings)
         case ECastleRoom::Rest: CastleDressCourtProp(AddInteract(C+FVector(230,0,45),ECastleInteract::Rest,TEXT("FIELD CAMP"))); break;
         case ECastleRoom::Elite:
         {
-            if (auto* Elite = AddEnemy(C+FVector(0,0,100),false))
+            if (auto* Elite = AddEnemy(C+FVector(0,0,100), false, OrdinaryEnemyClass, true))
             {
-                Elite->bElite = true; Elite->MaxHealth *= 1.8f; Elite->Health = Elite->MaxHealth; Elite->AttackDamage *= 1.25f;
                 Elite->Label->SetText(FText::FromString(TEXT("ELITE SENTINEL")));
             }
             Cover(FVector(-350,300,100),FVector(180,220,200));
